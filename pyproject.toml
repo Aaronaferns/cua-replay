@@ -1,0 +1,40 @@
+[project]
+name = "cua"
+version = "0.1.0"
+description = "Computer-use automation: model-driven discovery compiled into deterministic, model-free replay"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "playwright==1.63.*",
+    "pydantic>=2.9,<3",
+    "anthropic>=0.70",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+]
+
+[project.scripts]
+cua = "cua.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cua"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "live: needs the Dolibarr target running (docker); skipped when it is not reachable",
+    "model: calls a real model API; needs ANTHROPIC_API_KEY",
+    "human: needs a person at the headed browser",
+]
+addopts = "-ra"

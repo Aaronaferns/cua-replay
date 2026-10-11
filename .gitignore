@@ -1,0 +1,50 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Local-only planning material (superseded or not ours to publish)
+docs/DESIGN.md
+docs/*.pdf
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Runtime output (never committed; curated bundles are promoted into evidence/)
+runs/
+tmp/
+spikes/**/out/
+evidence/**/_scratch/
+
+# Target runtime state
+target/dolibarr/dumps/
+*.sql
+*.sql.gz
+
+# Browser state and raw traces (cookies, request bodies, fill values)
+.browser/
+browser-profile*/
+storage_state*.json
+*.har
+trace.zip
+*.trace.zip
+
+# Request-id ledger and other local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
