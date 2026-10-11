@@ -1,0 +1,45 @@
+# Spike-only Dolibarr instance (tenant "a"). Credentials here are throwaway and local.
+name: cua-dolibarr-spike
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: spike-root
+      MARIADB_DATABASE: dolidb
+      MARIADB_USER: dolidbuser
+      MARIADB_PASSWORD: dolidbpass
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    image: dolibarr/dolibarr:23.0.4
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DOLI_DB_HOST: db
+      DOLI_DB_NAME: dolidb
+      DOLI_DB_USER: dolidbuser
+      DOLI_DB_PASSWORD: dolidbpass
+      DOLI_URL_ROOT: http://localhost:8085
+      DOLI_ADMIN_LOGIN: admin
+      DOLI_ADMIN_PASSWORD: spike-admin
+      DOLI_INIT_DEMO: "1"
+      DOLI_COMPANY_NAME: Spike Credit Services
+      DOLI_COMPANY_COUNTRYCODE: US
+      DOLI_ENABLE_MODULES: Societe,Facture,Banque,Api
+    ports:
+      - "8085:80"
+    volumes:
+      - documents:/var/www/documents
+
+volumes:
+  db: {}
+  documents: {}
