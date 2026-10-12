@@ -8,9 +8,9 @@ Statuses: NOT STARTED · WORKING · BLOCKED · GREEN · CUT
 
 | Milestone | Owner | Status | Acceptance Criteria | Tests | Evidence | Integrated Commit | Blocker | Decision |
 |---|---|---|---|---|---|---|---|---|
-| M0 Repo + spikes | Lead (+A) | WORKING | `spikes/README.md` records S9, S10, S2, S6, S7 | spike scripts | `spikes/README.md` | — | WSL root FS read-only (host disk full); no `ANTHROPIC_API_KEY` yet | S7 PASS offline. Repo kept at current path (moving would break the open workspace); scripts quote paths. |
-| M1 Target + Surface | A (+C) | NOT STARTED | scripted UI read == REST; off-allowlist navigation blocked + logged | `test_guard_*`, `test_network_*`, `test_redactor_*`, `test_observe_*`, `test_reset_*` | — | — | Docker | — |
-| M2 Thin vertical slice (G1) | A + B (+C) | NOT STARTED | real discovery → real trace → compiled artifact → different-customer replay == REST, 0 model calls | `test_replay_never_imports_model_code`, … | `discovery_lookup_customer_outstanding/` | — | API key | — |
+| M0 Repo + spikes | Lead (+A, B, C) | WORKING | `spikes/README.md` records S9, S10, S2, S6, S7 | spike scripts | `spikes/README.md` | — | — (2026-10-12: disk freed, WSL rw, API key set) | S7 PASS offline. S10 runs with M1 `reset.sh` (A), S6 with M1 network (C); S9 (B) and S2 (C) run in wave 2 on the M1 target. Repo kept at current path (moving would break the open workspace); scripts quote paths. |
+| M1 Target + Surface | A (+C, B profile) | WORKING | scripted UI read == REST; off-allowlist navigation blocked + logged | `test_guard_*`, `test_network_*`, `test_redactor_*`, `test_observe_*`, `test_reset_*` | — | — | — | Wave 1 dispatched 2026-10-12 (A target+surface, C safety+evidence, B profile entry/login). |
+| M2 Thin vertical slice (G1) | A + B (+C) | WORKING | real discovery → real trace → compiled artifact → different-customer replay == REST, 0 model calls | `test_replay_never_imports_model_code`, … | `discovery_lookup_customer_outstanding/` | — | — | B builds compiler v0 + replay v0 offline against the seeded Surface/RecordedTrace contracts during M1 (fake surface); live parts wait for M1. |
 | M3 Artifact + replay core | B (+A, C) | NOT STARTED | suite passes for 2 customers; draft hash reproducible from trace; schema frozen | classifier/resolver/lock tests | `replay_success_other_customer/` | — | — | — |
 | M4 Runtime taxonomy (G2) | B (+C) | NOT STARTED | every suite case lands in expected status, 3 consecutive runs | one per taxonomy row | `replay_not_found/`, `replay_nearest_match/`, … | — | — | — |
 | M5 Human handoff | C (+A, B) | NOT STARTED | real CAPTCHA same-session handoff → success == REST | lease/resume tests | `replay_captcha_handoff/` | — | needs a person at the headed browser | — |
@@ -24,3 +24,7 @@ Statuses: NOT STARTED · WORKING · BLOCKED · GREEN · CUT
 | 2026-10-11 | Integration branch is `main` (renamed from the unborn `master`) | No history existed yet |
 | 2026-10-11 | `docs/DESIGN.md` and the assignment PDF stay local and untracked (git-ignored) | Owner decision: DESIGN.md is superseded and holds personal notes; the PDF is interface.ai's document |
 | 2026-10-11 | Repo stays at its current path (contains spaces) | Moving would break the open editor workspace; all scripts quote paths |
+| 2026-10-12 | M8 waived; the run stops at G3 | Owner decision |
+| 2026-10-12 | Compose project per target is `cua-<port>` (8085 A, 8086 B, 8087 C) | Port already identifies the agent's target; one less variable |
+| 2026-10-12 | `apps/dolibarr/profile.json` stays B's; A's scripted login takes role+name targets and is wired to `Profile.login` at integration | Ownership map; no cross-owner edits |
+| 2026-10-12 | No profile `family`/`versions` fields; plain `app` | Family/version binding layers are design-only |

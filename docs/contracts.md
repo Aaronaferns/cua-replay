@@ -29,6 +29,9 @@ Adding a dependency to `pyproject.toml` is a request to the lead, not an edit.
 | `EvidenceEvent`, `EvidenceWriter` | `evidence/events.py` | C | A, B |
 | `RunResult`, `Failure`, `Recovery`, `DriftWarning`, `SideEffects` | `replay/result.py` | B | C (console, evidence), CLI |
 | `Settings` | `config.py` | C | everyone |
+| `Policy`, `PolicyGuard`, `new_guarded_context`, `BlockedRequest` | `safety/policy.py`, `safety/network.py` | C | A (surface tests), CLI wiring |
+| name normalizer (S7) | `artifact/names.py` | B | A (surface), B (resolver, classifier) |
+| `Profile`, `LoginForm`, `Target` | `artifact/schema.py` | B | A (scripted login), C (commit routes) |
 
 Changing a shared type someone else consumes: describe the change and why to the lead, keep the old shape working
 (or mock the boundary) until the lead integrates the owner's commit, then consumers move. Never redefine another
@@ -52,10 +55,13 @@ cli        → anything
 
 `cua.agent/__init__.py` stays empty so importing `cua.agent.actions` never loads the model SDK.
 
+Seams: production browser contexts come only from `cua.safety.network.new_guarded_context` (the surface takes a Page
+and a Guard by injection). There is one name normalizer, `cua.artifact.names`; `surface` delegates to it.
+
 ## Live target
 
 There is one Dolibarr target per agent while agents work in parallel, so resets don't collide:
-`DOLIBARR_PORT` 8085 (A), 8086 (B), 8087 (C), each its own compose project (`cua-a`, `cua-b`, `cua-c`). Until
+`DOLIBARR_PORT` 8085 (A), 8086 (B), 8087 (C), each its own compose project (`cua-8085`, `cua-8086`, `cua-8087`). Until
 `target/dolibarr/` exists (A, M1), live tests skip. Tests marked `live` must reset the state they depend on.
 
 ## Git
