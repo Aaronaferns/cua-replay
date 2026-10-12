@@ -222,7 +222,48 @@ class WebSurface:
 
     # -- observation -------------------------------------------------------------------------------------------
 
-    async def observe(self, *, screenshot: bool = True) -> Observation:
+    async def settle(self, *, interval_ms: int = 150, timeout_ms: int = 5000) -> bool:
+        """The navigation fence, then stability: the load event has fired and the main content plus the dialog layer
+        read the same on two polls at least `interval_ms` apart. Takes ref-less snapshots, so it does not disturb the
+        current observation's refs more than any snapshot does (observe again afterwards, as `observe(settle=True)`
+        does). Gives up quietly at `timeout_ms`: whether a screen that never settles is a failure is the classifier's
+        decision, not the surface's."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_ms / 1000
+        page = self._page
+        try:
+            if self._native is not None:
+                return False
+            remaining = max(deadline - loop.time(), 0.1)
+            await self._race_native(page.wait_for_load_state("load", timeout=min(self._load_timeout, remaining * 1000)))
+            previous: str | None = None
+            while True:
+                current = await self._race_native(self._stable_text())
+                if previous is not None and current == previous:
+                    return True
+                previous = current
+                if loop.time() + interval_ms / 1000 > deadline:
+                    return False
+                await asyncio.sleep(interval_ms / 1000)
+        except (PlaywrightError, NativeDialogOpen):
+            return False
+
+    async def _stable_text(self) -> str:
+        """Ref-less text of the main content and the dialog layer (what 'stable' is judged on)."""
+        main = self._page.locator(self._scope.main)
+        scoped = await main.count() == 1
+        target = main if scoped else self._page.locator("body")
+        text = await target.aria_snapshot(timeout=self._action_timeout)
+        dialogs = self._page.locator(self._scope.dialogs).filter(visible=True)
+        n = await dialogs.count()
+        parts = [text]
+        for i in range(n):
+            parts.append(await dialogs.nth(i).aria_snapshot(timeout=self._action_timeout))
+        return "\x00".join(parts)
+
+    async def observe(self, *, screenshot: bool = True, settle: bool = False) -> Observation:
+        if settle:
+            await self.settle()
         self._epoch += 1
         self._refs = frozenset()
         self._refs_dropped = False
