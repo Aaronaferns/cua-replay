@@ -12,7 +12,7 @@ Leaf module: pydantic and this package.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -49,6 +49,10 @@ class Case(_Strict):
     inputs: dict[str, str]
     expect: Expect
     reset: bool = True  # restore the target to its baseline before this case
+    # How the suite runner disturbs the run; replay knows none of this (the runner attaches it from outside):
+    faults: list[dict[str, Any]] = []  # fault specs (`kind`, `match`, ...), installed on the browser context
+    run_as: Literal["noperm"] | None = None  # log in as the user with no rights instead of the run user
+    expire_session_before: str | None = None  # step id: the session is deleted server-side before that step
 
     @field_validator("id")
     @classmethod
@@ -95,6 +99,8 @@ def suite_problems(suite: Suite, capability: Capability) -> list[str]:
                 problems.append(f"case {case.id}: ground truth from unknown input {truth.input!r}")
             elif truth.input not in case.inputs:
                 problems.append(f"case {case.id}: ground truth input {truth.input!r} is not given")
+        if case.expire_session_before is not None and case.expire_session_before not in {s.id for s in capability.steps}:
+            problems.append(f"case {case.id}: no step {case.expire_session_before!r} to expire the session before")
         e = case.expect
         if e.status == "success" and e.outcome != "success":
             problems.append(f"case {case.id}: a success has the outcome 'success'")

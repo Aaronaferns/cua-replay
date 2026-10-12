@@ -21,7 +21,16 @@
         "sensitivity": "internal"
       }
     },
-    "outcomes": {}
+    "outcomes": {
+      "customer_not_found": {
+        "description": "No customer has this code; there is nothing to report.",
+        "returns": []
+      },
+      "access_denied": {
+        "description": "The signed-in user has no right to read customers.",
+        "returns": []
+      }
+    }
   },
   "effect": "read",
   "steps": [

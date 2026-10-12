@@ -12,10 +12,12 @@ Injected (nothing here knows how to build any of them):
     lease     returns the current `LeaseToken`; asked per action so a transfer is noticed
     evidence  optional `EvidenceWriter`; events carry tokens and state names, never input or output values
 
-v0 covers: input validation, scripted login from the profile, the happy path, declared branches and default
-meanings, identity asserts, value-echo verifies, success checks, typed output parsing, drift, policy denial as a
-failure with category `policy`. The full failure taxonomy, handlers, human handoff and commit confirmation arrive
-with M4 to M6 and plug in at `_settle` (classification and acceptance) and `_failure` (categorization).
+A screen's meaning is decided in this order: the step's `on` branches (and the expected next state), then a profile
+handler whose state matches (a budgeted recovery: log in, or click one dismiss control; then re-classify or restart
+from the entry while the run is still retry-safe), then the profile's default meaning, then unknown (fail closed).
+`retry_safe` is computed from the effect high-water mark of the steps that started. Failures carry masked evidence.
+`before_step` is a hook the suite runner uses to disturb the target (for example expire the session); replay itself
+knows nothing about faults. Human handoff and commit confirmation arrive with M5 and M6.
 
 Imports: artifact, surface, safety, control, evidence and this package. Never agent, compiler.recorder, faults or a
 model SDK (`tests/replay/test_replay_imports.py` enforces it).
@@ -36,9 +38,11 @@ from cua.artifact.classify import Classification
 from cua.artifact.lock import lock_hash
 from cua.artifact.predicates import Predicate
 from cua.artifact.schema import (
+    EFFECT_RANK,
     TEMPLATE_RE,
     AssertAction,
     Branch,
+    Handler,
     Capability,
     ClickAction,
     ExtractAction,
@@ -53,6 +57,7 @@ from cua.artifact.schema import (
 from cua.artifact.values import ValueRejected, check_input, parse_output
 from cua.control.lease import LeaseToken
 from cua.evidence.events import EvidenceEvent, EvidenceWriter
+from cua.evidence.failure import capture_failure_evidence
 from cua.replay.checks import evaluate
 from cua.replay.classifier import classify_observation, mask_url, views_of
 from cua.replay.resolver import ResolutionError, Resolved, resolve
@@ -69,6 +74,10 @@ from cua.safety.policy import ActionKind, ActionRequest, Actor, Guard, PolicyDec
 from cua.surface.base import NativeDialogOpen, NotUniqueError, Observation, Surface, SurfaceError
 
 Sleep = Callable[[float], Awaitable[None]]
+BeforeStep = Callable[[Step], Awaitable[None]]
+
+# category of a failure code that comes from a profile default meaning (anything else is a state failure)
+MEANING_CATEGORY = {"APP_ERROR": "app", "HUMAN_ONLY_LOGIN": "control"}
 
 
 @dataclass(frozen=True)
@@ -88,9 +97,9 @@ class Timing:
 
 @dataclass(frozen=True)
 class _Verdict:
-    kind: str  # "continue" | "login" | "outcome" | "failure"
+    kind: str  # "continue" | "handler" | "outcome" | "failure"
     key: str  # what must be stable across polls
-    code: str | None = None  # outcome or failure code
+    code: str | None = None  # outcome or failure code, or the handler id
     state: str | None = None
 
 
@@ -102,6 +111,10 @@ class _Stop(Exception):
         self.status = status
         self.outcome = outcome
         self.failure = failure
+
+
+class _Restart(Exception):
+    """A handler recovered the session: run again from the entry."""
 
 
 class _Run:
@@ -121,12 +134,16 @@ class _Run:
         now_ms: Callable[[], int],
         sleep: Sleep,
         timing: Timing,
+        before_step: BeforeStep | None,
     ) -> None:
         self.cap, self.profile, self.inputs = capability, profile, inputs
         self.surface, self.guard, self.lease = surface, guard, lease
         self.base_url = base_url.rstrip("/")
         self.credentials, self.evidence, self.run_id = credentials, evidence, run_id
         self.now_ms, self.sleep, self.timing = now_ms, sleep, timing
+        self.before_step = before_step
+        self.high = "none"  # effect high-water mark of the steps started so far
+        self.handled: dict[str, int] = {}
         self.outputs: dict[str, Any] = {}
         self.drift: list[DriftWarning] = []
         self.recoveries: list[Recovery] = []
@@ -144,10 +161,15 @@ class _Run:
     async def run(self) -> RunResult:
         try:
             self._check_inputs()
-            await self._enter()
-            for i, step in enumerate(self.cap.steps):
-                await self._run_step(i, step)
-            await self._finish()
+            while True:
+                try:
+                    await self._enter()
+                    for i, step in enumerate(self.cap.steps):
+                        await self._run_step(i, step)
+                    await self._finish()
+                    break
+                except _Restart:
+                    self.outputs, self.step = {}, None
             status, outcome, failure = "success", "success", None
         except _Stop as stop:
             status, outcome, failure = stop.status, stop.outcome, stop.failure
@@ -166,14 +188,17 @@ class _Run:
         except NotUniqueError:
             status, outcome = "failure", "TARGET_AMBIGUOUS"
             failure = self._failure("TARGET_AMBIGUOUS", "locator", "the surface found no single element")
-        except SurfaceError as e:
-            status, outcome = "failure", "SURFACE_ERROR"
-            failure = self._failure("SURFACE_ERROR", "transient", f"the surface could not carry out the action "
-                                                                    f"({type(e).__name__})")
+        except (SurfaceError, TimeoutError) as e:
+            status, outcome = "failure", "TRANSIENT_EXHAUSTED"
+            failure = self._failure("TRANSIENT_EXHAUSTED", "transient",
+                                    f"the action did not complete in time or the surface refused it "
+                                    f"({type(e).__name__}); retries are used up")
         if self.commit_state == "unknown" and status == "failure":
             status, outcome = "indeterminate", "COMMIT_UNKNOWN"
             failure = self._failure("COMMIT_UNKNOWN", "commit", "the commit action's result is unknown; "
                                                                 "check the application before retrying")
+        if failure is not None:
+            failure.evidence = await self._capture(failure.step_id)
         self.timings["total_ms"] = self.now_ms() - self.started
         result = RunResult(
             run_id=self.run_id, capability=self.cap.id, version=self.cap.version,
@@ -182,16 +207,36 @@ class _Run:
             drift=self.drift,
             side_effects=SideEffects(commit_state=self.commit_state,
                                      by="automation" if self.commit_state != "none" else None),
-            retry_safe=self.commit_state in ("none", "rejected"), timings=self.timings,
+            retry_safe=self.retry_safe, timings=self.timings,
         )
         self._emit("result", detail={"status": status, "outcome": outcome})
         return result
+
+    @property
+    def retry_safe(self) -> bool:
+        return self.high != "commit" or self.commit_state == "rejected"
+
+    async def _capture(self, step_id: str | None) -> list[str]:
+        """Masked screenshot and redacted snapshot of the failed screen; the extracted values are masked too."""
+        if self.evidence is None:
+            return []
+        masks: list[Any] = []
+        for step in self.cap.steps:
+            if isinstance(step.do, ExtractAction):
+                try:
+                    found = await self.surface.find(self.cap.targets[step.do.target].strategies[0])
+                    masks += found if len(found) == 1 else []
+                except Exception:  # noqa: BLE001 - best effort: explaining a failure must not replace it
+                    pass
+        return (await capture_failure_evidence(self.surface, self.evidence, masks=masks, step_id=step_id)).paths
 
     def _failure(self, code: str, category: str, detail: str, *, expected: str | None = None,
                  c: Classification | None = None, approvable: bool = False) -> Failure:
         observed = None
         if c is not None:
             observed = ObservedState(state=c.label, url=mask_url(self.url), near_misses=list(c.near_misses))
+        elif self.obs is not None:
+            observed = ObservedState(state=self.state, url=mask_url(self.url))
         return Failure(code=code, category=category,  # type: ignore[arg-type]
                        step_id=self.step.id if self.step else None,
                        step_intent=self.step.intent if self.step else None,
@@ -287,7 +332,10 @@ class _Run:
                 last, streak = None, 0
             if self.now_ms() >= deadline:
                 code = {"unknown": "UNKNOWN_STATE", "ambiguous": "AMBIGUOUS_STATE"}.get(c.kind, "UNEXPECTED_STATE")
+                if code == "UNKNOWN_STATE" and (obs.facts.dialog is not None or obs.dialog_snapshot is not None):
+                    code = "UNKNOWN_DIALOG"
                 detail = {
+                    "UNKNOWN_DIALOG": "a dialog is open that no profile state knows; it is never clicked",
                     "UNKNOWN_STATE": "the screen matches no state in the app profile",
                     "AMBIGUOUS_STATE": f"the screen matches several states: {', '.join(c.candidates)}",
                     "UNEXPECTED_STATE": f"the screen is in state {c.label!r}, which this step does not allow",
@@ -305,8 +353,11 @@ class _Run:
             return _Verdict("outcome", f"outcome:{meaning.outcome}", code=meaning.outcome, state=sid)
         return None  # a meaning the capability does not declare does not apply
 
-    def _step_acceptor(self, step: Step, next_state: str) -> Callable[[Classification], _Verdict | None]:
-        branches: dict[str, Branch] = {b.state: b for b in step.on}
+    def _handler_for(self, sid: str) -> tuple[str, Handler] | None:
+        return next(((hid, h) for hid, h in self.profile.handlers.items() if h.state == sid), None)
+
+    def _acceptor(self, branches: dict[str, Branch], expected: str) -> Callable[[Classification], _Verdict | None]:
+        """step `on` and the expected state, then a handler, then the profile's default meaning, then unknown."""
 
         def accept(c: Classification) -> _Verdict | None:
             if c.kind != "state" or c.state is None:
@@ -317,32 +368,54 @@ class _Run:
                     if branch.outcome is not None:
                         return _Verdict("outcome", f"outcome:{branch.outcome}", code=branch.outcome, state=sid)
                     return _Verdict("continue", "continue", state=sid)
-                if sid == next_state:
+                if sid == expected:
                     return _Verdict("continue", "continue", state=sid)
+                if (found := self._handler_for(sid)) is not None:
+                    return _Verdict("handler", f"handler:{found[0]}", code=found[0], state=sid)
                 if (meaning := self._meaning(sid)) is not None:
                     return meaning
             return None
 
         return accept
 
-    def _entry_acceptor(self, *, allow_login: bool) -> Callable[[Classification], _Verdict | None]:
-        login = self.profile.login.state
+    async def _await_state(self, accept: Callable[[Classification], _Verdict | None], *, timeout_ms: int,
+                           stable: int, expected: str, fence: bool) -> _Verdict:
+        """`_settle`, running any handler the screen calls for and classifying again."""
+        while True:
+            verdict = await self._settle(accept, timeout_ms=timeout_ms, stable=stable, expected=expected, fence=fence)
+            if verdict.kind != "handler":
+                return verdict
+            await self._recover(verdict, expected)
+            fence = False
 
-        def accept(c: Classification) -> _Verdict | None:
-            if c.kind != "state" or c.state is None:
-                return None
-            for sid in self.profile.lineage(c.state):
-                if sid == self.profile.entry.start_state:
-                    return _Verdict("continue", "continue", state=sid)
-                if sid == login:
-                    if allow_login:
-                        return _Verdict("login", "login", state=sid)
-                    return _Verdict("failure", "failure:LOGIN_FAILED", code="LOGIN_FAILED", state=sid)
-                if (meaning := self._meaning(sid)) is not None:
-                    return meaning
-            return None
-
-        return accept
+    async def _recover(self, verdict: _Verdict, expected: str) -> None:
+        assert verdict.code is not None and verdict.state is not None
+        hid, handler = verdict.code, self.profile.handlers[verdict.code]
+        used = self.handled.get(hid, 0)
+        if used >= handler.max_per_run:
+            code = ("LOGIN_FAILED" if self.step is None else "SESSION_EXPIRED") if handler.flow else "RECOVERY_EXHAUSTED"
+            raise _Stop("failure", code, self._failure(
+                code, "state", f"handler {hid!r} already ran {used} time(s) in this run and the screen is back",
+                expected=expected, c=Classification("state", state=verdict.state)))
+        if handler.then == "restart_if_retry_safe" and not self.retry_safe:
+            meaning = self.profile.default_meaning.get(verdict.state)
+            code = meaning.failure if meaning and meaning.failure else "NOT_RETRY_SAFE"
+            raise _Stop("failure", code, self._failure(
+                code, "state", f"handler {hid!r} would restart the run, which is not safe after a commit",
+                expected=expected, c=Classification("state", state=verdict.state)))
+        self.handled[hid] = used + 1
+        began = self.now_ms() - self.started
+        self._emit("recovery", detail={"handler": hid})
+        if handler.flow == "login":
+            await self._login()
+        else:
+            assert handler.dismiss is not None
+            resolved = await resolve(self.surface, handler.dismiss, {})
+            await self.surface.click(resolved.element, self._request("click", "none", actor="handler"))
+        self.recoveries.append(Recovery(handler=hid, state=handler.state,
+                                        step_id=self.step.id if self.step else None, at_ms=began))
+        if handler.then == "restart_if_retry_safe":
+            raise _Restart
 
     def _act_on_verdict(self, verdict: _Verdict, expected: str) -> None:
         if verdict.kind == "outcome":
@@ -351,49 +424,60 @@ class _Run:
         if verdict.kind == "failure":
             assert verdict.code is not None
             detail = (f"the screen is in state {verdict.state!r}, which the profile treats as {verdict.code}")
-            raise _Stop("failure", verdict.code, self._failure(verdict.code, "state", detail, expected=expected,
-                                                                c=Classification("state", state=verdict.state)))
+            raise _Stop("failure", verdict.code, self._failure(
+                verdict.code, MEANING_CATEGORY.get(verdict.code, "state"), detail, expected=expected,
+                c=Classification("state", state=verdict.state)))
 
     # --- the run -----------------------------------------------------------------------------------------------
 
     async def _enter(self) -> None:
         start = self.profile.entry.start_state
         url = self.base_url + self.profile.entry.route
-        decision = await self.surface.navigate(url, self._request("navigate", "none", target_url=url))
+        decision = await self._bounded(
+            lambda: self.surface.navigate(url, self._request("navigate", "none", target_url=url)),
+            self.timing.entry_timeout_ms, retries=1)
         self._emit("action", action={"kind": "navigate", "entry": True}, policy=decision)
-        timeout = self.timing.entry_timeout_ms
-        verdict = await self._settle(self._entry_acceptor(allow_login=True), timeout_ms=timeout,
-                                     stable=self.timing.stable_polls, expected=start, fence=True)
-        if verdict.kind == "login":
-            await self._login()
-            verdict = await self._settle(self._entry_acceptor(allow_login=False), timeout_ms=timeout,
-                                         stable=self.timing.stable_polls, expected=start, fence=True)
+        verdict = await self._await_state(self._acceptor({}, start), timeout_ms=self.timing.entry_timeout_ms,
+                                          stable=self.timing.stable_polls, expected=start, fence=True)
         self._act_on_verdict(verdict, start)
+
+    async def _bounded(self, make: Callable[[], Awaitable[Any]], timeout_ms: int, *, retries: int) -> Any:
+        """Run one action within `timeout_ms`; a timeout or a surface error is retried `retries` times, then raised."""
+        for attempt in range(retries + 1):
+            try:
+                return await asyncio.wait_for(make(), timeout_ms / 1000)
+            except (NativeDialogOpen, NotUniqueError):
+                raise
+            except (TimeoutError, SurfaceError):
+                if attempt == retries:
+                    raise
 
     async def _login(self) -> None:
         if self.credentials is None:
             raise _Stop("failure", "LOGIN_REQUIRED", self._failure(
                 "LOGIN_REQUIRED", "state", "the session is logged out and no credentials were supplied",
                 expected=self.profile.entry.start_state))
-        form, began = self.profile.login, self.now_ms()
-        self._emit("recovery", detail={"handler": "login"})
+        form = self.profile.login
         for target, text in ((form.username, self.credentials.username), (form.password, self.credentials.password)):
             resolved = await resolve(self.surface, target, {})
             await self.surface.type(resolved.element, text, self._request("type", "none", actor="handler"))
         resolved = await resolve(self.surface, form.submit, {})
         await self.surface.click(resolved.element, self._request("click", "none", actor="handler"))
-        self.recoveries.append(Recovery(handler="login", state=form.state, step_id=None, at_ms=began - self.started))
 
     async def _run_step(self, i: int, step: Step) -> None:
         self.step = step
         began = self.now_ms()
         last = i + 1 == len(self.cap.steps)
         next_state = self.cap.success.state if last else self.cap.steps[i + 1].expect
+        self.high = max(self.high, step.effect, key=EFFECT_RANK.__getitem__)
+        if self.before_step is not None:
+            await self.before_step(step)
         self._emit("action", action=step.do.model_dump(mode="json", exclude_none=True), detail={"effect": step.effect})
         await self._perform(step)
         stable = self.timing.stable_polls if step.navigates else 1
-        verdict = await self._settle(self._step_acceptor(step, next_state), timeout_ms=step.timeout_ms, stable=stable,
-                                     expected=next_state, fence=step.navigates)
+        verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
+                                          timeout_ms=step.timeout_ms, stable=stable, expected=next_state,
+                                          fence=step.navigates)
         self._act_on_verdict(verdict, next_state)
         if step.verify is not None and not await self._holds(step.verify):
             raise _Stop("failure", "CHECKPOINT_FAILED", self._failure(
@@ -402,7 +486,7 @@ class _Run:
 
     async def _perform(self, step: Step) -> None:
         try:
-            await self._do(step)
+            await self._bounded(lambda: self._do(step), step.timeout_ms, retries=0 if step.effect == "commit" else 1)
         except (PolicyDenied, ResolutionError, _Stop):
             raise  # nothing was done (or the run already ended with a verdict)
         except Exception:
@@ -484,11 +568,12 @@ async def replay(
     timing: Timing | None = None,
     now_ms: Callable[[], int] | None = None,
     sleep: Sleep | None = None,
+    before_step: BeforeStep | None = None,
 ) -> RunResult:
     """Run `capability` once and return its `RunResult`. Never raises for application or policy outcomes."""
     return await _Run(
         capability, profile, dict(inputs), surface=surface, guard=guard, lease=lease, base_url=base_url,
         credentials=credentials, evidence=evidence, run_id=run_id or uuid.uuid4().hex[:12],
         now_ms=now_ms or (lambda: int(time.monotonic() * 1000)), sleep=sleep or asyncio.sleep,
-        timing=timing or Timing(),
+        timing=timing or Timing(), before_step=before_step,
     ).run()
