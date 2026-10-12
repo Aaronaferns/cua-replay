@@ -30,6 +30,7 @@ from cua.safety.network import loggable_url
 
 SCHEMA = "cua.intervention/v1"
 HUMAN_ONLY_LOGIN = "HUMAN_ONLY_LOGIN"
+COMMIT_UNKNOWN = "COMMIT_UNKNOWN"  # M6: a commit was attempted and its outcome is not known; the operator gives a verdict
 DEFAULT_SLA_SECONDS = 15 * 60
 _REASON = re.compile(r"[A-Z][A-Z0-9_]{2,63}")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}")
