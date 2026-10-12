@@ -1,0 +1,34 @@
+{
+  "version": "cua.policy/v1",
+  "name": "dolibarr-sandbox",
+  "sandbox": true,
+  "origins": [
+    "http://localhost:${DOLIBARR_PORT}",
+    "http://127.0.0.1:${DOLIBARR_PORT}"
+  ],
+  "routes": {
+    "allow": [
+      "/",
+      "/index.php",
+      "/societe/**",
+      "/comm/**",
+      "/compta/**",
+      "/core/**",
+      "/theme/**",
+      "/includes/**",
+      "/viewimage.php",
+      "/favicon.ico"
+    ],
+    "deny": [
+      "/admin/**",
+      "/install/**",
+      "/api/**",
+      "/user/**",
+      "/document.php",
+      "/custom/**",
+      "/webservices/**"
+    ]
+  },
+  "actions": ["click", "type", "select", "press", "navigate", "extract"],
+  "max_effect": "read"
+}
