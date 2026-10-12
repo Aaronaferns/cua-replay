@@ -1,11 +1,19 @@
-"""`cua replay` and `cua compile`.
+"""`cua replay`, `cua compile`, `cua approve`, `cua capabilities` and `cua validate`.
 
-    cua replay <app>.<capability> [--version 1.0.0] --input k=v ... [--headed] [--json]
+    cua replay <app>.<capability> [--version 1.0.0] --input k=v ... [--headed] [--json] [--allow-draft]
     cua compile <trace.json> [--profile apps/dolibarr/profile.json] --name <app.capability> --out <path>
+    cua approve <app>.<capability> --version V --approver <id> --run <validation_run_id> [--run ...]
+    cua capabilities [--json]
+    cua validate <app>.<capability> [--version V] [--repeat N] [--json]
 
 Exit codes (replay): 0 success, 1 failure, 2 the command itself could not run (bad arguments, artifact not found or
-invalid, session could not open), 3 business outcome, 4 indeterminate. Approval gating arrives with M3: a draft runs
-with a warning on stderr.
+invalid, session could not open, or the capability is not approved and `--allow-draft` was not given), 3 business
+outcome, 4 indeterminate. Replay runs only a capability whose approval sidecar matches its current lock hash; a
+draft file, a missing sidecar or a stale one is refused unless `--allow-draft`, which runs it with a warning.
+
+Exit codes (approve): 0 written, 1 refused (self-approval, or validation runs missing, failed or for another lock
+hash), 2 the command could not run. Exit codes (validate): 0 every case matched its expectations, 1 some case did
+not, 2 the command could not run. `capabilities` exits 0.
 
 This is CLI wiring, not replay logic: it is the one module in this package allowed to open a browser session
 (through `cua.control.runtime`, imported lazily). It still imports no model code. `compile` imports the compiler
@@ -16,15 +24,29 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import re
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from cua.artifact.lock import load_capability, load_profile
-from cua.artifact.schema import Capability
+from cua.artifact.approval import (
+    Approval,
+    ApprovalState,
+    SelfApprovalError,
+    approval_state,
+    approve,
+    dumps_approval,
+    load_approval,
+    sidecar_path,
+)
+from cua.artifact.lock import load_capability, load_profile, lock_hash
+from cua.artifact.schema import Capability, Profile
+from cua.artifact.suite import Suite, suite_problems
 from cua.artifact.validate import validate_capability
+from cua.replay.suite import CaseRun, Summary, check_validation_runs, compare
 from cua.config import REPO_ROOT
 from cua.replay.interpreter import Credentials, replay
 from cua.replay.result import RunResult
@@ -117,27 +139,65 @@ def render(result: RunResult) -> str:
     return "\n".join(lines)
 
 
-async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
-    path, draft = find_capability_file(args.capability, args.version, Path(args.capabilities_dir) if args.capabilities_dir else None)
-    if draft:
-        print(f"warning: {path.name} is an unapproved draft; approval gating is not enforced yet", file=sys.stderr)
-    capability: Capability = load_capability(path)
-    inputs = parse_inputs(args.input)
-    app = capability.app
-    profile_path = REPO_ROOT / "apps" / app / "profile.json"
-    run_id = args.run_id or f"replay-{time.strftime('%Y%m%d-%H%M%S')}-{capability.id.split('.')[-1][:24]}"
+def approvals_dir() -> Path:
+    return REPO_ROOT / "approvals"
 
-    async with _open_session(run_id=run_id, profile=str(profile_path), headed=args.headed, actor="replay") as session:
+
+def validation_dir() -> Path:
+    """Where `cua validate` writes `<run_id>/summary.json` (runtime output, never committed)."""
+    return REPO_ROOT / "runs" / "validation"
+
+
+def profile_path_of(app: str) -> Path:
+    return REPO_ROOT / "apps" / app / "profile.json"
+
+
+def approval_of(capability: Capability, profile: Profile, *, draft: bool, root: Path | None = None) -> tuple[ApprovalState, Approval | None]:
+    """A draft file is never approved (promote it to `<cap>@<version>.json`, then approve). A sidecar that cannot be
+    read counts as stale: something is there, and it does not vouch for this."""
+    try:
+        approval = load_approval(sidecar_path(root or approvals_dir(), capability))
+    except (OSError, ValueError):
+        return "stale", None
+    if draft:
+        return "unapproved", approval
+    return approval_state(capability, profile, approval), approval
+
+
+async def _execute(
+    capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False
+) -> RunResult:
+    """One replay in a fresh session (shared by `replay` and `validate`)."""
+    profile_path = profile_path_of(capability.app)
+    async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay") as session:
         problems = validate_capability(capability, session.profile)
         if problems:
             raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
         cfg = session.settings
         credentials = (Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
                        if cfg.cua_run_password is not None else None)
-        result = await replay(
+        return await replay(
             capability, session.profile, inputs, surface=session.surface, guard=session.guard, lease=session.lease,
             base_url=session.base_url, credentials=credentials, evidence=session.evidence, run_id=run_id,
         )
+
+
+async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
+    path, draft = find_capability_file(args.capability, args.version, Path(args.capabilities_dir) if args.capabilities_dir else None)
+    capability: Capability = load_capability(path)
+    profile = load_profile(profile_path_of(capability.app))
+    state, _ = approval_of(capability, profile, draft=draft,
+                           root=Path(args.approvals_dir) if args.approvals_dir else None)
+    if state != "approved":
+        what = "a draft" if draft else f"{state}"
+        if not args.allow_draft:
+            raise CommandError(
+                f"{path.name} is {what} (approval: {state}); replay runs approved capabilities only. "
+                "Review and approve it (cua approve), or pass --allow-draft to run it anyway")
+        print(f"warning: running {path.name} without a valid approval ({what}; --allow-draft)", file=sys.stderr)
+    inputs = parse_inputs(args.input)
+    run_id = args.run_id or f"replay-{time.strftime('%Y%m%d-%H%M%S')}-{capability.id.split('.')[-1][:24]}"
+    result = await _execute(capability, inputs, run_id=run_id, headed=args.headed)
     return result, EXIT_CODES[result.status]
 
 
@@ -188,8 +248,220 @@ def cmd_compile(args: argparse.Namespace) -> int:
     return EXIT_SUCCESS
 
 
+def cmd_approve(args: argparse.Namespace) -> int:
+    try:
+        path, draft = find_capability_file(args.capability, args.version)
+        if draft:
+            raise CommandError(f"{path.name} is a draft: review it and promote it to a final "
+                               f"{path.name.replace('.draft', '')} before approving")
+        capability = load_capability(path)
+        profile = load_profile(profile_path_of(capability.app))
+        if problems := validate_capability(capability, profile):
+            raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
+        run_ids = list(dict.fromkeys(args.run))
+        try:
+            approval = approve(capability, profile, approver=args.approver, at=datetime.now(UTC),
+                               validation_run_ids=run_ids)
+        except SelfApprovalError as e:
+            print(f"refused: {e}", file=sys.stderr)
+            return EXIT_FAILURE
+        problems = check_validation_runs(validation_dir(), run_ids, capability=capability.id,
+                                         version=capability.version, lock_hash=approval.lock_hash)
+        if problems:
+            print("refused: the cited validation runs do not support this approval:", file=sys.stderr)
+            for problem in problems:
+                print(f"  - {problem}", file=sys.stderr)
+            return EXIT_FAILURE
+        out = sidecar_path(approvals_dir(), capability)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(dumps_approval(approval).encode("utf-8"))
+    except CommandError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_USAGE
+    except (OSError, ValueError) as e:
+        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
+        return EXIT_USAGE
+    print(f"approved {capability.id}@{capability.version} (lock {approval.lock_hash[:12]}) -> {out}")
+    return EXIT_SUCCESS
+
+
+def list_capabilities(root: Path | None = None, approvals: Path | None = None) -> list[dict[str, Any]]:
+    """Every capability file under `capabilities/<app>/`: id, version, effect, approval state, lock hash."""
+    base = root or capabilities_dir()
+    rows: list[dict[str, Any]] = []
+    for app_dir in sorted(p for p in base.glob("*") if p.is_dir()) if base.is_dir() else []:
+        for path in sorted(app_dir.glob("*.json")):
+            m = _VERSIONED.fullmatch(path.name)
+            if m is None:
+                continue
+            draft = m.group("draft") is not None
+            row: dict[str, Any] = {"id": f"{app_dir.name}.{m.group('cap')}", "version": m.group("ver"),
+                                   "file": f"{app_dir.name}/{path.name}", "draft": draft}
+            try:
+                capability = load_capability(path)
+                profile = load_profile(profile_path_of(capability.app))
+                state, _ = approval_of(capability, profile, draft=draft, root=approvals)
+                row |= {"effect": capability.effect, "approval": state, "lock_hash": lock_hash(capability, profile)}
+            except (OSError, ValueError) as e:
+                row |= {"effect": None, "approval": "unapproved", "lock_hash": None, "error": type(e).__name__}
+            rows.append(row)
+    return sorted(rows, key=lambda r: (r["id"], _version_key(r["version"]), r["draft"]))
+
+
+def cmd_capabilities(args: argparse.Namespace) -> int:
+    rows = list_capabilities(approvals=Path(args.approvals_dir) if args.approvals_dir else None)
+    if args.json:
+        print(json.dumps(rows, indent=2))
+        return EXIT_SUCCESS
+    if not rows:
+        print("no capabilities")
+    for r in rows:
+        tag = " (draft)" if r["draft"] else ""
+        print(f"{r['id']}@{r['version']}{tag}  effect={r['effect']}  {r['approval']}  lock={(r['lock_hash'] or '-')[:12]}")
+    return EXIT_SUCCESS
+
+
+# --- validate: fixtures path only (reset the target, consult an oracle), never replay itself -----------------------
+
+
+def _target_tools() -> None:
+    """Make the fixtures helpers (`target/dolibarr`) importable. Imported lazily, inside the commands that need them."""
+    path = str(REPO_ROOT / "target" / "dolibarr")
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+
+def _reset_target() -> None:
+    _target_tools()
+    import dolictl
+    from livetarget import reset_to_baseline
+
+    try:
+        reset_to_baseline()
+    except dolictl.CtlError as e:
+        # reset.sh exits 4 when the restore finished but overran its 15 s budget on a loaded host: the restore itself
+        # happened, so only the check that the fixture customers carry their promised amounts is repeated.
+        if "budget" not in str(e):
+            raise
+        import seed
+        from dolirest import Rest, customer_by_code, outstanding_of
+
+        from cua.config import settings
+
+        admin = Rest.admin(settings())
+        for c in seed.load_fixtures().customers:
+            if outstanding_of(admin, customer_by_code(admin, c.code)["id"]) != c.outstanding:
+                raise
+
+
+def _oracle(name: str, value: str) -> str:
+    if name == "dolibarr.customer_outstanding":
+        _target_tools()
+        from dolirest import Rest, customer_by_code, outstanding_of
+
+        from cua.config import settings
+
+        admin = Rest.admin(settings())
+        customer = customer_by_code(admin, value)
+        if customer is None:
+            raise CommandError("the ground-truth oracle found no such customer")
+        return str(outstanding_of(admin, customer["id"]))
+    raise CommandError(f"unknown oracle {name!r}")
+
+
+def find_suite_file(capability: Capability, folder: Path) -> Path:
+    for name in (f"{capability.name}@{capability.version}.tests.json", f"{capability.name}.tests.json"):
+        if (folder / name).is_file():
+            return folder / name
+    raise CommandError(f"no suite {capability.name}.tests.json under {folder}")
+
+
+async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
+    path, _ = find_capability_file(args.capability, args.version)
+    capability = load_capability(path)
+    profile = load_profile(profile_path_of(capability.app))
+    suite = Suite.model_validate_json(find_suite_file(capability, path.parent).read_bytes())
+    if problems := validate_capability(capability, profile) + suite_problems(suite, capability):
+        raise CommandError("; ".join(problems))
+    if args.repeat < 1:
+        raise CommandError("--repeat must be at least 1")
+    run_id = args.run_id or f"val-{time.strftime('%Y%m%d-%H%M%S')}-{capability.name[:24]}"
+    started = datetime.now(UTC)
+    runs: list[CaseRun] = []
+    for repeat in range(1, args.repeat + 1):
+        for case in suite.cases:
+            case_run_id = f"{run_id}-{case.id}-{repeat}"
+            began = time.monotonic()
+            status = outcome = None
+            try:
+                if case.reset:
+                    await asyncio.to_thread(_reset_target)
+                result = await _execute(capability, dict(case.inputs), run_id=case_run_id)
+                status, outcome = result.status, result.outcome
+                truth = {g.output: await asyncio.to_thread(_oracle, g.oracle, case.inputs[g.input])
+                         for g in case.expect.ground_truth}
+                mismatches = compare(case, result, truth, list(capability.contract.outputs))
+            except Exception as e:  # a case that cannot be run is a failed case, not a crashed validation
+                mismatches = [f"the case could not be run: {type(e).__name__}"]
+            runs.append(CaseRun(case_id=case.id, repeat=repeat, run_id=case_run_id, passed=not mismatches,
+                                status=status, outcome=outcome, mismatches=mismatches,
+                                duration_ms=int((time.monotonic() - began) * 1000)))
+    summary = Summary(run_id=run_id, capability=capability.id, version=capability.version,
+                      lock_hash=lock_hash(capability, profile), repeat=args.repeat, started_at=started,
+                      passed=all(r.passed for r in runs), cases=runs)
+    out = validation_dir() / run_id / "summary.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes((json.dumps(json.loads(summary.model_dump_json(by_alias=True)), indent=2) + "\n").encode("utf-8"))
+    return summary, EXIT_SUCCESS if summary.passed else EXIT_FAILURE
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    try:
+        summary, code = asyncio.run(run_validate(args))
+    except CommandError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_USAGE
+    except (OSError, ValueError) as e:
+        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
+        return EXIT_USAGE
+    if args.json:
+        print(summary.model_dump_json(by_alias=True, indent=2))
+    else:
+        for r in summary.cases:
+            print(f"{'PASS' if r.passed else 'FAIL'}  {r.case_id} #{r.repeat}  {r.status}/{r.outcome}")
+            for m in r.mismatches:
+                print(f"      - {m}")
+        n = sum(r.passed for r in summary.cases)
+        print(f"{n}/{len(summary.cases)} passed; run {summary.run_id}; lock {summary.lock_hash[:12]}")
+    return code
+
+
 def register(subparsers: argparse._SubParsersAction) -> None:
+    a = subparsers.add_parser("approve", help="record a second person's approval of a capability's current lock hash")
+    a.add_argument("capability", help="<app>.<capability>")
+    a.add_argument("--version", required=True)
+    a.add_argument("--approver", required=True, help="who approves; must not be the person who ran the discovery")
+    a.add_argument("--run", action="append", required=True, metavar="VALIDATION_RUN_ID",
+                   help="a passing `cua validate` run for this lock hash; repeat for several")
+    a.set_defaults(func=cmd_approve)
+
+    ls = subparsers.add_parser("capabilities", help="list capabilities with version, effect, approval state, lock hash")
+    ls.add_argument("--json", action="store_true")
+    ls.add_argument("--approvals-dir", default=None, help=argparse.SUPPRESS)
+    ls.set_defaults(func=cmd_capabilities)
+
+    v = subparsers.add_parser("validate", help="run a capability's test suite, resetting the target per case")
+    v.add_argument("capability", help="<app>.<capability>")
+    v.add_argument("--version", default=None)
+    v.add_argument("--repeat", type=int, default=1, help="run the whole suite N times")
+    v.add_argument("--json", action="store_true")
+    v.add_argument("--run-id", default=None, help=argparse.SUPPRESS)
+    v.set_defaults(func=cmd_validate)
+
     p = subparsers.add_parser("replay", help="run a compiled capability in a browser, with no model")
+    p.add_argument("--allow-draft", action="store_true",
+                   help="run a draft, unapproved or stale capability anyway (with a warning)")
+    p.add_argument("--approvals-dir", default=None, help=argparse.SUPPRESS)
     p.add_argument("capability", help="<app>.<capability>, for example dolibarr.lookup_customer_outstanding")
     p.add_argument("--version", default=None, help="default: the highest version on disk")
     p.add_argument("--input", action="append", default=[], metavar="K=V", help="a capability input; repeat per input")

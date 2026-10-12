@@ -1,13 +1,14 @@
 """Approval sidecar: change control for a capability, bound to the lock hash.
 
-Approval is four eyes on the *procedure* (what replay will do), not authorization of a transaction. It lives beside
-the capability (`approvals/<id>@<version>.json`), never inside the hashed body. It binds to the lock hash over
+Approval is four eyes on the *procedure* (what replay will do), not authorization of a transaction. It lives in
+`approvals/<app>/<capability>@<version>.approval.json`, never inside the hashed body. It binds to the lock hash over
 capability + profile, so any behavior change (a step, a strategy, a state signature, a meaning, a commit route)
 makes it stale. The approver must not be the person who ran the discovery.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -71,7 +72,13 @@ def approval_state(capability: Capability, profile: Profile, approval: Approval 
 
 
 def sidecar_path(approvals_dir: Path, capability: Capability) -> Path:
-    return approvals_dir / f"{capability.id}@{capability.version}.json"
+    """`<approvals_dir>/<app>/<capability>@<version>.approval.json`."""
+    return approvals_dir / capability.app / f"{capability.name}@{capability.version}.approval.json"
+
+
+def dumps_approval(approval: Approval) -> str:
+    """Deterministic file text (LF, 2-space indent, trailing newline), like every other artifact file."""
+    return json.dumps(json.loads(approval.model_dump_json()), indent=2, ensure_ascii=False) + "\n"
 
 
 def load_approval(path: Path) -> Approval | None:

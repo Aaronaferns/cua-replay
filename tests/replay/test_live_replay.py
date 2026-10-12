@@ -86,7 +86,7 @@ def test_cli_replay_loads_no_model_code(baseline, tmp_path):
     code = (
         "import json, sys\n"
         "from cua.cli import main\n"
-        f"rc = main(['replay', 'dolibarr.lookup_customer_outstanding', '--json', '--run-id', 'live-replay-cli',"
+        f"rc = main(['replay', 'dolibarr.lookup_customer_outstanding', '--json', '--allow-draft', '--run-id', 'live-replay-cli',"
         f" '--capabilities-dir', {str(FIXTURES)!r}, '--input', 'customer_code={customer.code}'])\n"
         "print('RC=' + str(rc))\n"
         "print('LOADED=' + json.dumps(sorted(m for m in sys.modules if m.split('.')[0] in "
