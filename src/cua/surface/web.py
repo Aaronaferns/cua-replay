@@ -142,6 +142,24 @@ _JS_IN_COLUMN = """(el, h) => {
   return false;
 }"""
 
+# Selectors from attributes that survive a reload. Ids that look generated (digits, hashes, widget prefixes) are
+# rejected; so are names with brackets and classes shared by styling frameworks.
+_JS_CSS_HINTS = r"""(el) => {
+  const tag = el.tagName.toLowerCase(), out = [];
+  const generated = (v) => /\d{3,}|[0-9a-f]{8,}|^(select2|ui-|ext-|react|:r|dol)/i.test(v);
+  const esc = (v) => v.replace(/(["\\])/g, '\\$1');
+  const id = el.getAttribute('id');
+  if (id && !generated(id)) out.push(tag + '#' + CSS.escape(id));
+  const name = el.getAttribute('name');
+  if (name && !/[\[\]]/.test(name) && !generated(name)) {
+    const type = el.getAttribute('type');
+    out.push(tag + '[name="' + esc(name) + '"]' + (tag === 'input' && type ? '[type="' + esc(type) + '"]' : ''));
+  }
+  const cls = Array.from(el.classList).filter((c) => !generated(c) && /^[A-Za-z][\w-]*$/.test(c));
+  if (cls.length === 1) out.push(tag + '.' + cls[0]);
+  return out;
+}"""
+
 _ROWS = "xpath=./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr"
 
 
@@ -522,6 +540,12 @@ class WebSurface:
             return fold_text(await self._race_native(element.locator.evaluate(_JS_READ)))
         except PlaywrightError as e:
             raise _safe_error("read_text", e) from None
+
+    async def css_hints(self, element: WebElement) -> list[str]:
+        try:
+            return list(await element.locator.evaluate(_JS_CSS_HINTS, timeout=self._action_timeout))
+        except PlaywrightError as e:
+            raise _safe_error("css_hints", e) from None
 
     @staticmethod
     def accessible(element: WebElement) -> tuple[str, str | None]:
