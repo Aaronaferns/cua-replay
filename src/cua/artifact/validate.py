@@ -9,9 +9,12 @@ Leaf module: standard library plus this package.
 
 from __future__ import annotations
 
+import re
+
 from cua.artifact.predicates import Predicate, TargetEqualsInput, TargetVisible, Text, is_static, walk
 from cua.artifact.schema import (
     EFFECT_RANK,
+    TEMPLATE_RE,
     Action,
     AssertAction,
     Capability,
@@ -80,6 +83,29 @@ def _strategy_problems(where: str, strategies: list[Strategy], inputs: set[str])
     return problems
 
 
+_EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}")
+_PHONE = re.compile(r"(?<!\d)\+?\d[\d ().-]{7,}\d(?!\d)")
+
+
+def _value_problems(where: str, texts: list[str], cap: Capability) -> list[str]:
+    """No recorded value may survive into the artifact: a string that matches an input's pattern (a literal customer
+    code left in a finder, a route or a predicate) or looks like an email address or phone number is a leak. The
+    value itself is never repeated in the message."""
+    problems: list[str] = []
+    for text in texts:
+        bare = TEMPLATE_RE.sub("", text)  # what is left once the lifted ${inputs} are removed
+        for name, spec in cap.contract.inputs.items():
+            if spec.pattern is not None and re.search(spec.pattern, bare):
+                problems.append(f"{where}: contains a literal that matches input {name!r}; lift it to ${{{name}}}")
+        if _EMAIL.search(bare) or _PHONE.search(bare):
+            problems.append(f"{where}: contains what looks like personal data (an email address or phone number)")
+    return problems
+
+
+def _predicate_texts(pred: Predicate) -> list[str]:
+    return [s for node in walk(pred) if isinstance(node, Text) for s in (node.equals, node.pattern) if s]
+
+
 def _predicate_problems(where: str, pred: Predicate, targets: set[str], inputs: set[str]) -> list[str]:
     problems = []
     for node in walk(pred):
@@ -118,6 +144,8 @@ def validate_capability(cap: Capability, profile: Profile) -> list[str]:
 
     for name, target in cap.targets.items():
         problems.extend(_strategy_problems(f"target {name!r}", target.strategies, inputs))
+        finders = [s for strategy in target.strategies for s in strategy.locator_strings()]
+        problems.extend(_value_problems(f"target {name!r} finder", finders, cap))
 
     seen: set[str] = set()
     extracted: set[str] = set()
@@ -135,6 +163,10 @@ def validate_capability(cap: Capability, profile: Profile) -> list[str]:
             problems.append(f"{where}: unknown target {target_id!r}")
         if isinstance(step.do, ClickAction | TypeAction | SelectAction | ExtractAction) and target_id is None:
             problems.append(f"{where}: action needs a target")
+        problems.extend(_value_problems(f"{where} action", _action_templates(step.do), cap))
+        for pred in (step.verify, step.do.that if isinstance(step.do, AssertAction) else None):
+            if pred is not None:
+                problems.extend(_value_problems(f"{where} predicate", _predicate_texts(pred), cap))
         for text in _action_templates(step.do):
             if "{{" in text:
                 problems.append(f"{where}: an unlifted input token in the action")
@@ -173,6 +205,7 @@ def validate_capability(cap: Capability, profile: Profile) -> list[str]:
         problems.append("success.outputs must list every declared output")
     for j, check in enumerate(cap.success.checks):
         problems.extend(_predicate_problems(f"success.checks[{j}]", check, targets, inputs))
+        problems.extend(_value_problems(f"success.checks[{j}]", _predicate_texts(check), cap))
     for name, outcome in cap.contract.outcomes.items():
         for ret in outcome.returns:
             if ret not in outputs:

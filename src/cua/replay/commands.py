@@ -5,6 +5,7 @@
     cua approve <app>.<capability> --version V --approver <id> --run <validation_run_id> [--run ...]
     cua capabilities [--json]
     cua validate <app>.<capability> [--version V] [--repeat N] [--json]
+    cua review <app>.<capability> [--version V] [--out path]
 
 Exit codes (replay): 0 success, 1 failure, 2 the command itself could not run (bad arguments, artifact not found or
 invalid, session could not open, or the capability is not approved and `--allow-draft` was not given), 3 business
@@ -213,6 +214,26 @@ def cmd_replay(args: argparse.Namespace) -> int:
     assert result is not None
     print(result.model_dump_json(indent=2) if args.json else render(result))
     return code
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    from cua.compiler.review_card import render_review_card  # lazy: replay itself never needs the compiler
+
+    try:
+        path, _ = find_capability_file(args.capability, args.version)
+        capability = load_capability(path)
+        text = render_review_card(capability, load_profile(profile_path_of(capability.app)))
+        out = Path(args.out) if args.out else path.with_name(f"{capability.name}@{capability.version}.review.md")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(text.encode("utf-8"))  # bytes: LF on every platform
+    except CommandError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_USAGE
+    except (OSError, ValueError) as e:
+        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
+        return EXIT_USAGE
+    print(f"wrote {out}")
+    return EXIT_SUCCESS
 
 
 def cmd_compile(args: argparse.Namespace) -> int:
@@ -481,3 +502,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     c.add_argument("--description", default=None)
     c.add_argument("--discovered-by", default=None, help="provenance label; default: the trace's model")
     c.set_defaults(func=cmd_compile)
+
+    r = subparsers.add_parser("review", help="render the review card (<capability>@<version>.review.md)")
+    r.add_argument("capability", help="<app>.<capability>")
+    r.add_argument("--version", default=None)
+    r.add_argument("--out", default=None, help="default: beside the capability file")
+    r.set_defaults(func=cmd_review)

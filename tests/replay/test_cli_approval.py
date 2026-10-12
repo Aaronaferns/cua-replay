@@ -172,3 +172,13 @@ def test_capabilities_text_output(caps, capsys):
     write(caps, f"{NAME}.json")
     assert main(["capabilities"]) == 0
     assert "dolibarr.lookup_customer_outstanding@1.0.0" in capsys.readouterr().out
+
+
+def test_review_writes_a_deterministic_card_beside_the_capability(caps, capsys):
+    write(caps, f"{NAME}.json")
+    assert main(["review", "dolibarr.lookup_customer_outstanding"]) == 0
+    card = caps / "lookup_customer_outstanding@1.0.0.review.md"
+    first = card.read_bytes()
+    assert lock_hash(capability(), dolibarr_profile()).encode() in first and b"\r" not in first
+    assert main(["review", "dolibarr.lookup_customer_outstanding"]) == 0 and card.read_bytes() == first
+    assert main(["review", "dolibarr.nothing"]) == 2
