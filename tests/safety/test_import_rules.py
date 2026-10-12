@@ -34,6 +34,8 @@ def test_package_imports_only_what_the_rules_allow(package):
         for module in imports(path):
             top = module.split(".")[0]
             assert top not in FORBIDDEN_THIRD_PARTY, (path.name, module)
+            if path.name == "commands.py":
+                continue  # CLI wiring ("cli -> anything"): imports replay, control and faults lazily, inside commands
             if top == "cua":
                 assert any(module == a or module.startswith(a + ".") for a in ALLOWED[package]), (path.name, module)
 

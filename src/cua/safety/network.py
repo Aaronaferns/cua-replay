@@ -45,7 +45,7 @@ _FETCH_TIMEOUT_MS = 60_000
 class BlockedRequest(BaseModel):
     """One refused request or navigation. `url` has no query, fragment or userinfo: it is safe to log."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     url: str
     method: str = "GET"

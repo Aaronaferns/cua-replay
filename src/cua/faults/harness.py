@@ -119,7 +119,7 @@ def parse_fault(kind: str, *, match: str, **fields: Any) -> FaultSpec:
 class FaultEvent(BaseModel):
     """One firing. `url` carries no query, fragment or userinfo. `declared` is always true: the fault was injected."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     kind: FaultKind
     index: int  # position of the spec in the installed list

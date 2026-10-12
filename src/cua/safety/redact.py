@@ -244,3 +244,39 @@ class Redactor:
     def contains_known(self, text: str) -> bool:
         """True if a known value (any variant) is present: for tests and the evidence lint."""
         return self._known is not None and self._known.search(text) is not None
+
+
+# ------------------------------------------------------------------------------------------------------ error hygiene
+
+_MAX_ERROR_CHARS = 300
+
+
+def safe_error_message(exc: BaseException, *, redactor: Redactor | None = None) -> str:
+    """A one-line description of `exc` that never carries an input value: for the CLI boundary and for evidence.
+
+    - `pydantic.ValidationError`: the model and, per error, the field location and error type. Never the input, the
+      context or the message text (messages such as "Input should be 'x'" or a validator's own text can quote values).
+    - an exception defined in this package (`cua.*`): its type and message. Our exceptions are written not to carry
+      typed or extracted values (see `SurfaceError`, `EvidenceError`, `PolicyDenied`); the message still goes through
+      `redactor` (patterns, plus the known values when one is given) as a second line of defence.
+    - anything else (builtins, Playwright, httpx, ...): the type name only, because their messages routinely quote
+      selectors, URLs, keys and values.
+
+    The cause and context chains are never followed. The result is a single line of at most 300 characters.
+    """
+    from pydantic import ValidationError
+
+    redactor = redactor if redactor is not None else Redactor()
+    if isinstance(exc, ValidationError):
+        parts = []
+        for err in exc.errors(include_url=False, include_context=False, include_input=False):
+            loc = ".".join(str(p) for p in err["loc"]) or "<root>"
+            parts.append(f"{loc} ({err['type']})")
+        shown = "; ".join(parts[:8]) + (f"; ... {len(parts) - 8} more" if len(parts) > 8 else "")
+        text = f"ValidationError in {exc.title}: {shown}"
+    elif type(exc).__module__.split(".")[0] == "cua":
+        message = " ".join(str(exc).split())
+        text = f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+    else:
+        text = type(exc).__name__
+    return redactor.text(text)[:_MAX_ERROR_CHARS]

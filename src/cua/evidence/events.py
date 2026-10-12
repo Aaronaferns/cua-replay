@@ -21,7 +21,7 @@ EventActor = Literal["agent", "replay", "human", "system"]
 
 
 class EvidenceEvent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     ts: datetime
     seq: int

@@ -41,14 +41,14 @@ def human(operator_id: str) -> str:
 
 
 class LeaseToken(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     holder: str
     generation: int = Field(ge=0)
 
 
 class ControlLease(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     holder: str  # "automation" | "human:<id>" | "none"
     generation: int = Field(ge=0)
@@ -72,7 +72,7 @@ class LeaseError(Exception):
 class LeaseEvent(BaseModel):
     """One transition, as logged. `actor` is who caused it: the automation, a human operator or the system (SLA)."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     transition: Transition
     actor: Literal["automation", "human", "system"]

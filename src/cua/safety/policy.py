@@ -40,7 +40,7 @@ class ActionRequest(BaseModel):
 
 
 class PolicyDecision(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     allowed: bool
     rule: str  # which rule decided, e.g. "origin_allowlist", "action_type", "effect_ceiling", "lease_generation"
