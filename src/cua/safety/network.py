@@ -76,6 +76,9 @@ def _loggable(url: str) -> str:
         return "invalid-url"
 
 
+loggable_url = _loggable  # public name: a URL without query, fragment or userinfo, safe for evidence
+
+
 def new_blocked(
     url: str, *, rule: str, reason: str, method: str = "GET", resource_type: str = "other", navigation: bool = False
 ) -> BlockedRequest:

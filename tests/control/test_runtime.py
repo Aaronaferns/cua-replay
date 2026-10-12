@@ -163,10 +163,14 @@ async def test_blocked_requests_become_policy_events(make_site, policy_file, tmp
         assert page.url.startswith(session.base_url)
         policy_events = [e for e in read_events(session) if e["kind"] == "policy"]
     assert evil.hits == []
-    assert {(e["actor"], e["detail"]["rule"]) for e in policy_events} == {
-        ("system", "origin_allowlist"),
-        ("system", "path_rules"),
+    assert {(e["actor"], e["policy"]["rule"]) for e in policy_events} == {
+        ("system", "origin_allowlist"),  # network layer: the in-page fetch
+        ("system", "path_rules"),  # network layer: /admin/users
+        ("replay", "origin_allowlist"),  # guard: the refused navigate
     }
+    guard_event = next(e for e in policy_events if e["actor"] == "replay")
+    assert guard_event["action"]["kind"] == "navigate" and guard_event["policy"]["allowed"] is False
+    assert guard_event["action"]["target_url"] == f"http://127.0.0.1:{evil.port}/"
     assert all("secret" not in json.dumps(e) for e in policy_events)  # query strings never reach the log
 
 

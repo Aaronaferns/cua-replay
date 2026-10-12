@@ -275,6 +275,20 @@ def test_reasons_never_contain_input_values(guard):
         assert secret not in repr(decision)
 
 
+def test_on_deny_hook_sees_denials_only_and_cannot_change_the_decision(lease):
+    seen = []
+    guard = PolicyGuard(make_policy(), lease, on_deny=lambda req, dec: seen.append((req.kind, dec.rule)))
+    assert guard.check(request()).allowed
+    assert seen == []
+    assert not guard.check(request(kind="select")).allowed
+    assert seen == [("select", "action_type")]
+
+    def explode(req, dec):
+        raise RuntimeError("log sink down")
+
+    assert not PolicyGuard(make_policy(), lease, on_deny=explode).check(request(kind="select")).allowed
+
+
 def test_policy_denied_carries_the_decision(guard):
     decision = guard.check(request(kind="select"))
     err = PolicyDenied(decision)

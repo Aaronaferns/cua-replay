@@ -26,7 +26,7 @@ from cua.config import REPO_ROOT, Settings
 from cua.config import settings as load_settings
 from cua.control.lease import AUTOMATION, LeaseToken
 from cua.evidence.writer import RunBundleWriter
-from cua.safety.network import BlockedRequest, new_guarded_context
+from cua.safety.network import BlockedRequest, loggable_url, new_guarded_context
 from cua.safety.policy import ActionRequest, Policy, PolicyDecision, PolicyGuard, load_policy
 from cua.surface.login import LoginError, LoginTargets, Target, scripted_login
 from cua.surface.web import DOLIBARR_SCOPE, WebSurface
@@ -106,7 +106,22 @@ async def open_session(
         def lease() -> LeaseToken:
             return lease_token
 
-        guard = PolicyGuard(loaded_policy, lease)
+        def on_deny(request: ActionRequest, decision: PolicyDecision) -> None:
+            # a guard refusal is evidence too: the action (never any typed value) with the rule that stopped it
+            writer.emit(
+                "policy",
+                actor="system" if request.actor == "handler" else request.actor,
+                policy=decision,
+                lease=request.lease,
+                action={
+                    "kind": request.kind,
+                    "page_url": loggable_url(request.page_url),
+                    "target_url": loggable_url(request.target_url) if request.target_url else None,
+                    "effect": request.effect,
+                },
+            )
+
+        guard = PolicyGuard(loaded_policy, lease, on_deny=on_deny)
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=not headed)
             try:
