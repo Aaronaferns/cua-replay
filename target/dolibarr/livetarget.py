@@ -29,7 +29,13 @@ def reset_to_baseline() -> Fixtures:
         fixtures = seed.seed(cfg)
         dolictl.run_script("reset.sh", "dump")
     else:
-        dolictl.run_script("reset.sh")
+        try:
+            dolictl.run_script("reset.sh")
+        except dolictl.CtlError as e:
+            # exit 4 = restored, but slower than the 15 s S10 budget (a busy machine). The state is right; the
+            # timing is asserted by tests/target/test_reset.py, not by every test that needs a clean target.
+            if "exited 4" not in str(e):
+                raise
         fixtures = seed.load_fixtures()
     admin = Rest.admin(cfg)
     for customer in fixtures.customers:

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
 class _Action(BaseModel):
@@ -73,3 +73,32 @@ AgentAction = Annotated[
     Click | Type | Select | Press | Navigate | Extract | RequestApproval | RequestHelp | Done,
     Field(discriminator="kind"),
 ]
+
+
+ACTION_MODELS: dict[str, type[_Action]] = {
+    m.model_fields["kind"].default: m  # type: ignore[misc]
+    for m in (Click, Type, Select, Press, Navigate, Extract, RequestApproval, RequestHelp, Done)
+}
+"""Every action kind the model may choose, in the order its tools are declared."""
+
+_ADAPTER: TypeAdapter[AgentAction] = TypeAdapter(AgentAction)
+
+
+def parse_action(kind: str, arguments: dict[str, object]) -> AgentAction:
+    """Validate a model-chosen tool call. Raises `pydantic.ValidationError` (which hides input values)."""
+    return _ADAPTER.validate_python({**arguments, "kind": kind})
+
+
+def string_arguments(action: AgentAction) -> list[tuple[str, str]]:
+    """Every string the action carries, as (field, text): the surface the input-value and control-character checks
+    must cover. Lists contribute each element."""
+    out: list[tuple[str, str]] = []
+    for field in type(action).model_fields:
+        if field == "kind":
+            continue
+        value = getattr(action, field)
+        if isinstance(value, str):
+            out.append((field, value))
+        elif isinstance(value, list):
+            out.extend((field, v) for v in value if isinstance(v, str))
+    return out
