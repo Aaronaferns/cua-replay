@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<!-- Offline stand-in for Dolibarr 23.0.4 comm/card.php, reduced from a captured page. Made-up data and token. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Northwind Test - Customer</title>
+<style>
+  .fa { display: inline-block; }
+  .fa-home::before { content: "\f015"; }
+  .fa-pencil::before { content: "\f303"; }
+  .fa-bill::before { content: "\f571"; }
+  .fa-mail::before { content: "\f1fa"; }
+  .side-nav { float: left; width: 180px; }
+  #id-right { margin-left: 190px; }
+</style>
+</head>
+<body>
+<div id="id-container">
+  <div id="id-top">
+    <div class="tmenudiv">
+      <ul>
+        <li><a href="/index.php?mainmenu=home"><span class="fa fa-home"></span></a><a href="/index.php?mainmenu=home">Home</a></li>
+        <li><a href="/societe/index.php?mainmenu=companies">Third parties</a></li>
+        <li><a href="/compta/index.php?mainmenu=billing">Billing | Payment</a></li>
+      </ul>
+    </div>
+    <div class="login_block"><a href="/user/card.php?id=1">Gravatar avatar - jdoe@example.com Alice</a></div>
+  </div>
+  <div class="side-nav">
+    <div id="id-left">
+      <a href="/societe/list.php?type=c">Customers</a>
+      <a href="/societe/card.php?action=create">New third party</a>
+      <a href="/compta/facture/list.php">Customer invoices</a>
+    </div>
+  </div>
+  <div id="id-right">
+    <div class="fiche">
+      <div class="titre">Northwind Test</div>
+      <div class="tabs"><a href="/societe/card.php?socid=10">Third party</a> <a href="/comm/card.php?socid=10">Customer</a></div>
+      <a href="/societe/list.php?type=c">Back to list</a>
+      <table class="border tableforfield">
+        <tr><td class="titlefield">Nature of Third party</td><td><a href="#">C</a></td></tr>
+        <tr><td class="titlefield">Customer Code</td><td>CU1212-0005&nbsp;</td></tr>
+        <tr>
+          <td><table class="nobordernopadding"><tr><td>Customer accounting code</td><td><a href="#edit"><span class="fa fa-pencil" title="Edit"></span></a></td></tr></table></td>
+          <td>411CU12120005</td>
+        </tr>
+        <tr><td class="titlefield">VAT ID</td><td>&nbsp;</td></tr>
+      </table>
+      <table class="noborder">
+        <tr><td>
+          <a href="/compta/facture/list.php?socid=10"><div class="boxstats" title="Current outstanding bill"><span><span class="fa fa-bill"></span> Current outstanding bill</span><br><span class="amount">75.37 €</span></div></a>
+          <a href="/compta/facture/list.php?socid=10&amp;late=1"><div class="boxstats" title="Current outstanding bill late"><span><span class="fa fa-bill"></span> Current outstanding bill late</span><br><span class="amount">83.00 €</span></div></a>
+        </td></tr>
+      </table>
+      <a id="validate" href="/compta/facture/card.php?facid=216&amp;action=confirm_valid&amp;confirm=yes&amp;token=0123456789abcdef0123456789abcdef">Validate</a>
+      <button type="button" id="open-dialog" onclick="document.getElementById('dlg').style.display='block'">Open dialog</button>
+      <button type="button" id="fire-alert" onclick="alert('Session will expire')">Fire alert</button>
+    </div>
+  </div>
+</div>
+<div id="dlg" role="dialog" aria-labelledby="dlg-title" style="display:none">
+  <div><span id="dlg-title">Validate invoice</span><button type="button" onclick="this.closest('[role=dialog]').style.display='none'">Close</button></div>
+  <div>Are you sure you want to validate this invoice?</div>
+  <div><button type="button">Yes</button><button type="button" onclick="this.closest('[role=dialog]').style.display='none'">No</button></div>
+</div>
+</body>
+</html>

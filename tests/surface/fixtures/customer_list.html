@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Offline stand-in for Dolibarr 23.0.4 societe/list.php: filter row above the header row, filter textboxes that
+     all share one long help-text name, icon-only search buttons. Made-up rows. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Customers</title>
+<style>
+  .fa-search::before { content: "\f002"; }
+  .fa-remove::before { content: "\f00d"; }
+</style>
+</head>
+<body>
+<div id="id-top"><a href="/index.php">Home</a><a href="/societe/index.php">Third parties</a></div>
+<div id="id-left"><a href="/societe/list.php?type=c">Customers</a></div>
+<div id="id-right">
+  <form method="GET" action="/societe/list.php">
+    <table class="liste">
+      <tr class="liste_titre_filter">
+        <td><button type="submit" name="button_search_x" class="button_search"><span class="fa fa-search"></span></button><button type="submit" name="button_removefilter_x"><span class="fa fa-remove"></span></button></td>
+        <td><input type="text" name="search_nom" title="For searching inside text fields, you can use the characters ^ or $ to make a 'start or end with' search."></td>
+        <td><input type="text" name="search_alias" title="For searching inside text fields, you can use the characters ^ or $ to make a 'start or end with' search."></td>
+        <td><input type="text" name="search_barcode" title="For searching inside text fields, you can use the characters ^ or $ to make a 'start or end with' search."></td>
+        <td><input type="text" name="search_customer_code" title="For searching inside text fields, you can use the characters ^ or $ to make a 'start or end with' search."></td>
+        <td><input type="text" name="search_account_customer_code" title="For searching inside text fields, you can use the characters ^ or $ to make a 'start or end with' search."></td>
+        <td><input type="text" name="search_zip" title="For searching inside text fields, you can use the characters ^ or $ to make a 'start or end with' search."></td>
+        <td><select name="search_status"><option value="">&nbsp;</option><option value="1">Open</option><option value="0">Closed</option></select></td>
+      </tr>
+      <tr class="liste_titre">
+        <th></th>
+        <th><a href="?sortfield=s.nom">Third-party name</a></th>
+        <th><a href="?sortfield=s.name_alias">Alias Name</a></th>
+        <th><a href="?sortfield=s.barcode">Barcode</a></th>
+        <th><a href="?sortfield=s.code_client">Customer Code</a></th>
+        <th><a href="?sortfield=s.code_compta">Cust. account. code</a></th>
+        <th><a href="?sortfield=s.zip">Zip Code</a></th>
+        <th><a href="?sortfield=s.status">Status</a></th>
+      </tr>
+      <tr><td><input type="checkbox"></td><td><a href="/comm/card.php?socid=21">Company Corp 2</a></td><td></td><td></td><td>CU1910-00021</td><td>411CU191000021</td><td></td><td>Open</td></tr>
+      <tr><td><input type="checkbox"></td><td><a href="/comm/card.php?socid=10">Northwind Test</a></td><td></td><td></td><td>CU1212-0005</td><td>411CU12120005</td><td>75001</td><td>Open</td></tr>
+      <tr><td><input type="checkbox"></td><td><a href="/comm/card.php?socid=12">Contoso Test</a></td><td></td><td></td><td>CU1212-0007</td><td>411CU12120007</td><td></td><td>Closed</td></tr>
+    </table>
+  </form>
+</div>
+</body>
+</html>
