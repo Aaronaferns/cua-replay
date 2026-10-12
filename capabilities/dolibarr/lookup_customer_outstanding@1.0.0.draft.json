@@ -194,8 +194,7 @@
       ],
       "fingerprint": {
         "role": "generic",
-        "tag": "div",
-        "row_label": "Invoices 199.75 € Current outstanding bill 199.75 €"
+        "tag": "div"
       }
     }
   },

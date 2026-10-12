@@ -127,6 +127,44 @@ def test_outputs_must_be_extracted_on_the_main_path():
     assert any("every declared output" in p for p in _problems(extra_output))
 
 
+def test_fingerprints_hold_labels_not_data():
+    def amount(d):
+        d["targets"]["outstanding"]["fingerprint"]["row_label"] = "Invoices 199.75 EUR Current outstanding bill"
+
+    assert any("fingerprint" in p and "amount" in p for p in _problems(amount))
+
+    def literal_code(d):
+        d["targets"]["shown_code"]["fingerprint"]["row_label"] = "Customer Code CU1212-0005"
+
+    assert any("fingerprint" in p and "literal" in p for p in _problems(literal_code))
+
+    def email(d):
+        d["targets"]["shown_code"]["fingerprint"]["row_label"] = "Mail a@b.example"
+
+    assert any("fingerprint" in p and "personal data" in p for p in _problems(email))
+
+
+def test_an_outcome_returns_only_outputs_extracted_before_its_branch():
+    def early(d):
+        d["contract"]["outcomes"] = {"found_early": {"description": "x", "returns": ["outstanding_amount"]}}
+        d["steps"][1]["on"] = [{"state": "customer_list", "outcome": "found_early"}]
+
+    assert any("before any step has extracted" in p for p in _problems(early))
+
+    def late(d):
+        d["contract"]["outcomes"] = {"found_late": {"description": "x", "returns": ["outstanding_amount"]}}
+        d["steps"][3]["on"] = [{"state": "customer_card", "outcome": "found_late"}]
+
+    assert not any("before any step" in p for p in _problems(late))
+
+
+def test_volatile_text_is_amounts_emails_and_phones_only():
+    from cua.artifact.validate import volatile_text
+
+    assert all(volatile_text(t) for t in ("Invoices 199.75 €", "1,234.50", "a@b.example", "+33 1 23 45 67 89"))
+    assert not any(volatile_text(t) for t in ("Customer Code", "Nature of Third party", "Q1 2026", "Invoices (30)"))
+
+
 def test_effect_ceiling_must_match_the_steps():
     assert any("maximum step effect" in p for p in _problems(lambda d: d.update(effect="commit")))
     assert any("exceeds" in p for p in _problems(lambda d: d["steps"][0].update(effect="commit")))
