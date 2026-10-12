@@ -33,3 +33,29 @@ def test_committed_draft_is_valid_against_the_profile_and_traces_back_to_the_run
     require_valid(cap, load_profile(PROFILE))
     assert cap.provenance.trace_run_id == "discovery_lookup_customer_outstanding"
     assert cap.provenance.discovered_by == "claude-opus-5-5"
+
+
+FINAL = DRAFT.with_name("lookup_customer_outstanding@1.0.0.json")
+SUITE = DRAFT.with_name("lookup_customer_outstanding@1.0.0.tests.json")
+CARD = DRAFT.with_name("lookup_customer_outstanding@1.0.0.review.md")
+
+
+def test_promoted_capability_is_the_validated_draft_unchanged():
+    assert FINAL.read_bytes() == DRAFT.read_bytes()
+
+
+def test_suite_covers_two_customers_and_fits_the_contract():
+    from cua.artifact.suite import Suite, suite_problems
+
+    suite = Suite.model_validate_json(SUITE.read_bytes())
+    assert suite_problems(suite, load_capability(FINAL)) == []
+    codes = {c.inputs["customer_code"] for c in suite.cases if c.expect.status == "success"}
+    assert len(codes) >= 2
+    assert all(c.expect.ground_truth for c in suite.cases if c.expect.status == "success")
+
+
+def test_review_card_is_current():
+    from cua.compiler.review_card import render_review_card
+
+    text = render_review_card(load_capability(FINAL), load_profile(PROFILE))
+    assert CARD.read_bytes() == text.encode("utf-8")
