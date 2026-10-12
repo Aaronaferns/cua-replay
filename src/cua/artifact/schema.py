@@ -422,11 +422,15 @@ class LoginForm(_Strict):
 
 
 class RoutePattern(_Strict):
-    """A URL that commits: path glob plus required query parameters (each a glob). Dolibarr commits are GET
-    requests with a CSRF token, so HTTP method cannot identify them."""
+    """A request that commits: method, path glob, required query parameters and required form fields (each a glob;
+    `*` is the only wildcard). Dolibarr validation commits are GET requests with a CSRF token while the payment is a
+    POST whose action is in the body, so path and query alone cannot identify every commit. Parameters or fields not
+    listed are ignored. See `cua.artifact.routes.is_commit`."""
 
+    method: Literal["GET", "POST", "ANY"] = "ANY"
     path: str
     query: dict[str, str] = {}
+    body: dict[str, str] = {}
 
 
 class NumberFormat(_Strict):

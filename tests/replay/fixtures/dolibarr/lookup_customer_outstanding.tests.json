@@ -1,0 +1,33 @@
+{
+  "schema": "cua.suite/v1",
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "cases": [
+    {
+      "id": "alpha",
+      "description": "a seeded customer with two unpaid invoices",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "expect": {
+        "status": "success",
+        "outcome": "success",
+        "outputs": {"outstanding_amount": "199.75"},
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}]
+      }
+    },
+    {
+      "id": "beta",
+      "description": "another seeded customer",
+      "inputs": {"customer_code": "CU2601-00902"},
+      "expect": {
+        "status": "success",
+        "outcome": "success",
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}]
+      }
+    },
+    {
+      "id": "unknown_customer",
+      "description": "no such customer is a business outcome, not a failure",
+      "inputs": {"customer_code": "CU0000-0000"},
+      "expect": {"status": "business_outcome", "outcome": "customer_not_found"}
+    }
+  ]
+}

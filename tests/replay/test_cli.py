@@ -21,9 +21,11 @@ CODE = "CU1212-0005"
 
 @pytest.fixture
 def caps(tmp_path, monkeypatch):
-    monkeypatch.setattr(commands, "capabilities_dir", lambda: tmp_path)
-    (tmp_path / "dolibarr").mkdir()
-    return tmp_path / "dolibarr"
+    monkeypatch.setattr(commands, "capabilities_dir", lambda: tmp_path / "capabilities")
+    monkeypatch.setattr(commands, "approvals_dir", lambda: tmp_path / "approvals")
+    monkeypatch.setattr(commands, "validation_dir", lambda: tmp_path / "validation")
+    (tmp_path / "capabilities" / "dolibarr").mkdir(parents=True)
+    return tmp_path / "capabilities" / "dolibarr"
 
 
 @pytest.fixture
@@ -53,8 +55,23 @@ def write(caps, name, cap=None):
     (caps / name).write_text(dumps(cap or capability()), encoding="utf-8", newline="\n")
 
 
+def approved(cap=None, approver="bob"):
+    """Write a valid approval sidecar for the capability under the (patched) approvals folder."""
+    from datetime import UTC, datetime
+
+    from cua.artifact.approval import approve, dumps_approval, sidecar_path
+
+    cap = cap or capability()
+    path = sidecar_path(commands.approvals_dir(), cap)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    approval = approve(cap, dolibarr_profile(), approver=approver, at=datetime.now(UTC), validation_run_ids=["val-1"])
+    path.write_bytes(dumps_approval(approval).encode("utf-8"))
+    return path
+
+
 def test_replay_success_prints_the_output_and_exits_zero(caps, sessions, capsys):
     write(caps, "lookup_customer_outstanding@1.0.0.json")
+    approved()
     code = main(["replay", "dolibarr.lookup_customer_outstanding", "--input", f"customer_code={CODE}"])
     out = capsys.readouterr()
     assert code == 0
@@ -66,7 +83,7 @@ def test_replay_success_prints_the_output_and_exits_zero(caps, sessions, capsys)
 
 def test_replay_json_prints_the_run_result(caps, sessions, capsys):
     write(caps, "lookup_customer_outstanding@1.0.0.json")
-    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--version", "1.0.0", "--json",
+    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--allow-draft", "--version", "1.0.0", "--json",
                  "--input", f"customer_code={CODE}"]) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "success" and result["outputs"] == {"outstanding_amount": "75.37"}
@@ -74,7 +91,7 @@ def test_replay_json_prints_the_run_result(caps, sessions, capsys):
 
 def test_replay_falls_back_to_the_draft_with_a_warning(caps, sessions, capsys):
     write(caps, "lookup_customer_outstanding@1.0.0.draft.json")
-    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--input", f"customer_code={CODE}"]) == 0
+    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--allow-draft", "--input", f"customer_code={CODE}"]) == 0
     assert "draft" in capsys.readouterr().err
 
 
@@ -93,7 +110,7 @@ def test_a_final_file_wins_over_its_draft_and_the_highest_version_wins(caps, ses
 
 def test_failure_exits_one_and_names_the_failure(caps, sessions, capsys):
     write(caps, "lookup_customer_outstanding@1.0.0.json")
-    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--input", "customer_code=not-a-code"]) == 1
+    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--allow-draft", "--input", "customer_code=not-a-code"]) == 1
     assert "INPUT_INVALID" in capsys.readouterr().out
 
 
@@ -111,8 +128,8 @@ def test_a_missing_capability_is_a_usage_error(caps, sessions, capsys):
 def test_bad_arguments_are_usage_errors(caps, sessions, capsys):
     write(caps, "lookup_customer_outstanding@1.0.0.json")
     assert main(["replay", "lookup", "--input", "a=b"]) == 2
-    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--input", "novalue"]) == 2
-    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--input", "a=1", "--input", "a=2"]) == 2
+    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--allow-draft", "--input", "novalue"]) == 2
+    assert main(["replay", "dolibarr.lookup_customer_outstanding", "--allow-draft", "--input", "a=1", "--input", "a=2"]) == 2
 
 
 def test_compile_writes_a_deterministic_draft(tmp_path, capsys):

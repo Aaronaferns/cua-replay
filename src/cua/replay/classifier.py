@@ -1,7 +1,7 @@
 """Observation -> screen view -> state. The pure classification itself lives in `cua.artifact.classify`.
 
-This is the seam where the M3 classifier (settle detection, richer near-miss reporting) slots in: the interpreter
-only calls `classify_observation` and `mask_url`.
+Settling (the navigation fence, then the same verdict on 2 polls at least 150 ms apart) is the interpreter's
+`_settle`, which calls the surface's `settle()`; this module only turns one observation into a state.
 """
 
 from __future__ import annotations

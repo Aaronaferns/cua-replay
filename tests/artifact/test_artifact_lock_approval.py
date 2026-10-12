@@ -15,6 +15,7 @@ from cua.artifact.approval import (
     SelfApprovalError,
     approval_state,
     approve,
+    dumps_approval,
     load_approval,
     sidecar_path,
 )
@@ -126,8 +127,10 @@ def test_sidecar_is_separate_from_the_body_and_round_trips(tmp_path: Path):
     cap, prof = capability(), dolibarr_profile()
     appr = approve(cap, prof, approver="bob", at=NOW, validation_run_ids=["val-1", "val-2"])
     path = sidecar_path(tmp_path, cap)
-    assert path.name == "dolibarr.lookup_customer_outstanding@1.0.0.json"
-    path.write_text(appr.model_dump_json(), encoding="utf-8")
+    assert path == tmp_path / "dolibarr" / "lookup_customer_outstanding@1.0.0.approval.json"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(dumps_approval(appr).encode("utf-8"))
+    assert b"\r" not in path.read_bytes() and path.read_bytes().endswith(b"}\n")
     assert load_approval(path) == appr
     assert load_approval(tmp_path / "missing.json") is None
     assert set(json.loads(path.read_text())) == {"capability", "version", "lock_hash", "approver", "at",
