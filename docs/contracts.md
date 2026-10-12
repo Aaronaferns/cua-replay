@@ -54,7 +54,8 @@ compiler   → artifact, agent.actions, surface, safety.policy
 replay     → artifact, surface, safety, control, evidence      NEVER agent, compiler.recorder, faults, anthropic,
                                                                  target REST helpers
 faults     → playwright, pydantic, safety.policy only; installed by tests/CLI only when the policy marks the target sandbox
-cli        → anything
+cli        → anything; each package's `commands.py` is CLI wiring and may import lazily (inside command functions)
+             beyond its package's rule, e.g. `validate`/`make-evidence` reach target REST helpers and faults
 ```
 
 `cua.agent/__init__.py` stays empty so importing `cua.agent.actions` never loads the model SDK.
