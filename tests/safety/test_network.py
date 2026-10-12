@@ -231,3 +231,19 @@ async def test_new_tabs_in_the_context_are_guarded_too(world):
     with pytest.raises(Exception):  # noqa: B017, PT011
         await second.goto(denied.origin + "/typed-in-the-address-bar")
     assert denied.hits == []
+
+
+@pytest.mark.parametrize(
+    "url", ["http://h:99999/x", "http://h:notaport/x", "ws://127.0.0.1:-1/", "http://[::1/x", "http://[bad]:80/", "", "\x00"]
+)
+def test_loggable_is_total(url):
+    from cua.safety.network import _loggable, new_blocked
+
+    assert isinstance(_loggable(url), str)
+    assert new_blocked(url, rule="origin_allowlist", reason="x").url  # building the log record never raises
+
+
+def test_loggable_keeps_the_host_when_the_port_is_invalid():
+    from cua.safety.network import _loggable
+
+    assert _loggable("http://evil.example:99999/p?q=1") == "http://evil.example:invalid-port/p"

@@ -148,6 +148,38 @@ def test_paths_are_confined_to_the_run_directory(writer, tmp_path, relpath):
     assert not (tmp_path / "escape.txt").exists()
 
 
+@pytest.mark.parametrize(
+    "relpath",
+    ["Manifest.json", "EVENTS.JSONL", "sub/../Manifest.JSON", "manifest.json.", "manifest.json ", "events.jsonl. .",
+     "a/b.", "a/b ", "x.tmp", "x.TMP", "d/nul", "NUL", "con.txt", "d/CON.log", "COM1", "lpt9.txt", "Aux.", "nul .txt",
+     "com¹", "a\x01b"],
+)
+def test_reserved_device_and_unportable_names_are_refused(writer, relpath):
+    before = (writer.run_dir / "manifest.json").read_bytes()
+    with pytest.raises(EvidenceError):
+        writer.text(relpath, "overwritten")
+    with pytest.raises(EvidenceError):
+        writer.json(relpath, {"x": 1})
+    assert (writer.run_dir / "manifest.json").read_bytes() == before
+    assert not (writer.run_dir / "events.jsonl").exists()
+
+
+def test_a_close_look_alike_name_is_still_allowed(writer):
+    for name in ("manifest.json.bak", "console.txt", "com10.txt", "events.jsonl2", "d/nullable.txt", "a b.txt"):
+        assert writer.text(name, "ok").read_text(encoding="utf-8") == "ok"
+
+
+@pytest.mark.parametrize(
+    "relpath",
+    [f"{SECRET}.txt", f"d/{SECRET.upper()}", "S3cret%2FValue%261.txt", "S3cret/Value&amp;1.txt", "mail-a@b.example.txt",
+     "dump-token=abcd1234efgh.txt", "x/Bearer abcdefghijkl.txt", "123-45-6789.txt"],
+)
+def test_paths_with_secrets_or_sensitive_patterns_are_refused_not_substituted(writer, relpath):
+    with pytest.raises(EvidenceError):
+        writer.text(relpath, "x")
+    assert [p.name for p in writer.run_dir.rglob("*") if p.is_file()] == ["manifest.json"]
+
+
 @pytest.mark.parametrize("run_id", ["", "../x", "a/b", "a\\b", ".hidden", "x" * 101])
 def test_run_ids_are_plain_names(tmp_path, run_id):
     with pytest.raises(EvidenceError):

@@ -150,3 +150,49 @@ def test_text_is_idempotent():
     r = Redactor(["typed-value-1"])
     once = r.text("Cookie: a=b typed-value-1 123-45-6789 a@b.co")
     assert r.text(once) == once
+
+
+# --- W1 validator findings ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("apostrophe", ["&#039;", "&#39;", "&#x27;", "&apos;"])
+def test_php_apostrophe_escapes_are_redacted(apostrophe):
+    value = "O'Brien-pass1"
+    shown = f"<td>{value.replace(chr(39), apostrophe)}</td>"
+    out = Redactor([value]).text(shown)
+    assert "Brien" not in out and "[REDACTED:input]" in out
+
+
+def test_php_htmlentities_named_entities_are_redacted():
+    value = "Müller-pa55"
+    for shown in ("M&uuml;ller-pa55", "M&#252;ller-pa55", "M&#xfc;ller-pa55"):
+        assert "ller" not in Redactor([value]).text(f"<b>{shown}</b>"), shown
+    assert "pa55" not in Redactor(["Zoë's-pa55"]).text("Zo&euml;&#039;s-pa55")
+
+
+def test_data_redacts_the_value_of_a_name_value_header_pair():
+    out = Redactor().data(
+        {
+            "headers_array": [
+                {"name": "Cookie", "value": "DOLSESSID_x=aaaa1111"},
+                {"name": "x-auth-token", "value": "plainsecret"},
+                {"name": "Authorization", "value": "whatever"},
+                {"name": "Accept", "value": "text/html"},
+            ],
+            "har": {"headers": [{"key": "X-CSRF-Token", "value": "abc"}, {"name": "Host", "value": "localhost"}]},
+        }
+    )
+    assert [h["value"] for h in out["headers_array"]] == ["[REDACTED]", "[REDACTED]", "[REDACTED]", "text/html"]
+    assert [h["value"] for h in out["har"]["headers"]] == ["[REDACTED]", "localhost"]
+    assert out["headers_array"][0]["name"] == "Cookie"  # the header name stays: it is evidence
+
+
+def test_x_auth_token_header_and_token_scheme_are_redacted_in_text():
+    for line, leak in (
+        ("x-auth-token: plainsecret99", "plainsecret99"),
+        ("Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b", "9944b09199c62bcf"),
+        ("sent Token 9944b09199c62bcf9418 to the api", "9944b09199c62bcf9418"),
+    ):
+        out = Redactor().text(line)
+        assert leak not in out and "[REDACTED" in out, line
+    assert Redactor().text("Token generation is documented") == "Token generation is documented"
