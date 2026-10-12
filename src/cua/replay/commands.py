@@ -354,25 +354,9 @@ def _target_tools() -> None:
 
 def _reset_target() -> None:
     _target_tools()
-    import dolictl
     from livetarget import reset_to_baseline
 
-    try:
-        reset_to_baseline()
-    except dolictl.CtlError as e:
-        # reset.sh exits 4 when the restore finished but overran its 15 s budget on a loaded host: the restore itself
-        # happened, so only the check that the fixture customers carry their promised amounts is repeated.
-        if "budget" not in str(e):
-            raise
-        import seed
-        from dolirest import Rest, customer_by_code, outstanding_of
-
-        from cua.config import settings
-
-        admin = Rest.admin(settings())
-        for c in seed.load_fixtures().customers:
-            if outstanding_of(admin, customer_by_code(admin, c.code)["id"]) != c.outstanding:
-                raise
+    reset_to_baseline()  # a slow restore only warns; the fixture check inside is the real test
 
 
 def _oracle(name: str, value: str) -> str:
