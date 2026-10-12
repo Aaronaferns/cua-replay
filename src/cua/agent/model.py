@@ -7,6 +7,7 @@ the scripted adapter and the loop run without one.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
@@ -126,6 +127,16 @@ def tool_definitions() -> list[dict[str, Any]]:
     return tools
 
 
+# Dolibarr gives every list filter the same 400-character help text as its accessible name. The model reads a
+# shortened name (the recorder keeps the full snapshot), so ten of those do not cost thousands of tokens a turn.
+_LONG_NAME = re.compile(r'"((?:[^"\\]|\\.){120,}?)"(?= \[|:|$)', re.MULTILINE)
+NAME_LIMIT = 100
+
+
+def shorten_long_names(text: str) -> str:
+    return _LONG_NAME.sub(lambda m: '"' + m.group(1)[:NAME_LIMIT].rstrip() + '..."', text)
+
+
 def render_observation(obs: Observation) -> str:
     """The observation as the model reads it (text part). Contains only what the page shows."""
     f = obs.facts
@@ -144,4 +155,4 @@ def render_observation(obs: Observation) -> str:
     else:
         lines.append("Page content:")
     lines.append(obs.snapshot or "(empty)")
-    return "\n".join(lines)
+    return shorten_long_names("\n".join(lines))
