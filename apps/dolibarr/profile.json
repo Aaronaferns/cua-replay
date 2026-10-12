@@ -1,0 +1,160 @@
+{
+  "schema": "cua.profile/v1",
+  "app": "dolibarr",
+  "entry": {
+    "route": "/index.php?mainmenu=home&leftmenu=home",
+    "start_state": "home"
+  },
+  "login": {
+    "state": "login",
+    "username": {
+      "description": "textbox \"Login\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Login",
+          "why": "label observed on the Dolibarr 23.0.4 login screen",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "textbox",
+        "tag": "input",
+        "input_type": "text"
+      }
+    },
+    "password": {
+      "description": "textbox \"Password\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Password",
+          "why": "label observed on the Dolibarr 23.0.4 login screen",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "textbox",
+        "tag": "input",
+        "input_type": "password"
+      }
+    },
+    "submit": {
+      "description": "button \"Login\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Login",
+          "why": "label observed on the Dolibarr 23.0.4 login screen",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "button",
+        "tag": "input",
+        "input_type": "submit"
+      }
+    }
+  },
+  "states": {
+    "login": {
+      "description": "Login form. Shown at whatever URL was requested once the session is gone, so it is recognised by its fields, never by URL.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "text",
+            "equals": "Login",
+            "role": "textbox"
+          },
+          {
+            "kind": "text",
+            "equals": "Password",
+            "role": "textbox"
+          },
+          {
+            "kind": "text",
+            "equals": "Login",
+            "role": "button"
+          }
+        ]
+      },
+      "origin": "declared",
+      "edited": false
+    },
+    "home": {
+      "description": "Home dashboard.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/index.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Global view"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "customer_list": {
+      "description": "Customers list (third parties filtered to customers).",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/societe/list.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Third-party name",
+            "role": "columnheader"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "customer_card": {
+      "description": "Third-party card showing the customer code row.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/societe/card.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Customer Code",
+            "role": "cell"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    }
+  },
+  "default_meaning": {
+    "login": {
+      "failure": "SESSION_EXPIRED"
+    }
+  },
+  "handlers": {},
+  "commit_routes": [],
+  "number_format": {
+    "decimal": ".",
+    "group": ","
+  }
+}
