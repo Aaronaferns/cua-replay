@@ -330,6 +330,13 @@ class Capability(_Strict):
     def _app(cls, v: str) -> str:
         return _check_name("app", v)
 
+    @field_validator("targets")
+    @classmethod
+    def _target_ids(cls, v: dict[str, Target]) -> dict[str, Target]:
+        for tid in v:
+            _check_name("target", tid)
+        return v
+
     @field_validator("id")
     @classmethod
     def _id(cls, v: str) -> str:

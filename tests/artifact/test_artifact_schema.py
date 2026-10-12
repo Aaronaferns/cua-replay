@@ -163,6 +163,13 @@ def test_ids_and_versions_are_checked():
         Capability.model_validate(doc)
 
 
+def test_target_ids_are_names():
+    doc = capability_dict()
+    doc["targets"]["Bad Id"] = doc["targets"]["outstanding"]
+    with pytest.raises(ValidationError):
+        Capability.model_validate(doc)
+
+
 def test_a_branch_needs_exactly_one_destination():
     doc = capability_dict()
     doc["steps"][0]["on"] = [{"state": "customer_list"}]
