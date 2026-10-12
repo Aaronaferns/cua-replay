@@ -21,6 +21,7 @@ done < "$ENV_FILE"
 : "${DOLIBARR_PORT:?set DOLIBARR_PORT in .env}"
 : "${DOLIBARR_DB_ROOT_PASSWORD:?set DOLIBARR_DB_ROOT_PASSWORD in .env}"
 PROJECT="cua-${DOLIBARR_PORT}"
+echo "compose project: $PROJECT"  # dolictl.run_script checks this against settings().dolibarr_port
 DUMP_DIR="$HERE/dumps"
 DUMP_FILE="$DUMP_DIR/post-seed.sql"
 
