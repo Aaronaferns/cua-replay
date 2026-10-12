@@ -1,0 +1,49 @@
+# The resettable target: Dolibarr 23.0.4 + MariaDB 11.4 with demo data.
+#
+# Every credential comes from the repo's git-ignored .env (see .env.example); nothing secret lives in this file.
+# Start it through up.sh, which loads .env, names the compose project `cua-${DOLIBARR_PORT}` (so the 8085 / 8086 /
+# 8087 targets of parallel agents never share containers or volumes) and waits until the login page answers.
+# A direct `docker compose` call needs the same `-p cua-<port>` and the .env values in its environment.
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DOLIBARR_DB_ROOT_PASSWORD:?set DOLIBARR_DB_ROOT_PASSWORD in .env}
+      MARIADB_DATABASE: dolidb
+      MARIADB_USER: dolidbuser
+      MARIADB_PASSWORD: ${DOLIBARR_DB_PASSWORD:?set DOLIBARR_DB_PASSWORD in .env}
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    image: dolibarr/dolibarr:23.0.4
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DOLI_DB_HOST: db
+      DOLI_DB_NAME: dolidb
+      DOLI_DB_USER: dolidbuser
+      DOLI_DB_PASSWORD: ${DOLIBARR_DB_PASSWORD}
+      DOLI_URL_ROOT: http://localhost:${DOLIBARR_PORT:?set DOLIBARR_PORT in .env}
+      DOLI_ADMIN_LOGIN: admin
+      DOLI_ADMIN_PASSWORD: ${DOLIBARR_ADMIN_PASSWORD:?set DOLIBARR_ADMIN_PASSWORD in .env}
+      DOLI_INIT_DEMO: "1"
+      DOLI_COMPANY_NAME: CUA Sandbox
+      DOLI_COMPANY_COUNTRYCODE: US
+      DOLI_ENABLE_MODULES: Societe,Facture,Banque,Api
+    ports:
+      - "${DOLIBARR_PORT}:80"
+    volumes:
+      - documents:/var/www/documents
+
+volumes:
+  db: {}
+  documents: {}

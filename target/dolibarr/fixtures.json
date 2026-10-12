@@ -1,0 +1,41 @@
+{
+  "comment": "Known identities the seed creates and the tests read. Customer codes are 12 characters (Dolibarr's default numbering module refuses codes shorter than 11). All invoices are validated, unpaid and untaxed (0 percent), so a customer's outstanding bill is the sum of its amounts. Nothing here is a secret.",
+  "customers": [
+    {
+      "key": "alpha",
+      "code": "CU2601-00901",
+      "name": "Aurora Seed Supplies",
+      "invoices": [
+        {"ref_client": "CUA-SEED-ALPHA-1", "amount": "120.40"},
+        {"ref_client": "CUA-SEED-ALPHA-2", "amount": "79.35"}
+      ]
+    },
+    {
+      "key": "beta",
+      "code": "CU2601-00902",
+      "name": "Borealis Seed Trading",
+      "invoices": [
+        {"ref_client": "CUA-SEED-BETA-1", "amount": "310.00"},
+        {"ref_client": "CUA-SEED-BETA-2", "amount": "45.20"}
+      ]
+    },
+    {
+      "key": "gamma",
+      "code": "CU2601-00903",
+      "name": "Cedar Seed Limited",
+      "invoices": []
+    }
+  ],
+  "near_miss": {
+    "existing_code": "CU1910-00021",
+    "missing_code": "CU1910-0002"
+  },
+  "bank_account": {
+    "ref": "CUASEED",
+    "label": "CUA Seed Operating Account"
+  },
+  "users": {
+    "readonly_login": "cua_readonly",
+    "noperm_login": "noperm"
+  }
+}
