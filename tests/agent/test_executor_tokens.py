@@ -106,3 +106,30 @@ def test_short_values_only_match_whole_arguments():
     ex.check_text(Click(rationale="open item 142 of the list", ref="e1"))  # '42' inside ordinary text is fine
     with pytest.raises(Rejected):
         ex.check_text(Type(rationale="r", ref="e1", text="42"))
+
+
+async def test_navigating_to_a_record_id_copied_from_the_page_is_rejected():
+    ex = executor()
+    for url in ("http://localhost:8085/comm/card.php?socid=63", "http://localhost:8085/x.php?a=1&facid=216",
+                "http://localhost:8085/x.php?id=7"):
+        outcome = await ex.execute(Navigate(rationale="r", url=url), obs=None)  # type: ignore[arg-type]
+        assert outcome.status == "error" and "record id" in outcome.message
+    # a fixed page and an input placeholder are fine (this one fails later, at the untouchable surface)
+    ok = "http://localhost:8085/societe/list.php?search_customer_code={{customer_code}}"
+    with pytest.raises(AssertionError, match="UI was touched"):
+        await ex.execute(Navigate(rationale="r", url=ok), obs=type("O", (), {"facts": None})())  # type: ignore[arg-type]
+
+
+def test_candidates_naming_the_extracted_value_are_not_stable():
+    from cua.artifact.schema import Fingerprint, Strategy
+    from cua.compiler.trace import LocatorCandidate, TargetRecord
+
+    def cand(rank, **kw):
+        return LocatorCandidate(rank=rank, match_count=1, same_element=True,
+                                strategy=Strategy(why="w", matched_at_record="m", **kw))
+
+    target = TargetRecord(ref="e1", role="link", name="x", fingerprint=Fingerprint(role="link", tag="a"),
+                          candidates=[cand(1, kind="role", role="link", name="Current outstanding bill 199.75 EUR"),
+                                      cand(2, kind="same_row", label="Current outstanding bill", take="value")])
+    kept = Executor._stable_for(target, "Current outstanding bill 199.75 EUR").candidates
+    assert [c.strategy.kind for c in kept] == ["same_row"]

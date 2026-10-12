@@ -33,7 +33,7 @@ from cua.agent.actions import (
 )
 from cua.artifact.names import normalize_name
 from cua.artifact.schema import Effect, Profile
-from cua.compiler.recorder import Recorder, actionable_text
+from cua.compiler.recorder import Recorder, actionable_text, value_cell
 from cua.compiler.trace import TargetRecord
 from cua.control.lease import LeaseToken
 from cua.safety.policy import ActionKind, ActionRequest, Guard, PolicyDecision, PolicyDenied
@@ -41,6 +41,9 @@ from cua.surface import snapshot as snap
 from cua.surface.base import Element, NativeDialogOpen, Observation, Surface, SurfaceError
 
 _TOKEN = re.compile(r"\{\{([a-z][a-z0-9_]*)\}\}")
+_NUMBERS = re.compile(r"\d[\d.,]*\d|\d")
+# A numeric record id literal in a URL query (socid=63, id=7, facid=216): it names this record only.
+_RECORD_ID = re.compile(r"[?&;]\w*id=\d+", re.IGNORECASE)
 _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f  ]")
 # Substitution targets: only these arguments carry input tokens into the application.
 _SUBSTITUTED = {"text", "option", "url"}
@@ -191,10 +194,28 @@ class Executor:
         except ValueError as e:  # a surface-level argument check (key not allowed, URL not absolute)
             return Outcome("error", f"Rejected: {e}.", self._effect, tokens=tokens, target=self._target)
 
-    async def _resolve(self, ref: str, obs: Observation) -> tuple[Element, snap.Node | None]:
-        element = await self.surface.element_for_ref(ref, obs.epoch)
-        node = next((n for n in snap.parse(actionable_text(obs)) if n.ref == ref), None)
-        return element, node
+    async def _resolve(self, ref: str, obs: Observation, *, read_only: bool = False
+                       ) -> tuple[Element, snap.Node | None, str]:
+        """The element for a ref, its snapshot node and the ref actually used. For read-only uses (extract, done
+        evidence) text sitting in a nameless table cell is recorded as the cell: that is the element a label's row
+        leads to, and what a later replay can find."""
+        nodes = snap.parse(actionable_text(obs))
+        node = next((n for n in nodes if n.ref == ref), None)
+        if read_only and node is not None:
+            lifted = value_cell(nodes, nodes.index(node))
+            if lifted is not node and lifted.ref:
+                node, ref = lifted, lifted.ref
+        return await self.surface.element_for_ref(ref, obs.epoch), node, ref
+
+    def _stable(self, target: TargetRecord) -> TargetRecord:
+        """Drop candidates that mention an extracted value (an accessible name that contains the amount changes with
+        the amount, so it would find nothing for the next customer)."""
+        volatile = {m for text in self.extracted.values() for m in _NUMBERS.findall(text)}
+        if not volatile:
+            return target
+        kept = [c for c in target.candidates
+                if not any(v in s for s in c.strategy.locator_strings() for v in volatile)]
+        return target.model_copy(update={"candidates": kept})
 
     async def _record(self, element: Element, node: snap.Node | None, ref: str, obs: Observation) -> TargetRecord:
         role = node.role if node else ""
@@ -214,8 +235,12 @@ class Executor:
                     return Outcome("error", f"Not done: extract these outputs first: {', '.join(missing)}.", tokens=tokens)
                 if not action.evidence_refs:
                     return Outcome("error", "Not done: cite at least one element in evidence_refs.", tokens=tokens)
-                resolved = [(ref, *await self._resolve(ref, obs)) for ref in action.evidence_refs]
-                evidence = [await self._record(el, node, ref, obs) for ref, el, node in resolved]
+                resolved = [await self._resolve(ref, obs, read_only=True) for ref in action.evidence_refs]
+                evidence = [self._stable(await self._record(el, node, ref, obs)) for el, node, ref in resolved]
+                if bad := [r for r, e in zip(action.evidence_refs, evidence) if not e.candidates]:
+                    return Outcome("error", "Not done: no stable way to find the element(s) " + ", ".join(bad)
+                                   + " again was recorded; cite elements whose labels do not contain a value.",
+                                   tokens=tokens)
                 decision = PolicyDecision(allowed=True, rule="not_an_action", reason="done is not a surface action")
                 return Outcome("performed", "Done.", effect="none", policy=decision, tokens=tokens,
                                done_evidence=evidence, terminal="done")
@@ -224,15 +249,19 @@ class Executor:
                 decision = await self.surface.press(action.key, self._request("press", obs, effect))
                 return Outcome("performed", f"Pressed {action.key}.", effect, decision, tokens)
             case Navigate():
+                if _RECORD_ID.search(action.url):
+                    return Outcome("error", "Rejected: a record id copied from the page does not carry over to another "
+                                            "input. Reach the record by clicking its link or by filtering with the "
+                                            "input placeholder.", tokens=tokens)
                 url = self.substitute(action.url, url=True)
                 effect = self._effect = effect_of(action, None, url, self.profile)
                 decision = await self.surface.navigate(url, self._request("navigate", obs, effect, url))
                 return Outcome("performed", "Navigated.", effect, decision, tokens)
             case Click() | Type() | Select() | Extract():
-                element, node = await self._resolve(action.ref, obs)
+                element, node, ref = await self._resolve(action.ref, obs, read_only=action.kind == "extract")
                 href = self._href(obs, action.ref) if action.kind == "click" else None
                 effect = self._effect = effect_of(action, node, href, self.profile)
-                target = self._target = await self._record(element, node, action.ref, obs)
+                target = self._target = await self._record(element, node, ref, obs)
                 if isinstance(action, Click):
                     decision = await self.surface.click(element, self._request("click", obs, effect, href))
                     return Outcome("performed", "Clicked.", effect, decision, tokens, target)
@@ -259,6 +288,18 @@ class Executor:
         text = await self.surface.read_text(element)
         if not text.strip():
             return Outcome("error", "The element shows no text to extract.", effect, decision, tokens, target)
+        stable = self._stable_for(target, text)
+        if not stable.candidates:
+            return Outcome("error", "Nothing that survives a change of value could be recorded for this element (its "
+                                    "label contains the value). Extract from an element whose label does not.",
+                           effect, decision, tokens, target)
         self.extracted[action.name] = text
-        return Outcome("performed", f"Extracted {action.name}.", effect, decision, tokens, target,
+        return Outcome("performed", f"Extracted {action.name}.", effect, decision, tokens, stable,
                        extracted=(action.name, text))
+
+    @staticmethod
+    def _stable_for(target: TargetRecord, text: str) -> TargetRecord:
+        volatile = set(_NUMBERS.findall(text))
+        kept = [c for c in target.candidates
+                if not any(v in s for s in c.strategy.locator_strings() for v in volatile)]
+        return target.model_copy(update={"candidates": kept})

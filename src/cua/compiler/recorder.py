@@ -95,7 +95,7 @@ class Recorder:
                 if not node.ref or node.role in _INPUT_ROLES or node.role in ("link", "button", "heading"):
                     continue
                 if wanted and wanted in (normalize_name(node.name or ""), normalize_name(node.value or "")):
-                    found.append((token, _value_cell(nodes, i)))
+                    found.append((token, value_cell(nodes, i)))
                     break
         return found
 
@@ -152,7 +152,7 @@ class Recorder:
         )
 
 
-def _value_cell(nodes: list[snap.Node], i: int) -> snap.Node:
+def value_cell(nodes: list[snap.Node], i: int) -> snap.Node:
     """A text-only value cell shows up as a `cell` holding one `generic: text`; the element a label's row leads to
     is the cell, so that is what gets recorded."""
     node = nodes[i]

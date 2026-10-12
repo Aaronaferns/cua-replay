@@ -43,6 +43,9 @@ value, in any argument. The system fills the value in when it acts.
 validate, confirm or pay anything.
 - Check that you are looking at the right record before you read from it: confirm that the identifying field on the \
 page is the one you were asked for (an exact match, not a similar one).
+- Your steps are recorded and replayed later for OTHER input values, so they must work for any input: reach a record \
+by filtering with the placeholder and clicking its link, never by typing a record id (such as socid=63) that you \
+read on the page into a URL. Navigating to a page by a fixed path and query is fine.
 - Use extract(name, ref) to record each declared output from the element that shows it, then finish with \
 done(evidence_refs) citing the elements on screen that prove the goal: the element that shows the identity you \
 checked and the element you extracted from.
