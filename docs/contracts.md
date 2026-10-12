@@ -29,6 +29,10 @@ Adding a dependency to `pyproject.toml` is a request to the lead, not an edit.
 | `EvidenceEvent`, `EvidenceWriter` | `evidence/events.py` | C | A, B |
 | `RunResult`, `Failure`, `Recovery`, `DriftWarning`, `SideEffects` | `replay/result.py` | B | C (console, evidence), CLI |
 | `Settings` | `config.py` | C | everyone |
+| `Session`, `open_session` | `control/runtime.py` | C | A (discover), B (replay/validate CLI) |
+| `LeaseManager`, `LeaseEvent` | `control/lease.py` | C | B (interpreter `step_boundary`), C (console) |
+| `FaultSpec`, `install_faults` | `faults/harness.py` | C | tests, CLI `make-evidence` (never replay) |
+| `RoutePattern{method, body}`, `is_commit` | `artifact/schema.py`, `artifact/routes.py` | B | C (commit detection, capture) |
 | `Policy`, `PolicyGuard`, `new_guarded_context`, `BlockedRequest` | `safety/policy.py`, `safety/network.py` | C | A (surface tests), CLI wiring |
 | name normalizer (S7) | `artifact/names.py` | B | A (surface), B (resolver, classifier) |
 | `Profile`, `LoginForm`, `Target` | `artifact/schema.py` | B | A (scripted login), C (commit routes) |
@@ -49,7 +53,7 @@ agent      → surface, safety, control, evidence, compiler, artifact
 compiler   → artifact, agent.actions, surface, safety.policy
 replay     → artifact, surface, safety, control, evidence      NEVER agent, compiler.recorder, faults, anthropic,
                                                                  target REST helpers
-faults     → playwright only; installed by tests/CLI only when the policy marks the target sandbox
+faults     → playwright, pydantic, safety.policy only; installed by tests/CLI only when the policy marks the target sandbox
 cli        → anything
 ```
 
@@ -83,3 +87,6 @@ replay recovery; WebArena; model comparison; UI-TARS/vLLM; Anthropic browser-too
 Selenium/IE; CDP screencast console; distributed workers; quarantine/canaries; scoped re-discovery;
 coverage-gated approval; waivers; generalized auto-repair; frameset support beyond Playwright's defaults.
 Tenant B, differential read-back and settle-jitter experiments wait until M7 is green and the owner approves.
+
+Evidence event kinds in use: `observe`, `action`, `policy`, `state`, `recovery`, `commit_attempt`, `lease`,
+`intervention`, `fault` (declared, sandbox only).
