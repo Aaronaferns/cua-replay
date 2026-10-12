@@ -481,17 +481,27 @@ class WebSurface:
                                     "columnheader", column, "columnheader")
 
     async def _table_cell(self, s: Strategy) -> list[WebElement]:
-        if s.row_key is None or s.column is None:
-            raise ValueError("table_cell strategy needs row_key and column")
+        """The cell in column `column` of the row keyed by `row_key` (or of every row, when the caller wants the table
+        to have exactly one), or the `role` element inside that cell."""
+        if s.column is None:
+            raise ValueError("table_cell strategy needs column")
         out: list[WebElement] = []
         for header in await self._headers(s.column):
             table = header.locator.locator("xpath=ancestor::table[1]")
-            keyed = table.locator(_ROWS).filter(has=self._page.get_by_role("cell", name=name_pattern(s.row_key)))
-            for i in range(await keyed.count()):
-                cells = keyed.nth(i).locator("xpath=./td | ./th")
-                if not await self._verified(cells, "cell", s.row_key, "row key"):
+            rows = table.locator(_ROWS)
+            if s.row_key is not None:
+                rows = rows.filter(has=self._page.get_by_role("cell", name=name_pattern(s.row_key)))
+            for i in range(await rows.count()):
+                cells = rows.nth(i).locator("xpath=./td | ./th")
+                if s.row_key is not None and not await self._verified(cells, "cell", s.row_key, "row key"):
                     continue  # the key sits in a nested table, not in a cell of this row
-                out += await self._in_column(await self._verified(cells, None, None, "table_cell"), header)
+                in_column = await self._in_column(await self._verified(cells, None, None, "table_cell"), header)
+                if s.role and s.role not in _NAMED_FROM_CONTENT and s.role != "generic":
+                    for cell in in_column:
+                        out += await self._verified(self._role_locator(cell.locator, s.role, None), s.role, None,
+                                                    "table_cell")
+                else:
+                    out += in_column
         return out
 
     async def _scoped(self, s: Strategy) -> list[WebElement]:
