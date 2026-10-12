@@ -46,10 +46,13 @@ async def test_settle_waits_for_a_page_that_is_still_changing(open_page):
 
 async def test_observe_settle_flag_returns_the_final_content(open_page):
     surface, page = await open_page("/comm/card.php?socid=10")
+    # The content changes while settle is polling, so it must land well inside the first poll interval (150 ms). A
+    # change later than that falls after two equal polls, and a screen quiet for a whole interval IS settled by
+    # definition, so settling before it is correct. The old 250 ms delay made this test fail about 1 run in 6.
     await page.evaluate("""() => setTimeout(() => {
       const p = document.createElement('p'); p.textContent = 'late arrival';
       document.getElementById('id-right').appendChild(p);
-    }, 250)""")
+    }, 40)""")
     obs = await surface.observe(screenshot=False, settle=True)
     assert "late arrival" in obs.snapshot
     assert ref_of(obs.snapshot, "cell", "Customer Code")
