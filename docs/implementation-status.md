@@ -40,3 +40,4 @@ Statuses: NOT STARTED · WORKING · BLOCKED · GREEN · CUT
 | 2026-10-12 | OpenRouter fallback not built | M2 forbids a second adapter; recorded as a cut for REPORT §7 |
 | 2026-10-12 | Proposed-state templates are URL-only on Dolibarr | No `heading` role in Dolibarr's main content; catalog content predicates discriminate (S5) |
 | 2026-10-12 | `cua replay` runs only approved capabilities unless `--allow-draft` | M3 approval gating; unapproved runs warn |
+| 2026-10-12 | Capability approver is the owner (git id `aaronaferns`), recorded with `cua approve` only after the owner reviews the review card, lock hash and a passing validation run | Owner decision; approver must not be the discoverer (claude-opus-5-5) |
