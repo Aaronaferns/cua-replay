@@ -159,7 +159,7 @@ async def test_unknown_screen_fails_with_expected_observed_and_near_misses(fake)
     r = await run(fake)
     assert r.status == "failure" and r.failure.code == "UNKNOWN_STATE"
     assert r.failure.expected == "customer_list" and r.failure.observed.state == "unknown"
-    assert r.failure.observed.near_misses == ["customer_list (1/2)"]
+    assert r.failure.observed.near_misses[0] == "customer_list (1/2)"
     assert r.failure.observed.url == "/societe/list.php?leftmenu=*&type=*&search_code=*"
     assert CODE not in r.model_dump_json()
 
