@@ -261,6 +261,32 @@
       },
       "origin": "observed",
       "edited": false
+    },
+    "payment_confirm": {
+      "description": "Payment form after Pay: Dolibarr asks 'Do you confirm this payment input' (an inline Yes/No select and a Validate button, not a dialog). Submitting it posts the payment.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/paiement.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Enter payment received from customer",
+            "role": "cell"
+          },
+          {
+            "kind": "text",
+            "pattern": "Do you confirm this payment input for .*",
+            "role": "cell"
+          }
+        ]
+      },
+      "specializes": "payment_form",
+      "origin": "observed",
+      "edited": false
     }
   },
   "default_meaning": {

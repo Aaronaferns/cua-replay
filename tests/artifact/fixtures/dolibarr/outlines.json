@@ -64,5 +64,10 @@
     "url": "http://localhost:8086/compta/facture/card.php?id=458",
     "expected": "access_denied",
     "outline": "- generic: Access denied.You try to access to a page, area or feature of a disabled module or without being in an authenticated session or that is not allowed to your user.\n"
+  },
+  "14_payment_confirm": {
+    "url": "http://localhost:8086/compta/paiement.php",
+    "expected": "payment_confirm",
+    "outline": "- cell \"Enter payment received from customer\"\n- cell \"Do you confirm this payment input for 50 Euros? All invoices with no remainder to pay will be automatically closed with status \\\"Paid\\\".\": Do you confirm this payment input for 50 Euros?All invoices with no remainder to pay will be automatically closed with status \"Paid\".\n"
   }
 }
