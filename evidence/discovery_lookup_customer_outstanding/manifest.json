@@ -1,0 +1,72 @@
+{
+  "run_id": "discovery_lookup_customer_outstanding",
+  "status": "closed",
+  "created": "2026-10-12T15:40:20.993782+00:00",
+  "updated": "2026-10-12T15:41:02.836054+00:00",
+  "events": 23,
+  "redaction": {
+    "known_values": 15,
+    "patterns": [
+      "header",
+      "bearer",
+      "session_id",
+      "token_param",
+      "token_field",
+      "token_json",
+      "ssn",
+      "email"
+    ]
+  },
+  "files": [
+    {
+      "path": "capability.draft.json",
+      "bytes": 5900,
+      "sha256": "7186336a34a87129a250e2f6a70fc339c37959e4e08ce583973aa7734491790b"
+    },
+    {
+      "path": "events.jsonl",
+      "bytes": 12939,
+      "sha256": "f56bd1a32ed53bf494299a83aabd24c7c2db28e5bfd60cb533e6f407fbdb4875"
+    },
+    {
+      "path": "result.json",
+      "bytes": 1474,
+      "sha256": "df7b50dfc2c24a74bd8adf1fa1b11f2ec832c8dcdd611eb5eb7db53ab7bd5ad3"
+    },
+    {
+      "path": "screenshots/01-start.png",
+      "bytes": 59415,
+      "sha256": "855d54e94b3576d3a28ef8a9b84f0ddd0ced955beafca75dda358dcb6c63855d"
+    },
+    {
+      "path": "screenshots/02-after-01.png",
+      "bytes": 33020,
+      "sha256": "d79d66c76d2b80b69d072cbd538948669669aa8097d40c8790ffbf99e2eec08f"
+    },
+    {
+      "path": "screenshots/03-after-02.png",
+      "bytes": 37178,
+      "sha256": "e4c66492e7667b4d38f61a62e70cd27280545170eb9775874eaa9cf946d68f30"
+    },
+    {
+      "path": "screenshots/04-after-03.png",
+      "bytes": 37178,
+      "sha256": "e4c66492e7667b4d38f61a62e70cd27280545170eb9775874eaa9cf946d68f30"
+    },
+    {
+      "path": "screenshots/05-after-04.png",
+      "bytes": 37178,
+      "sha256": "e4c66492e7667b4d38f61a62e70cd27280545170eb9775874eaa9cf946d68f30"
+    },
+    {
+      "path": "trace.json",
+      "bytes": 141979,
+      "sha256": "921fb62d9aa9985f6a2a0f688290ef7d3a0b829907953676ddcd16daff8142b9"
+    },
+    {
+      "path": "transcript.json",
+      "bytes": 82676,
+      "sha256": "bca92edd8c6bd288fa44366befaf4bbc07483c11aeff6f978b127295a9a767dd"
+    }
+  ]
+}
