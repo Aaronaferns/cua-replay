@@ -15,8 +15,6 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "target" / "dolibarr"))
 
-import dolictl  # noqa: E402
-import seed  # noqa: E402
 from dolirest import Rest, customer_by_code, outstanding_of  # noqa: E402
 from livetarget import reset_to_baseline  # noqa: E402
 
@@ -34,18 +32,7 @@ CAPABILITY = FIXTURES / "dolibarr" / "lookup_customer_outstanding@1.0.0.json"
 
 @pytest.fixture(scope="module")
 def baseline():
-    try:
-        return reset_to_baseline()
-    except dolictl.CtlError as e:
-        # reset.sh exits 4 when the restore finished but took longer than its 15 s budget (a loaded host); the
-        # restore itself happened, so only the fixture check is repeated here.
-        if "budget" not in str(e):
-            raise
-        fixtures = seed.load_fixtures()
-        admin = Rest.admin(settings())
-        for c in fixtures.customers:
-            assert outstanding_of(admin, customer_by_code(admin, c.code)["id"]) == c.outstanding
-        return fixtures
+    return reset_to_baseline()
 
 
 def truth(code: str):

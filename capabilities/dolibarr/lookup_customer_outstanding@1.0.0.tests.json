@@ -1,0 +1,28 @@
+{
+  "schema": "cua.suite/v1",
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "cases": [
+    {
+      "id": "alpha_two_unpaid_invoices",
+      "description": "the customer the discovery run looked up: two unpaid invoices, amount equals the application's REST view",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "expect": {
+        "status": "success",
+        "outcome": "success",
+        "outputs": {"outstanding_amount": "199.75"},
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}]
+      }
+    },
+    {
+      "id": "beta_other_customer",
+      "description": "a different customer the model never saw: replay finds the same fields from the artifact alone",
+      "inputs": {"customer_code": "CU2601-00902"},
+      "expect": {
+        "status": "success",
+        "outcome": "success",
+        "outputs": {"outstanding_amount": "355.20"},
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}]
+      }
+    }
+  ]
+}

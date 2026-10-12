@@ -1,0 +1,2117 @@
+{
+  "capability": {
+    "$defs": {
+      "AllOf": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "all",
+            "default": "all",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "all": "#/$defs/AllOf",
+                  "any": "#/$defs/AnyOf",
+                  "not": "#/$defs/Not",
+                  "target_equals_input": "#/$defs/TargetEqualsInput",
+                  "target_visible": "#/$defs/TargetVisible",
+                  "text": "#/$defs/Text",
+                  "url_matches": "#/$defs/UrlMatches"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UrlMatches"
+                },
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "$ref": "#/$defs/TargetVisible"
+                },
+                {
+                  "$ref": "#/$defs/TargetEqualsInput"
+                },
+                {
+                  "$ref": "#/$defs/AllOf"
+                },
+                {
+                  "$ref": "#/$defs/AnyOf"
+                },
+                {
+                  "$ref": "#/$defs/Not"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Of",
+            "type": "array"
+          }
+        },
+        "required": [
+          "of"
+        ],
+        "title": "AllOf",
+        "type": "object"
+      },
+      "AnyOf": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "any",
+            "default": "any",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "all": "#/$defs/AllOf",
+                  "any": "#/$defs/AnyOf",
+                  "not": "#/$defs/Not",
+                  "target_equals_input": "#/$defs/TargetEqualsInput",
+                  "target_visible": "#/$defs/TargetVisible",
+                  "text": "#/$defs/Text",
+                  "url_matches": "#/$defs/UrlMatches"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UrlMatches"
+                },
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "$ref": "#/$defs/TargetVisible"
+                },
+                {
+                  "$ref": "#/$defs/TargetEqualsInput"
+                },
+                {
+                  "$ref": "#/$defs/AllOf"
+                },
+                {
+                  "$ref": "#/$defs/AnyOf"
+                },
+                {
+                  "$ref": "#/$defs/Not"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Of",
+            "type": "array"
+          }
+        },
+        "required": [
+          "of"
+        ],
+        "title": "AnyOf",
+        "type": "object"
+      },
+      "AssertAction": {
+        "additionalProperties": false,
+        "description": "A first-class checkpoint step: the predicate must hold on the current screen, else the run stops.",
+        "properties": {
+          "kind": {
+            "const": "assert",
+            "default": "assert",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on_fail": {
+            "default": "CHECKPOINT_FAILED",
+            "enum": [
+              "IDENTITY_MISMATCH",
+              "CHECKPOINT_FAILED"
+            ],
+            "title": "On Fail",
+            "type": "string"
+          },
+          "that": {
+            "discriminator": {
+              "mapping": {
+                "all": "#/$defs/AllOf",
+                "any": "#/$defs/AnyOf",
+                "not": "#/$defs/Not",
+                "target_equals_input": "#/$defs/TargetEqualsInput",
+                "target_visible": "#/$defs/TargetVisible",
+                "text": "#/$defs/Text",
+                "url_matches": "#/$defs/UrlMatches"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/UrlMatches"
+              },
+              {
+                "$ref": "#/$defs/Text"
+              },
+              {
+                "$ref": "#/$defs/TargetVisible"
+              },
+              {
+                "$ref": "#/$defs/TargetEqualsInput"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              },
+              {
+                "$ref": "#/$defs/Not"
+              }
+            ],
+            "title": "That"
+          }
+        },
+        "required": [
+          "that"
+        ],
+        "title": "AssertAction",
+        "type": "object"
+      },
+      "Branch": {
+        "additionalProperties": false,
+        "description": "Where a step may lead: continue with the next step, or end with a declared business outcome.",
+        "properties": {
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "then": {
+            "anyOf": [
+              {
+                "const": "next",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Then"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "Branch",
+        "type": "object"
+      },
+      "ClickAction": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "click",
+            "default": "click",
+            "title": "Kind",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "ClickAction",
+        "type": "object"
+      },
+      "Contract": {
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/$defs/FieldSpec"
+            },
+            "title": "Inputs",
+            "type": "object"
+          },
+          "outcomes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Outcome"
+            },
+            "default": {},
+            "title": "Outcomes",
+            "type": "object"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/$defs/FieldSpec"
+            },
+            "title": "Outputs",
+            "type": "object"
+          }
+        },
+        "required": [
+          "inputs",
+          "outputs"
+        ],
+        "title": "Contract",
+        "type": "object"
+      },
+      "ExtractAction": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "extract",
+            "default": "extract",
+            "title": "Kind",
+            "type": "string"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "output"
+        ],
+        "title": "ExtractAction",
+        "type": "object"
+      },
+      "FieldSpec": {
+        "additionalProperties": false,
+        "description": "A typed capability input or output.\n\nValues cross the boundary as strings: decimals are exact decimal strings (\"75.37\"), dates ISO 8601. `pattern`\nis a full-match regex for inputs and string outputs.",
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pattern"
+          },
+          "sensitivity": {
+            "default": "internal",
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "pii"
+            ],
+            "title": "Sensitivity",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "decimal",
+              "integer",
+              "date"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "FieldSpec",
+        "type": "object"
+      },
+      "Fingerprint": {
+        "additionalProperties": false,
+        "description": "Record-time facts about the target. Any non-primary strategy hit must agree on these hard fields.",
+        "properties": {
+          "column_header": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Column Header"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Frame"
+          },
+          "input_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Type"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "row_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row Label"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "tag"
+        ],
+        "title": "Fingerprint",
+        "type": "object"
+      },
+      "NavigateAction": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "navigate",
+            "default": "navigate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          }
+        },
+        "required": [
+          "route"
+        ],
+        "title": "NavigateAction",
+        "type": "object"
+      },
+      "Not": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "not",
+            "default": "not",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "discriminator": {
+              "mapping": {
+                "all": "#/$defs/AllOf",
+                "any": "#/$defs/AnyOf",
+                "not": "#/$defs/Not",
+                "target_equals_input": "#/$defs/TargetEqualsInput",
+                "target_visible": "#/$defs/TargetVisible",
+                "text": "#/$defs/Text",
+                "url_matches": "#/$defs/UrlMatches"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/UrlMatches"
+              },
+              {
+                "$ref": "#/$defs/Text"
+              },
+              {
+                "$ref": "#/$defs/TargetVisible"
+              },
+              {
+                "$ref": "#/$defs/TargetEqualsInput"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              },
+              {
+                "$ref": "#/$defs/Not"
+              }
+            ],
+            "title": "Of"
+          }
+        },
+        "required": [
+          "of"
+        ],
+        "title": "Not",
+        "type": "object"
+      },
+      "Outcome": {
+        "additionalProperties": false,
+        "description": "A declared business outcome: a legitimate answer for the caller, not a failure.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "returns": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Returns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "Outcome",
+        "type": "object"
+      },
+      "PressAction": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "enum": [
+              "Enter",
+              "Tab",
+              "Escape"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "const": "press",
+            "default": "press",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "PressAction",
+        "type": "object"
+      },
+      "Provenance": {
+        "additionalProperties": false,
+        "description": "Where the capability came from. Hashed with the body: re-recording is a change that needs re-approval.",
+        "properties": {
+          "compiler": {
+            "title": "Compiler",
+            "type": "string"
+          },
+          "discovered_by": {
+            "title": "Discovered By",
+            "type": "string"
+          },
+          "trace_run_id": {
+            "title": "Trace Run Id",
+            "type": "string"
+          },
+          "trace_sha256": {
+            "title": "Trace Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trace_run_id",
+          "trace_sha256",
+          "discovered_by",
+          "compiler"
+        ],
+        "title": "Provenance",
+        "type": "object"
+      },
+      "SelectAction": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "select",
+            "default": "select",
+            "title": "Kind",
+            "type": "string"
+          },
+          "option": {
+            "title": "Option",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "option"
+        ],
+        "title": "SelectAction",
+        "type": "object"
+      },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "do": {
+            "discriminator": {
+              "mapping": {
+                "assert": "#/$defs/AssertAction",
+                "click": "#/$defs/ClickAction",
+                "extract": "#/$defs/ExtractAction",
+                "navigate": "#/$defs/NavigateAction",
+                "press": "#/$defs/PressAction",
+                "select": "#/$defs/SelectAction",
+                "type": "#/$defs/TypeAction"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/NavigateAction"
+              },
+              {
+                "$ref": "#/$defs/ClickAction"
+              },
+              {
+                "$ref": "#/$defs/TypeAction"
+              },
+              {
+                "$ref": "#/$defs/SelectAction"
+              },
+              {
+                "$ref": "#/$defs/PressAction"
+              },
+              {
+                "$ref": "#/$defs/ExtractAction"
+              },
+              {
+                "$ref": "#/$defs/AssertAction"
+              }
+            ],
+            "title": "Do"
+          },
+          "effect": {
+            "enum": [
+              "none",
+              "read",
+              "commit"
+            ],
+            "title": "Effect",
+            "type": "string"
+          },
+          "expect": {
+            "title": "Expect",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intent": {
+            "title": "Intent",
+            "type": "string"
+          },
+          "navigates": {
+            "default": false,
+            "title": "Navigates",
+            "type": "boolean"
+          },
+          "on": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Branch"
+            },
+            "title": "On",
+            "type": "array"
+          },
+          "timeout_ms": {
+            "default": 10000,
+            "maximum": 120000,
+            "minimum": 500,
+            "title": "Timeout Ms",
+            "type": "integer"
+          },
+          "verify": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "all": "#/$defs/AllOf",
+                    "any": "#/$defs/AnyOf",
+                    "not": "#/$defs/Not",
+                    "target_equals_input": "#/$defs/TargetEqualsInput",
+                    "target_visible": "#/$defs/TargetVisible",
+                    "text": "#/$defs/Text",
+                    "url_matches": "#/$defs/UrlMatches"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/UrlMatches"
+                  },
+                  {
+                    "$ref": "#/$defs/Text"
+                  },
+                  {
+                    "$ref": "#/$defs/TargetVisible"
+                  },
+                  {
+                    "$ref": "#/$defs/TargetEqualsInput"
+                  },
+                  {
+                    "$ref": "#/$defs/AllOf"
+                  },
+                  {
+                    "$ref": "#/$defs/AnyOf"
+                  },
+                  {
+                    "$ref": "#/$defs/Not"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Verify"
+          }
+        },
+        "required": [
+          "id",
+          "intent",
+          "expect",
+          "do",
+          "effect"
+        ],
+        "title": "Step",
+        "type": "object"
+      },
+      "Strategy": {
+        "additionalProperties": false,
+        "description": "One way to find a target, surface-agnostic. Ranked: role, same_row, table_cell, scoped, css.\n\nNames are stored as observed and matched normalized-exact (anchored, case-insensitive, whitespace-folded,\nicon glyphs dropped, optional trailing ':'/'*'), never as substrings (spike S7). String fields may reference an\ninput as `${name}`; the resolver substitutes the value before searching.",
+        "properties": {
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Column"
+          },
+          "css": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Css"
+          },
+          "kind": {
+            "enum": [
+              "role",
+              "same_row",
+              "table_cell",
+              "scoped",
+              "css"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Label"
+          },
+          "matched_at_record": {
+            "title": "Matched At Record",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          },
+          "row_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row Key"
+          },
+          "take": {
+            "anyOf": [
+              {
+                "enum": [
+                  "control",
+                  "value"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Take"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          },
+          "within_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within Name"
+          },
+          "within_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within Role"
+          }
+        },
+        "required": [
+          "kind",
+          "why",
+          "matched_at_record"
+        ],
+        "title": "Strategy",
+        "type": "object"
+      },
+      "Success": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "all": "#/$defs/AllOf",
+                  "any": "#/$defs/AnyOf",
+                  "not": "#/$defs/Not",
+                  "target_equals_input": "#/$defs/TargetEqualsInput",
+                  "target_visible": "#/$defs/TargetVisible",
+                  "text": "#/$defs/Text",
+                  "url_matches": "#/$defs/UrlMatches"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UrlMatches"
+                },
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "$ref": "#/$defs/TargetVisible"
+                },
+                {
+                  "$ref": "#/$defs/TargetEqualsInput"
+                },
+                {
+                  "$ref": "#/$defs/AllOf"
+                },
+                {
+                  "$ref": "#/$defs/AnyOf"
+                },
+                {
+                  "$ref": "#/$defs/Not"
+                }
+              ]
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "outputs"
+        ],
+        "title": "Success",
+        "type": "object"
+      },
+      "Target": {
+        "additionalProperties": false,
+        "description": "An element a step acts on or reads. `strategies[0]` is primary; the rest are ranked fallbacks.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "fingerprint": {
+            "$ref": "#/$defs/Fingerprint"
+          },
+          "strategies": {
+            "items": {
+              "$ref": "#/$defs/Strategy"
+            },
+            "minItems": 1,
+            "title": "Strategies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "description",
+          "strategies",
+          "fingerprint"
+        ],
+        "title": "Target",
+        "type": "object"
+      },
+      "TargetEqualsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "title": "Input",
+            "type": "string"
+          },
+          "kind": {
+            "const": "target_equals_input",
+            "default": "target_equals_input",
+            "title": "Kind",
+            "type": "string"
+          },
+          "normalizer": {
+            "default": "text",
+            "enum": [
+              "text",
+              "exact"
+            ],
+            "title": "Normalizer",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "input"
+        ],
+        "title": "TargetEqualsInput",
+        "type": "object"
+      },
+      "TargetVisible": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "target_visible",
+            "default": "target_visible",
+            "title": "Kind",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "TargetVisible",
+        "type": "object"
+      },
+      "Text": {
+        "additionalProperties": false,
+        "properties": {
+          "equals": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Equals"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Frame"
+          },
+          "kind": {
+            "const": "text",
+            "default": "text",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pattern"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          }
+        },
+        "title": "Text",
+        "type": "object"
+      },
+      "TypeAction": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "type",
+            "default": "type",
+            "title": "Kind",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "text"
+        ],
+        "title": "TypeAction",
+        "type": "object"
+      },
+      "UrlMatches": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "url_matches",
+            "default": "url_matches",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pattern": {
+            "minLength": 1,
+            "title": "Pattern",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "title": "UrlMatches",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "app": {
+        "title": "App",
+        "type": "string"
+      },
+      "contract": {
+        "$ref": "#/$defs/Contract"
+      },
+      "description": {
+        "title": "Description",
+        "type": "string"
+      },
+      "effect": {
+        "enum": [
+          "none",
+          "read",
+          "commit"
+        ],
+        "title": "Effect",
+        "type": "string"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "provenance": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "schema": {
+        "const": "cua.capability/v1",
+        "default": "cua.capability/v1",
+        "title": "Schema",
+        "type": "string"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/$defs/Step"
+        },
+        "minItems": 1,
+        "title": "Steps",
+        "type": "array"
+      },
+      "success": {
+        "$ref": "#/$defs/Success"
+      },
+      "targets": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Target"
+        },
+        "title": "Targets",
+        "type": "object"
+      },
+      "title": {
+        "title": "Title",
+        "type": "string"
+      },
+      "version": {
+        "title": "Version",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "version",
+      "title",
+      "description",
+      "app",
+      "contract",
+      "effect",
+      "steps",
+      "success",
+      "targets",
+      "provenance"
+    ],
+    "title": "Capability",
+    "type": "object"
+  },
+  "profile": {
+    "$defs": {
+      "AllOf": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "all",
+            "default": "all",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "all": "#/$defs/AllOf",
+                  "any": "#/$defs/AnyOf",
+                  "not": "#/$defs/Not",
+                  "target_equals_input": "#/$defs/TargetEqualsInput",
+                  "target_visible": "#/$defs/TargetVisible",
+                  "text": "#/$defs/Text",
+                  "url_matches": "#/$defs/UrlMatches"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UrlMatches"
+                },
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "$ref": "#/$defs/TargetVisible"
+                },
+                {
+                  "$ref": "#/$defs/TargetEqualsInput"
+                },
+                {
+                  "$ref": "#/$defs/AllOf"
+                },
+                {
+                  "$ref": "#/$defs/AnyOf"
+                },
+                {
+                  "$ref": "#/$defs/Not"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Of",
+            "type": "array"
+          }
+        },
+        "required": [
+          "of"
+        ],
+        "title": "AllOf",
+        "type": "object"
+      },
+      "AnyOf": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "any",
+            "default": "any",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "all": "#/$defs/AllOf",
+                  "any": "#/$defs/AnyOf",
+                  "not": "#/$defs/Not",
+                  "target_equals_input": "#/$defs/TargetEqualsInput",
+                  "target_visible": "#/$defs/TargetVisible",
+                  "text": "#/$defs/Text",
+                  "url_matches": "#/$defs/UrlMatches"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UrlMatches"
+                },
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "$ref": "#/$defs/TargetVisible"
+                },
+                {
+                  "$ref": "#/$defs/TargetEqualsInput"
+                },
+                {
+                  "$ref": "#/$defs/AllOf"
+                },
+                {
+                  "$ref": "#/$defs/AnyOf"
+                },
+                {
+                  "$ref": "#/$defs/Not"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Of",
+            "type": "array"
+          }
+        },
+        "required": [
+          "of"
+        ],
+        "title": "AnyOf",
+        "type": "object"
+      },
+      "Entry": {
+        "additionalProperties": false,
+        "properties": {
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "start_state": {
+            "title": "Start State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "route",
+          "start_state"
+        ],
+        "title": "Entry",
+        "type": "object"
+      },
+      "Fingerprint": {
+        "additionalProperties": false,
+        "description": "Record-time facts about the target. Any non-primary strategy hit must agree on these hard fields.",
+        "properties": {
+          "column_header": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Column Header"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Frame"
+          },
+          "input_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Type"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "row_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row Label"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "tag"
+        ],
+        "title": "Fingerprint",
+        "type": "object"
+      },
+      "Handler": {
+        "additionalProperties": false,
+        "description": "A budgeted recovery for a content-positive state. Effect none only: it runs the login flow or clicks one\ndismiss control, then re-classifies or restarts from the entry (only while retry-safe).",
+        "properties": {
+          "dismiss": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Target"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "flow": {
+            "anyOf": [
+              {
+                "const": "login",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flow"
+          },
+          "max_per_run": {
+            "default": 1,
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Max Per Run",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "then": {
+            "enum": [
+              "reclassify",
+              "restart_if_retry_safe"
+            ],
+            "title": "Then",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "then"
+        ],
+        "title": "Handler",
+        "type": "object"
+      },
+      "LoginForm": {
+        "additionalProperties": false,
+        "description": "The scripted login: credentials come from the run's settings, never from an artifact or a model.",
+        "properties": {
+          "password": {
+            "$ref": "#/$defs/Target"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "submit": {
+            "$ref": "#/$defs/Target"
+          },
+          "username": {
+            "$ref": "#/$defs/Target"
+          }
+        },
+        "required": [
+          "state",
+          "username",
+          "password",
+          "submit"
+        ],
+        "title": "LoginForm",
+        "type": "object"
+      },
+      "Meaning": {
+        "additionalProperties": false,
+        "description": "What a state means when it appears and the step did not branch on it.",
+        "properties": {
+          "failure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Failure"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome"
+          }
+        },
+        "title": "Meaning",
+        "type": "object"
+      },
+      "Not": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "not",
+            "default": "not",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "discriminator": {
+              "mapping": {
+                "all": "#/$defs/AllOf",
+                "any": "#/$defs/AnyOf",
+                "not": "#/$defs/Not",
+                "target_equals_input": "#/$defs/TargetEqualsInput",
+                "target_visible": "#/$defs/TargetVisible",
+                "text": "#/$defs/Text",
+                "url_matches": "#/$defs/UrlMatches"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/UrlMatches"
+              },
+              {
+                "$ref": "#/$defs/Text"
+              },
+              {
+                "$ref": "#/$defs/TargetVisible"
+              },
+              {
+                "$ref": "#/$defs/TargetEqualsInput"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              },
+              {
+                "$ref": "#/$defs/Not"
+              }
+            ],
+            "title": "Of"
+          }
+        },
+        "required": [
+          "of"
+        ],
+        "title": "Not",
+        "type": "object"
+      },
+      "NumberFormat": {
+        "additionalProperties": false,
+        "properties": {
+          "decimal": {
+            "default": ".",
+            "enum": [
+              ".",
+              ","
+            ],
+            "title": "Decimal",
+            "type": "string"
+          },
+          "group": {
+            "default": ",",
+            "enum": [
+              ",",
+              ".",
+              " ",
+              "'",
+              ""
+            ],
+            "title": "Group",
+            "type": "string"
+          }
+        },
+        "title": "NumberFormat",
+        "type": "object"
+      },
+      "RoutePattern": {
+        "additionalProperties": false,
+        "description": "A request that commits: method, path glob, required query parameters and required form fields (each a glob;\n`*` is the only wildcard). Dolibarr validation commits are GET requests with a CSRF token while the payment is a\nPOST whose action is in the body, so path and query alone cannot identify every commit. Parameters or fields not\nlisted are ignored. See `cua.artifact.routes.is_commit`.",
+        "properties": {
+          "body": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Body",
+            "type": "object"
+          },
+          "method": {
+            "default": "ANY",
+            "enum": [
+              "GET",
+              "POST",
+              "ANY"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Query",
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "RoutePattern",
+        "type": "object"
+      },
+      "State": {
+        "additionalProperties": false,
+        "description": "A classified screen. The signature reads screen content (static predicates only): the login form appears at\nany URL after a session is lost, so URLs alone never identify a state.\n\nA state that `specializes` another is that state plus its own signature (child wins when both match); any other\noverlap between matching states is ambiguous and fails closed.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "edited": {
+            "default": false,
+            "title": "Edited",
+            "type": "boolean"
+          },
+          "layer": {
+            "default": "page",
+            "enum": [
+              "page",
+              "dialog"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "observed",
+              "declared"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "signature": {
+            "discriminator": {
+              "mapping": {
+                "all": "#/$defs/AllOf",
+                "any": "#/$defs/AnyOf",
+                "not": "#/$defs/Not",
+                "target_equals_input": "#/$defs/TargetEqualsInput",
+                "target_visible": "#/$defs/TargetVisible",
+                "text": "#/$defs/Text",
+                "url_matches": "#/$defs/UrlMatches"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/UrlMatches"
+              },
+              {
+                "$ref": "#/$defs/Text"
+              },
+              {
+                "$ref": "#/$defs/TargetVisible"
+              },
+              {
+                "$ref": "#/$defs/TargetEqualsInput"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              },
+              {
+                "$ref": "#/$defs/Not"
+              }
+            ],
+            "title": "Signature"
+          },
+          "specializes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Specializes"
+          }
+        },
+        "required": [
+          "description",
+          "signature",
+          "origin"
+        ],
+        "title": "State",
+        "type": "object"
+      },
+      "Strategy": {
+        "additionalProperties": false,
+        "description": "One way to find a target, surface-agnostic. Ranked: role, same_row, table_cell, scoped, css.\n\nNames are stored as observed and matched normalized-exact (anchored, case-insensitive, whitespace-folded,\nicon glyphs dropped, optional trailing ':'/'*'), never as substrings (spike S7). String fields may reference an\ninput as `${name}`; the resolver substitutes the value before searching.",
+        "properties": {
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Column"
+          },
+          "css": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Css"
+          },
+          "kind": {
+            "enum": [
+              "role",
+              "same_row",
+              "table_cell",
+              "scoped",
+              "css"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Label"
+          },
+          "matched_at_record": {
+            "title": "Matched At Record",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          },
+          "row_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row Key"
+          },
+          "take": {
+            "anyOf": [
+              {
+                "enum": [
+                  "control",
+                  "value"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Take"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          },
+          "within_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within Name"
+          },
+          "within_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within Role"
+          }
+        },
+        "required": [
+          "kind",
+          "why",
+          "matched_at_record"
+        ],
+        "title": "Strategy",
+        "type": "object"
+      },
+      "Target": {
+        "additionalProperties": false,
+        "description": "An element a step acts on or reads. `strategies[0]` is primary; the rest are ranked fallbacks.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "fingerprint": {
+            "$ref": "#/$defs/Fingerprint"
+          },
+          "strategies": {
+            "items": {
+              "$ref": "#/$defs/Strategy"
+            },
+            "minItems": 1,
+            "title": "Strategies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "description",
+          "strategies",
+          "fingerprint"
+        ],
+        "title": "Target",
+        "type": "object"
+      },
+      "TargetEqualsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "title": "Input",
+            "type": "string"
+          },
+          "kind": {
+            "const": "target_equals_input",
+            "default": "target_equals_input",
+            "title": "Kind",
+            "type": "string"
+          },
+          "normalizer": {
+            "default": "text",
+            "enum": [
+              "text",
+              "exact"
+            ],
+            "title": "Normalizer",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "input"
+        ],
+        "title": "TargetEqualsInput",
+        "type": "object"
+      },
+      "TargetVisible": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "target_visible",
+            "default": "target_visible",
+            "title": "Kind",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "TargetVisible",
+        "type": "object"
+      },
+      "Text": {
+        "additionalProperties": false,
+        "properties": {
+          "equals": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Equals"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Frame"
+          },
+          "kind": {
+            "const": "text",
+            "default": "text",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pattern"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          }
+        },
+        "title": "Text",
+        "type": "object"
+      },
+      "UrlMatches": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "url_matches",
+            "default": "url_matches",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pattern": {
+            "minLength": 1,
+            "title": "Pattern",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "title": "UrlMatches",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "app": {
+        "title": "App",
+        "type": "string"
+      },
+      "commit_routes": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/RoutePattern"
+        },
+        "title": "Commit Routes",
+        "type": "array"
+      },
+      "default_meaning": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Meaning"
+        },
+        "default": {},
+        "title": "Default Meaning",
+        "type": "object"
+      },
+      "entry": {
+        "$ref": "#/$defs/Entry"
+      },
+      "handlers": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Handler"
+        },
+        "default": {},
+        "title": "Handlers",
+        "type": "object"
+      },
+      "login": {
+        "$ref": "#/$defs/LoginForm"
+      },
+      "number_format": {
+        "$ref": "#/$defs/NumberFormat",
+        "default": {
+          "decimal": ".",
+          "group": ","
+        }
+      },
+      "schema": {
+        "const": "cua.profile/v1",
+        "default": "cua.profile/v1",
+        "title": "Schema",
+        "type": "string"
+      },
+      "states": {
+        "additionalProperties": {
+          "$ref": "#/$defs/State"
+        },
+        "title": "States",
+        "type": "object"
+      }
+    },
+    "required": [
+      "app",
+      "entry",
+      "login",
+      "states"
+    ],
+    "title": "Profile",
+    "type": "object"
+  }
+}

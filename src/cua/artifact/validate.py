@@ -85,6 +85,13 @@ def _strategy_problems(where: str, strategies: list[Strategy], inputs: set[str])
 
 _EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}")
 _PHONE = re.compile(r"(?<!\d)\+?\d[\d ().-]{7,}\d(?!\d)")
+_AMOUNT = re.compile(r"(?<!\d)\d[\d.,]*[.,]\d{2}(?!\d)")  # 199.75, 1,234.50, 12,50: a figure, not a label
+
+
+def volatile_text(text: str) -> bool:
+    """Text that is data rather than a label: an amount, an email address or a phone number. The compiler drops it
+    from fingerprints and static validation refuses it in finders and fingerprints."""
+    return bool(_AMOUNT.search(text) or _EMAIL.search(text) or _PHONE.search(text))
 
 
 def _value_problems(where: str, texts: list[str], cap: Capability) -> list[str]:
@@ -146,6 +153,10 @@ def validate_capability(cap: Capability, profile: Profile) -> list[str]:
         problems.extend(_strategy_problems(f"target {name!r}", target.strategies, inputs))
         finders = [s for strategy in target.strategies for s in strategy.locator_strings()]
         problems.extend(_value_problems(f"target {name!r} finder", finders, cap))
+        facts = [v for v in (target.fingerprint.row_label, target.fingerprint.column_header) if v]
+        problems.extend(_value_problems(f"target {name!r} fingerprint", facts, cap))
+        if any(_AMOUNT.search(f) for f in facts):
+            problems.append(f"target {name!r} fingerprint: contains an amount; a fingerprint holds labels, not data")
 
     seen: set[str] = set()
     extracted: set[str] = set()
@@ -210,6 +221,18 @@ def validate_capability(cap: Capability, profile: Profile) -> list[str]:
         for ret in outcome.returns:
             if ret not in outputs:
                 problems.append(f"outcome {name!r} returns undeclared output {ret!r}")
+    # every path that ends the run returns only what it has already produced: an outcome branch on step i may return
+    # an output only if a step before i extracted it, and the success path (every step, in order) extracts them all
+    produced: set[str] = set()
+    for step in cap.steps:
+        if isinstance(step.do, ExtractAction):
+            produced.add(step.do.output)  # a branch is taken after its own step's action
+        for branch in step.on:
+            if branch.outcome in cap.contract.outcomes:
+                missing = sorted(set(cap.contract.outcomes[branch.outcome].returns) - produced)
+                if missing:
+                    problems.append(f"step {step.id!r}: outcome {branch.outcome!r} returns {missing} "
+                                    f"before any step has extracted them")
     return problems
 
 

@@ -1,0 +1,37 @@
+{
+  "replayed_run_id": "replay_success_other_customer",
+  "result": {
+    "run_id": "replay_success_other_customer",
+    "capability": "dolibarr.lookup_customer_outstanding",
+    "version": "1.0.0",
+    "lock_hash": "77a16d164f67640499e867e4c3aefe53e289528364f6adf7fd578c53b1620b1d",
+    "status": "success",
+    "outcome": "success",
+    "outputs": {
+      "outstanding_amount": "355.20"
+    },
+    "failure": null,
+    "recoveries": [],
+    "drift": [],
+    "side_effects": {
+      "commit_state": "none",
+      "by": null,
+      "request_id": null
+    },
+    "retry_safe": true,
+    "interventions": [],
+    "timings": {
+      "s01_navigate": 782,
+      "s02_click": 921,
+      "s03_assert": 219,
+      "s04_extract": 141,
+      "total_ms": 3156
+    }
+  },
+  "ground_truth": {
+    "outstanding_amount": "355.20",
+    "source": "Dolibarr REST (admin)"
+  },
+  "matches_ground_truth": true,
+  "model_calls": 0
+}

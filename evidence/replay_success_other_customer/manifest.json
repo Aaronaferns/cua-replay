@@ -1,0 +1,37 @@
+{
+  "run_id": "replay_success_other_customer",
+  "status": "closed",
+  "created": "2026-10-12T16:25:38.757313+00:00",
+  "updated": "2026-10-12T16:25:38.780394+00:00",
+  "events": 31,
+  "redaction": {
+    "known_values": 8,
+    "patterns": [
+      "header",
+      "bearer",
+      "session_id",
+      "token_param",
+      "token_field",
+      "token_json",
+      "ssn",
+      "email"
+    ]
+  },
+  "files": [
+    {
+      "path": "capability.json",
+      "bytes": 5828,
+      "sha256": "bb580f0f080181648fc0cb63b03d275d34aedb5d8cb6118f258e2bc2c34e2e34"
+    },
+    {
+      "path": "events.jsonl",
+      "bytes": 14218,
+      "sha256": "327feac1554d62b4e6b37a884212bae50360a7e4844af1590486f70ef24eaa1c"
+    },
+    {
+      "path": "result.json",
+      "bytes": 912,
+      "sha256": "0e0c6d62f966dda5ba4c8a560d537a4f9c8d97c7396465fe3b3fb2ab1b0f76e8"
+    }
+  ]
+}

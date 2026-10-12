@@ -1,7 +1,8 @@
 """Offline compiler v0: a recorded discovery trace becomes a capability draft.
 
     validate the run -> keep performed actions -> lift {{input}} tokens to ${input} -> ranked strategies per target
-    -> attach states from the app profile -> identity asserts from token sightings -> static validation
+    -> attach states from the app profile (screens it does not know become template-proposed states, collision-checked)
+    -> identity asserts from token sightings -> static validation
 
 Deterministic: the same trace and profile always give byte-identical JSON (no clock, no randomness, no dict-order
 dependence beyond the trace's own order). The compiler reads only the persisted, redacted trace. It never touches a
@@ -22,6 +23,7 @@ from cua.agent.actions import AgentAction
 from cua.artifact.classify import Classification, classify
 from cua.artifact.lock import canonical, dumps, load_profile, sha256_hex
 from cua.artifact.predicates import ScreenNode, ScreenView, TargetEqualsInput, TargetVisible
+from cua.artifact.propose import collisions, propose_state, proposed_id, url_glob, with_states
 from cua.artifact.screen import view_from_outline
 from cua.artifact.schema import (
     LOCATOR_FIELDS,
@@ -32,11 +34,13 @@ from cua.artifact.schema import (
     Contract,
     Effect,
     ExtractAction,
+    Fingerprint,
     NavigateAction,
     PressAction,
     Profile,
     Provenance,
     SelectAction,
+    State,
     Step,
     Strategy,
     Success,
@@ -44,7 +48,7 @@ from cua.artifact.schema import (
     TypeAction,
     max_effect,
 )
-from cua.artifact.validate import ArtifactInvalid, require_valid
+from cua.artifact.validate import ArtifactInvalid, require_valid, volatile_text
 from cua.compiler.trace import RecordedAction, RecordedTrace, ScreenRecord, TargetRecord
 
 COMPILER_ID = "cua.compiler/v0"
@@ -69,6 +73,10 @@ def lift(text: str) -> str:
     return _TOKEN.sub(r"${\1}", _TOKEN_ENCODED.sub(r"{{\1}}", text))
 
 
+def _echoes_input(text: str, trace: RecordedTrace) -> bool:
+    return any(spec.pattern is not None and re.search(spec.pattern, text) for spec in trace.inputs.values())
+
+
 def _tokens_in(text: str) -> set[str]:
     return set(_TOKEN.findall(_TOKEN_ENCODED.sub(r"{{\1}}", text)))
 
@@ -85,10 +93,13 @@ def _slug(text: str) -> str:
 # --- screens -----------------------------------------------------------------------------------------------------
 
 
+def _view(screen: ScreenRecord) -> ScreenView:
+    return view_from_outline(screen.url, screen.snapshot)
+
+
 def _classify(profile: Profile, screen: ScreenRecord) -> Classification:
-    page: ScreenView = view_from_outline(screen.url, screen.snapshot)
     dialog = ScreenView(url=screen.url, nodes=(ScreenNode(role="dialog", name=screen.dialog),)) if screen.dialog else None
-    return classify(profile, page, dialog)
+    return classify(profile, _view(screen), dialog)
 
 
 def _route(url: str, origin: tuple[str, str], problems: list[str], where: str) -> str:
@@ -100,6 +111,13 @@ def _route(url: str, origin: tuple[str, str], problems: list[str], where: str) -
 
 
 # --- targets -----------------------------------------------------------------------------------------------------
+
+
+def _stable_fingerprint(fp: Fingerprint) -> Fingerprint:
+    """A fingerprint describes the kind of element, not the data it showed: a row or column label that carries an
+    amount, date, email or phone number is the recorded customer's data and would never match anyone else's page."""
+    drop = {f: None for f in ("row_label", "column_header") if (v := getattr(fp, f)) and volatile_text(v)}
+    return fp.model_copy(update=drop) if drop else fp
 
 
 class _Targets:
@@ -122,7 +140,8 @@ class _Targets:
         if not strategies:
             self._problems.append(f"{where}: no stable locator was recorded for the {rec.role} it acts on")
             return "unresolved"
-        target = Target(description=strategies[0].describe(), strategies=strategies, fingerprint=rec.fingerprint)
+        target = Target(description=strategies[0].describe(), strategies=strategies,
+                        fingerprint=_stable_fingerprint(rec.fingerprint))
         key = canonical(target).decode("utf-8")
         if key in self._by_key:
             return self._by_key[key]
@@ -182,18 +201,32 @@ def _validate_run(trace: RecordedTrace, profile: Profile) -> list[str]:
     return problems
 
 
-def compile_trace(
+def compile_trace(trace: RecordedTrace, profile: Profile, **kwargs: str | bool | None) -> Capability:
+    """Compile a completed read-flow trace into a capability draft, or raise `CompileError`.
+
+    Every screen must already be a state of `profile`; see `compile_proposing` for screens the profile lacks."""
+    return _compile(trace, profile, propose=False, **kwargs)[0]  # type: ignore[arg-type]
+
+
+def compile_proposing(trace: RecordedTrace, profile: Profile, **kwargs: str | bool | None) -> tuple[Capability, Profile]:
+    """Like `compile_trace`, but a screen the profile does not classify becomes a template-proposed `observed` state
+    (URL glob + first heading), collision-checked against the whole catalog. Returns the draft and the profile that
+    now contains the proposals: the draft is valid against that profile, which a reviewer must approve with it."""
+    return _compile(trace, profile, propose=True, **kwargs)  # type: ignore[arg-type]
+
+
+def _compile(
     trace: RecordedTrace,
     profile: Profile,
     *,
+    propose: bool,
     name: str,
     discovered_by: str,
     title: str | None = None,
     description: str | None = None,
     version: str = "1.0.0",
     echo_verify: bool = True,
-) -> Capability:
-    """Compile a completed read-flow trace into a capability draft, or raise `CompileError`."""
+) -> tuple[Capability, Profile]:
     problems = _validate_run(trace, profile)
     if problems:
         raise CompileError(problems)
@@ -204,13 +237,31 @@ def compile_trace(
     steps: list[Step] = []
     seen_pairs: set[tuple[str, str]] = set()  # (input, target) pairs whose value is already checked
 
+    proposals: dict[str, State] = {}
+    proposed_for: dict[tuple[str, str | None], str] = {}  # (url glob, heading) -> proposed state id
+    seen_screens: list[tuple[ScreenView, str]] = []  # every screen with the state it must classify as
+
+    def heading_of(screen: ScreenRecord) -> str | None:
+        """The first heading, unless it echoes an input or carries data: then the URL alone identifies the page."""
+        h = screen.heading
+        return None if not h or volatile_text(h) or _echoes_input(h, trace) else h
+
     def state_of(screen: ScreenRecord, where: str) -> str:
         c = _classify(profile, screen)
-        if c.kind != "state" or c.state is None:
-            hint = f" (closest: {', '.join(c.near_misses)})" if c.near_misses else ""
-            problems.append(f"{where}: the screen is {c.kind} in the app profile{hint}")
-            return "unresolved"
-        return c.state
+        if c.kind == "state" and c.state is not None:
+            seen_screens.append((_view(screen), c.state))
+            return c.state
+        if propose and c.kind == "unknown" and screen.dialog is None:
+            key = (url_glob(screen.url), heading_of(screen))
+            if key not in proposed_for:
+                sid = proposed_id(screen.url, [*profile.states, *proposals])
+                proposals[sid] = propose_state(screen.url, key[1])
+                proposed_for[key] = sid
+            seen_screens.append((_view(screen), proposed_for[key]))
+            return proposed_for[key]
+        hint = f" (closest: {', '.join(c.near_misses)})" if c.near_misses else ""
+        problems.append(f"{where}: the screen is {c.kind} in the app profile{hint}")
+        return "unresolved"
 
     def target_of(a: RecordedAction, where: str) -> str:
         if a.target is None:
@@ -268,6 +319,8 @@ def compile_trace(
         if pred not in checks:
             checks.append(pred)
 
+    if proposals:
+        problems.extend(collisions(profile, proposals, seen_screens))
     if problems:
         raise CompileError(problems)
 
@@ -289,11 +342,12 @@ def compile_trace(
         provenance=Provenance(trace_run_id=trace.run_id, trace_sha256=sha256_hex(canonical(trace)),
                               discovered_by=discovered_by, compiler=COMPILER_ID),
     )
+    final = with_states(profile, proposals) if proposals else profile
     try:
-        require_valid(capability, profile)
+        require_valid(capability, final)
     except ArtifactInvalid as e:
         raise CompileError(e.problems) from None
-    return capability
+    return capability, final
 
 
 def compile_to_json(trace: RecordedTrace, profile: Profile, **kwargs: str | bool | None) -> str:
@@ -305,3 +359,21 @@ def compile_file(trace_path: Path, profile_path: Path, **kwargs: str | bool | No
     trace = RecordedTrace.model_validate_json(Path(trace_path).read_bytes())
     return compile_to_json(trace, load_profile(Path(profile_path)), **kwargs)
 
+
+
+def template_signatures(trace: RecordedTrace, profile: Profile) -> dict[str, State]:
+    """Spike S5: the template state (URL glob + first heading) of every distinct screen the trace passed through,
+    keyed by the profile state that screen classifies as. Pure; used to judge how well the template generalizes."""
+    out: dict[str, State] = {}
+    for a in trace.actions:
+        if a.status != "performed":
+            continue
+        for screen in (a.pre, a.post):
+            if screen is None or screen.dialog is not None:
+                continue
+            c = _classify(profile, screen)
+            if c.kind == "state" and c.state is not None and c.state not in out:
+                heading = screen.heading
+                clean = None if not heading or volatile_text(heading) or _echoes_input(heading, trace) else heading
+                out[c.state] = propose_state(screen.url, clean)
+    return out
