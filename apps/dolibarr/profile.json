@@ -301,7 +301,34 @@
     }
   },
   "handlers": {},
-  "commit_routes": [],
+  "commit_routes": [
+    {
+      "method": "GET",
+      "path": "*",
+      "query": {
+        "action": "confirm_valid",
+        "confirm": "yes"
+      },
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "path": "*",
+      "query": {
+        "action": "confirm_*"
+      },
+      "body": {}
+    },
+    {
+      "method": "POST",
+      "path": "/compta/paiement.php",
+      "query": {},
+      "body": {
+        "action": "confirm_paiement",
+        "confirm": "yes"
+      }
+    }
+  ],
   "number_format": {
     "decimal": ".",
     "group": ","
