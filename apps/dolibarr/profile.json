@@ -83,7 +83,7 @@
           }
         ]
       },
-      "origin": "declared",
+      "origin": "observed",
       "edited": false
     },
     "home": {
@@ -144,11 +144,160 @@
       },
       "origin": "observed",
       "edited": false
+    },
+    "customer_not_found": {
+      "description": "Customers list whose filter matched nothing: the table body says 'No record found'.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/societe/list.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Third-party name",
+            "role": "columnheader"
+          },
+          {
+            "kind": "text",
+            "equals": "No record found",
+            "role": "cell"
+          }
+        ]
+      },
+      "specializes": "customer_list",
+      "origin": "observed",
+      "edited": false
+    },
+    "customer_tab": {
+      "description": "Third-party 'Customer' tab: customer code plus the outstanding-bill summary.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/comm/card.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Customer Code",
+            "role": "cell"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "invoice_card": {
+      "description": "Customer invoice card (any status).",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/facture/card.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Customer invoice",
+            "role": "link"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "payment_form": {
+      "description": "Payment entry form for a customer invoice.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/paiement.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Enter payment received from customer",
+            "role": "cell"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "access_denied": {
+      "description": "Dolibarr's 'Access denied' page, shown at the URL that was refused.",
+      "layer": "page",
+      "signature": {
+        "kind": "text",
+        "pattern": "Access denied\\..*"
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "invoice_validate_confirm": {
+      "description": "Confirmation dialog asking whether to validate a draft invoice.",
+      "layer": "dialog",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "text",
+            "equals": "Validate invoice",
+            "role": "dialog"
+          },
+          {
+            "kind": "text",
+            "equals": "Yes",
+            "role": "button"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "payment_confirm": {
+      "description": "Payment form after Pay: Dolibarr asks 'Do you confirm this payment input' (an inline Yes/No select and a Validate button, not a dialog). Submitting it posts the payment.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/paiement.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Enter payment received from customer",
+            "role": "cell"
+          },
+          {
+            "kind": "text",
+            "pattern": "Do you confirm this payment input for .*",
+            "role": "cell"
+          }
+        ]
+      },
+      "specializes": "payment_form",
+      "origin": "observed",
+      "edited": false
     }
   },
   "default_meaning": {
     "login": {
       "failure": "SESSION_EXPIRED"
+    },
+    "customer_not_found": {
+      "outcome": "customer_not_found"
+    },
+    "access_denied": {
+      "failure": "PERMISSION_DENIED"
     }
   },
   "handlers": {},
