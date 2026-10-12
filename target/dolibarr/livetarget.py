@@ -29,7 +29,7 @@ def reset_to_baseline() -> Fixtures:
         fixtures = seed.seed(cfg)
         dolictl.run_script("reset.sh", "dump")
     else:
-        dolictl.run_script("reset.sh")
+        dolictl.run_script("reset.sh")  # a slow restore only warns; the fixture check below is the real test
         fixtures = seed.load_fixtures()
     admin = Rest.admin(cfg)
     for customer in fixtures.customers:
