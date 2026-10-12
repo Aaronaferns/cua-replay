@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-import os
+import json
+import re
 from pathlib import Path
 
 import pytest
-from sample_docs import PROFILE_PATH, REPO
+from sample_docs import PROFILE_PATH
 
 from cua.artifact.classify import classify
 from cua.artifact.lock import dumps, load_profile
+from cua.artifact.predicates import ScreenView
 from cua.artifact.schema import Profile
-from cua.artifact.screen import view_from_outline
+from cua.artifact.screen import parse_outline, view_from_outline
 from cua.artifact.validate import validate_profile
 
 LOGIN_FORM = '- textbox "Login" [active] [ref=e15]\n- textbox "Password" [ref=e19]\n- button "Login" [ref=e24]\n'
@@ -25,7 +27,10 @@ def profile() -> Profile:
 def test_profile_loads_and_validates(profile):
     assert profile.app == "dolibarr"
     assert validate_profile(profile) == []
-    assert set(profile.states) == {"login", "home", "customer_list", "customer_card"}
+    assert set(profile.states) == {
+        "login", "home", "customer_list", "customer_not_found", "customer_card", "customer_tab", "invoice_card",
+        "payment_form", "access_denied", "invoice_validate_confirm",
+    }
     assert profile.entry.start_state in profile.states and profile.login.state in profile.states
 
 
@@ -64,22 +69,41 @@ def test_content_without_the_right_url_is_not_a_state(profile):
     assert c.kind == "unknown"
 
 
-SPIKE_OUT = Path(os.environ.get("CUA_SPIKE_OUT") or REPO / "spikes" / "dolibarr" / "out")
-STORED = {
-    "01_login": ("http://localhost:8086/index.php?mainmenu=home&leftmenu=home", "login"),
-    "02_home": ("http://localhost:8086/index.php?mainmenu=home&leftmenu=home", "home"),
-    "03_customer_list": ("http://localhost:8086/societe/list.php?leftmenu=customers&type=c", "customer_list"),
-    "04_customer_card": ("http://localhost:8086/societe/card.php?socid=10", "customer_card"),
-    "12_search_nearmiss": ("http://localhost:8086/societe/list.php?search_code=CU1910-0002", "customer_list"),
-    "05_draft_invoice_list": ("http://localhost:8086/compta/facture/list.php?search_status=0", "unknown"),
-    "10_noperm_invoice": ("http://localhost:8086/compta/facture/card.php?id=1", "unknown"),
-}
+OUTLINES = json.loads((Path(__file__).parent / "fixtures" / "dolibarr" / "outlines.json").read_text(encoding="utf-8"))
 
 
-@pytest.mark.skipif(not (SPIKE_OUT / "01_login.snapshot.txt").exists(),
-                    reason="captured Dolibarr snapshots are local-only (spikes/dolibarr/out, or set CUA_SPIKE_OUT)")
-@pytest.mark.parametrize("name", sorted(STORED))
+def _classify_stored(profile: Profile, entry: dict):
+    page = view_from_outline(entry["url"], entry["outline"])
+    dialog = None
+    if "dialog" in entry:
+        dialog = ScreenView(url=entry["url"], nodes=parse_outline(entry["dialog"]))
+    return classify(profile, page, dialog)
+
+
+@pytest.mark.parametrize("name", sorted(OUTLINES))
 def test_classifier_on_stored_snapshots(profile, name):
-    url, expected = STORED[name]
-    text = (SPIKE_OUT / f"{name}.snapshot.txt").read_text(encoding="utf-8")
-    assert classify(profile, view_from_outline(url, text)).label == expected
+    """Redacted outlines of the real Dolibarr 23.0.4 screens (S4, observed live): runs offline in a clean clone."""
+    entry = OUTLINES[name]
+    assert _classify_stored(profile, entry).label == entry["expected"]
+
+
+def test_stored_outlines_hold_no_personal_data():
+    blob = json.dumps(OUTLINES)
+    assert "@" not in blob and not re.search(r"\+?\d[\d .-]{8,}\d", blob.replace("CU2601-00901", ""))
+
+
+def test_every_state_in_the_profile_is_seen_in_a_stored_outline(profile):
+    assert {e["expected"] for e in OUTLINES.values()} == set(profile.states)
+
+
+def test_customer_not_found_specializes_customer_list(profile):
+    assert profile.states["customer_not_found"].specializes == "customer_list"
+    assert profile.is_a("customer_not_found", "customer_list")
+    assert profile.default_meaning["customer_not_found"].outcome == "customer_not_found"
+
+
+def test_the_customer_tab_is_not_the_customer_card(profile):
+    outline = '- cell "Customer Code"'
+    card = view_from_outline("http://h/societe/card.php?socid=1", outline)
+    tab = view_from_outline("http://h/comm/card.php?socid=1", outline)
+    assert classify(profile, card).label == "customer_card" and classify(profile, tab).label == "customer_tab"

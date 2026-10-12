@@ -1,0 +1,198 @@
+{
+  "schema": "cua.capability/v1",
+  "id": "dolibarr.lookup_customer_outstanding",
+  "version": "1.0.0",
+  "title": "Look up a customer's outstanding amount",
+  "description": "TEST FIXTURE (hand-authored): list filtered by customer code, open the card, check the code, open the Customer tab, read the current outstanding bill.",
+  "app": "dolibarr",
+  "contract": {
+    "inputs": {
+      "customer_code": {
+        "type": "string",
+        "description": "",
+        "pattern": "CU[0-9]{4}-[0-9]{4,5}",
+        "sensitivity": "pii"
+      }
+    },
+    "outputs": {
+      "outstanding_amount": {
+        "type": "decimal",
+        "description": "",
+        "sensitivity": "internal"
+      }
+    },
+    "outcomes": {
+      "customer_not_found": {
+        "description": "No customer has this code",
+        "returns": []
+      }
+    }
+  },
+  "effect": "read",
+  "steps": [
+    {
+      "id": "s01_open_list",
+      "intent": "Open the customer list filtered by the code",
+      "expect": "home",
+      "do": {
+        "kind": "navigate",
+        "route": "/societe/list.php?type=c&search_customer_code=${customer_code}"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [
+        {
+          "state": "customer_not_found",
+          "outcome": "customer_not_found"
+        }
+      ],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s02_open_card",
+      "intent": "Open the customer's card",
+      "expect": "customer_list",
+      "do": {
+        "kind": "click",
+        "target": "customer_link"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s03_identity",
+      "intent": "The card shows the requested customer code",
+      "expect": "customer_card",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "shown_code",
+          "input": "customer_code",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s04_customer_tab",
+      "intent": "Open the Customer tab",
+      "expect": "customer_card",
+      "do": {
+        "kind": "click",
+        "target": "customer_tab"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s05_read_amount",
+      "intent": "Read the current outstanding bill",
+      "expect": "customer_tab",
+      "do": {
+        "kind": "extract",
+        "target": "outstanding",
+        "output": "outstanding_amount"
+      },
+      "effect": "read",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    }
+  ],
+  "success": {
+    "state": "customer_tab",
+    "outputs": [
+      "outstanding_amount"
+    ],
+    "checks": [
+      {
+        "kind": "target_visible",
+        "target": "outstanding"
+      }
+    ]
+  },
+  "targets": {
+    "customer_link": {
+      "description": "the customer's name link in the results row",
+      "strategies": [
+        {
+          "kind": "table_cell",
+          "role": "link",
+          "row_key": "${customer_code}",
+          "column": "Third-party name",
+          "why": "link in the name column of the row keyed by the code",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "link",
+        "tag": "a",
+        "column_header": "Third-party name"
+      }
+    },
+    "shown_code": {
+      "description": "the value cell of the Customer Code row",
+      "strategies": [
+        {
+          "kind": "same_row",
+          "label": "Customer Code",
+          "take": "value",
+          "why": "value cell of the labelled row",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "row_label": "Customer Code"
+      }
+    },
+    "customer_tab": {
+      "description": "the Customer tab link",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "Customer",
+          "why": "hand-authored test fixture",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "link",
+        "tag": "a"
+      }
+    },
+    "outstanding": {
+      "description": "the current outstanding bill figure",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "generic",
+          "name": "Current outstanding bill",
+          "why": "hand-authored test fixture",
+          "matched_at_record": "1 of 1"
+        }
+      ],
+      "fingerprint": {
+        "role": "generic",
+        "tag": "div"
+      }
+    }
+  },
+  "provenance": {
+    "trace_run_id": "hand-authored-test-fixture",
+    "trace_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "discovered_by": "test-fixture",
+    "compiler": "hand-authored"
+  }
+}

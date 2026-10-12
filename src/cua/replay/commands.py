@@ -118,7 +118,7 @@ def render(result: RunResult) -> str:
 
 
 async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
-    path, draft = find_capability_file(args.capability, args.version)
+    path, draft = find_capability_file(args.capability, args.version, Path(args.capabilities_dir) if args.capabilities_dir else None)
     if draft:
         print(f"warning: {path.name} is an unapproved draft; approval gating is not enforced yet", file=sys.stderr)
     capability: Capability = load_capability(path)
@@ -196,6 +196,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--headed", action="store_true", help="show the browser")
     p.add_argument("--json", action="store_true", help="print the RunResult as JSON")
     p.add_argument("--run-id", default=None, help=argparse.SUPPRESS)
+    p.add_argument("--capabilities-dir", default=None, help=argparse.SUPPRESS)  # tests: a folder of <app>/ folders
     p.set_defaults(func=cmd_replay)
 
     c = subparsers.add_parser("compile", help="compile a recorded discovery trace into a capability draft")

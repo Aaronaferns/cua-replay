@@ -1,0 +1,68 @@
+{
+  "01_login": {
+    "url": "http://localhost:8086/index.php?mainmenu=home&leftmenu=home",
+    "expected": "login",
+    "outline": "- textbox \"Login\"\n- textbox \"Password\"\n- button \"Login\"\n"
+  },
+  "02_home": {
+    "url": "http://localhost:8086/index.php?mainmenu=home&leftmenu=home",
+    "expected": "home",
+    "outline": "- generic: Global view\n"
+  },
+  "03_customer_list": {
+    "url": "http://localhost:8086/societe/list.php?leftmenu=customers&type=c",
+    "expected": "customer_list",
+    "outline": "- columnheader \" Third-party name\":\n"
+  },
+  "04_customer_list_alpha": {
+    "url": "http://localhost:8086/societe/list.php?type=c&search_customer_code=CU2601-00901",
+    "expected": "customer_list",
+    "outline": "- columnheader \" Third-party name\":\n"
+  },
+  "05_customer_list_none": {
+    "url": "http://localhost:8086/societe/list.php?type=c&search_customer_code=ZZ-NO-SUCH",
+    "expected": "customer_not_found",
+    "outline": "- columnheader \" Third-party name\":\n- cell \"No record found\"\n"
+  },
+  "06_customer_list_nearmiss": {
+    "url": "http://localhost:8086/societe/list.php?type=c&search_customer_code=CU1910-0002",
+    "expected": "customer_list",
+    "outline": "- columnheader \" Third-party name\":\n"
+  },
+  "07_customer_card": {
+    "url": "http://localhost:8086/societe/card.php?socid=63",
+    "expected": "customer_card",
+    "outline": "- cell \"Customer Code\"\n"
+  },
+  "08_customer_tab": {
+    "url": "http://localhost:8086/comm/card.php?socid=63",
+    "expected": "customer_tab",
+    "outline": "- cell \"Customer Code\"\n"
+  },
+  "09_invoice_card": {
+    "url": "http://localhost:8086/compta/facture/card.php?id=458",
+    "expected": "invoice_card",
+    "outline": "- link \" Customer invoice\":\n"
+  },
+  "10_payment_form": {
+    "url": "http://localhost:8086/compta/paiement.php?facid=458&action=create",
+    "expected": "payment_form",
+    "outline": "- cell \"Enter payment received from customer\"\n"
+  },
+  "11_draft_invoice": {
+    "url": "http://localhost:8086/compta/facture/card.php?id=216",
+    "expected": "invoice_card",
+    "outline": "- link \" Customer invoice\":\n"
+  },
+  "12_validate_dialog": {
+    "url": "http://localhost:8086/compta/facture/card.php?facid=216&action=valid&token=***",
+    "expected": "invoice_validate_confirm",
+    "dialog": "- dialog \"Validate invoice\":\n- button \"Yes\"\n",
+    "outline": ""
+  },
+  "13_noperm_invoice": {
+    "url": "http://localhost:8086/compta/facture/card.php?id=458",
+    "expected": "access_denied",
+    "outline": "- generic: Access denied.You try to access to a page, area or feature of a disabled module or without being in an authenticated session or that is not allowed to your user.\n"
+  }
+}
