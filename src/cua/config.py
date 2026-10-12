@@ -50,6 +50,10 @@ class Settings(BaseModel):
         # Python clients use 127.0.0.1: on Windows, localhost resolves to IPv6 first and WSL forwards IPv4 only.
         return f"http://127.0.0.1:{self.dolibarr_port}/api/index.php"
 
+    def policy_variables(self) -> dict[str, str]:
+        """Non-secret values a policy file may reference as `${NAME}` (see `cua.safety.policy.load_policy`)."""
+        return {"DOLIBARR_PORT": str(self.dolibarr_port)}
+
     def secret_values(self) -> list[str]:
         """Every configured secret, for the redactor and the evidence lint."""
         return [
