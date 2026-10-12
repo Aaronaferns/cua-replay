@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from cua.config import REPO_ROOT, Settings
-from cua.control.lease import AUTOMATION, LeaseToken
+from cua.control.lease import AUTOMATION, LeaseManager, LeaseToken
 from cua.control.runtime import Session, login_targets, open_session
 from cua.safety.policy import ActionRequest, PolicyDenied
 from cua.surface.login import CaptchaRequired
@@ -131,6 +131,31 @@ async def test_session_logs_in_and_exposes_the_wired_parts(make_site, policy_fil
     manifest = json.loads((tmp_path / "rt-login" / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "closed"
     assert PASSWORD not in (tmp_path / "rt-login" / "events.jsonl").read_text(encoding="utf-8")
+
+
+async def test_lease_transitions_are_evidence_and_stale_tokens_are_refused(make_site, policy_file, tmp_path):
+    site = make_site()
+    async with open_session(
+        run_id="rt-lease", policy=policy_file, evidence_root=tmp_path, config=config(site)
+    ) as session:
+        manager = session.lease_manager
+        assert isinstance(manager, LeaseManager) and session.lease == manager.token
+        before = session.lease()
+        manager.request_human("HUMAN_ONLY_LOGIN")
+        manager.claim("alice")
+        manager.release_to_automation("alice")
+        page = session.surface.page
+        stale = ActionRequest(kind="extract", actor="replay", page_url=page.url, effect="read", lease=before)
+        assert session.guard.check(stale).rule == "lease_generation"
+        fresh = stale.model_copy(update={"lease": session.lease()})
+        assert session.guard.check(fresh).allowed
+        events = read_events(session)
+    leases = [e for e in events if e["kind"] == "lease"]
+    assert [(e["actor"], e["lease"]["holder"], e["lease"]["generation"]) for e in leases] == [
+        ("replay", "none", 1), ("human", "human:alice", 2), ("human", "automation", 3),
+    ]
+    assert leases[0]["detail"]["reason"] == "HUMAN_ONLY_LOGIN" and leases[0]["detail"]["transition"] == "request_human"
+    assert any(e["kind"] == "policy" and e["policy"]["rule"] == "lease_generation" for e in events)
 
 
 async def test_login_false_leaves_the_page_blank(make_site, policy_file, tmp_path):

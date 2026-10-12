@@ -6,7 +6,9 @@ in with the scripted login. Agents, replay and tests receive a `Session` and nev
 so every run is contained by the same policy, logged to the same bundle and redacted by the same redactor.
 
 Every request the network layer refuses becomes a `policy` evidence event (actor `system`).
-The lease starts as `automation`, generation 0; the lease-transition API (M5) replaces `Session.lease`.
+The lease is a `LeaseManager` (starts as `automation`, generation 0): `Session.lease_manager` is the state machine,
+`Session.lease` its token provider (what the guard and the surface read). Every lease transition becomes a `lease`
+evidence event carrying the new token.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from cua.artifact.schema import Profile
 from cua.artifact.schema import Target as ProfileTarget
 from cua.config import REPO_ROOT, Settings
 from cua.config import settings as load_settings
-from cua.control.lease import AUTOMATION, LeaseToken
+from cua.control.lease import LeaseEvent, LeaseManager, LeaseToken
 from cua.evidence.writer import RunBundleWriter
 from cua.safety.network import BlockedRequest, loggable_url, new_guarded_context
 from cua.safety.policy import ActionRequest, Policy, PolicyDecision, PolicyGuard, load_policy
@@ -44,6 +46,7 @@ class Session:
     profile: Profile
     settings: Settings
     base_url: str
+    lease_manager: LeaseManager | None = None  # additive: the state machine behind `lease` (always set by open_session)
 
 
 def login_targets(profile: Profile) -> LoginTargets:
@@ -101,10 +104,16 @@ async def open_session(
                 detail=blocked.model_dump(mode="json"),
             )
 
-        lease_token = LeaseToken(holder=AUTOMATION, generation=0)
+        def on_lease(event: LeaseEvent) -> None:
+            writer.emit(
+                "lease",
+                actor=actor if event.actor == "automation" else event.actor,
+                lease=event.token(),
+                detail=event.model_dump(mode="json"),
+            )
 
-        def lease() -> LeaseToken:
-            return lease_token
+        manager = LeaseManager(on_event=on_lease)
+        lease = manager.token
 
         def on_deny(request: ActionRequest, decision: PolicyDecision) -> None:
             # a guard refusal is evidence too: the action (never any typed value) with the rule that stopped it
@@ -132,6 +141,7 @@ async def open_session(
                     surface=surface,
                     guard=guard,
                     lease=lease,
+                    lease_manager=manager,
                     evidence=writer,
                     policy=loaded_policy,
                     profile=loaded_profile,
