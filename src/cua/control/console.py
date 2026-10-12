@@ -755,7 +755,7 @@ class InterventionHub:
 
 
 class ActionBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     operator: str
     action_hash: str | None = None
