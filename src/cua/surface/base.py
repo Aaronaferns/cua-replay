@@ -16,7 +16,27 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict
 
 from cua.artifact.schema import Fingerprint, Strategy
-from cua.safety.policy import ActionRequest
+from cua.safety.policy import ActionRequest, PolicyDecision
+
+
+class SurfaceError(Exception):
+    """A surface operation could not be carried out as asked. Messages never contain typed or extracted values."""
+
+
+class StaleRefError(SurfaceError):
+    """The ref belongs to an older observation, or its element is gone: observe again."""
+
+
+class UnknownRefError(SurfaceError):
+    """The ref was not shown in the current observation (outside the observed scope, or invented)."""
+
+
+class NotUniqueError(SurfaceError):
+    """A handle that must denote exactly one element matched none or several. Never resolved to 'the first'."""
+
+
+class NativeDialogOpen(SurfaceError):
+    """A native alert/confirm/prompt is blocking the page. It is never auto-accepted."""
 
 
 class PageFacts(BaseModel):
@@ -59,12 +79,14 @@ class Surface(Protocol):
     async def fingerprint(self, element: Element) -> Fingerprint: ...
     async def read_text(self, element: Element) -> str: ...
 
-    # actions: guard-checked inside, before the UI is touched
-    async def click(self, element: Element, request: ActionRequest) -> None: ...
-    async def type(self, element: Element, text: str, request: ActionRequest) -> None: ...
-    async def select(self, element: Element, option: str, request: ActionRequest) -> None: ...
-    async def press(self, key: str, request: ActionRequest) -> None: ...
-    async def navigate(self, url: str, request: ActionRequest) -> None: ...
+    # actions: guard-checked inside, before the UI is touched. A denial raises PolicyDenied with the UI untouched;
+    # an allowed action returns the guard's decision so the caller can record it. The guard is consulted exactly
+    # once per action (single-use approvals depend on that).
+    async def click(self, element: Element, request: ActionRequest) -> PolicyDecision: ...
+    async def type(self, element: Element, text: str, request: ActionRequest) -> PolicyDecision: ...
+    async def select(self, element: Element, option: str, request: ActionRequest) -> PolicyDecision: ...
+    async def press(self, key: str, request: ActionRequest) -> PolicyDecision: ...
+    async def navigate(self, url: str, request: ActionRequest) -> PolicyDecision: ...
 
     # evidence: a screenshot with the given elements (and, if generic, all inputs/cells) masked
     async def masked_screenshot(self, masks: list[Element], *, generic: bool) -> bytes: ...
