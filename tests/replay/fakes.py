@@ -205,6 +205,11 @@ class FakeDolibarr:
                                                              native_dialog=page.native_dialog),
                            snapshot="\n".join(lines) + "\n")
 
+    async def settle(self, *, interval_ms: int = 150, timeout_ms: int = 5000) -> bool:
+        """The navigation fence: records the call; true when nothing is loading (it never consumes `loading`)."""
+        self.log.append("settle")
+        return self.loading == 0
+
     async def element_for_ref(self, ref: str, epoch: int):  # pragma: no cover - discovery only
         raise NotImplementedError
 

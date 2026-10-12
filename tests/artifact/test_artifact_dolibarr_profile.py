@@ -45,7 +45,7 @@ def test_login_form_uses_the_real_dolibarr_labels(profile):
     assert profile.login.password.fingerprint.input_type == "password"
 
 
-def test_login_form_at_the_same_url_as_app_pages_is_classified_by_content(profile):
+def test_login_form_same_url_classified_by_content(profile):
     for url in ("http://localhost:8086/index.php?mainmenu=home&leftmenu=home",
                 "http://localhost:8086/societe/list.php?type=c", "http://localhost:8086/societe/card.php?socid=10"):
         assert classify(profile, view_from_outline(url, LOGIN_FORM)).label == "login"

@@ -262,8 +262,14 @@ class _Run:
     # --- settling ----------------------------------------------------------------------------------------------
 
     async def _settle(self, accept: Callable[[Classification], _Verdict | None], *, timeout_ms: int, stable: int,
-                      expected: str) -> _Verdict:
+                      expected: str, fence: bool = False) -> _Verdict:
+        """Classify until the accepted verdict is stable. `fence` (a navigating action just ran) first passes the
+        surface's navigation fence: the load has finished and the main content and dialog layer read the same on two
+        polls at least `poll_interval_ms` apart. Whether a screen that never settles is a failure is decided here,
+        by the classifier: the fence only ever waits, then classification judges what is on the screen."""
         deadline = self.now_ms() + timeout_ms
+        if fence:
+            await self.surface.settle(interval_ms=self.timing.poll_interval_ms, timeout_ms=min(timeout_ms, 5_000))
         last: str | None = None
         streak = 0
         while True:
@@ -357,11 +363,11 @@ class _Run:
         self._emit("action", action={"kind": "navigate", "entry": True}, policy=decision)
         timeout = self.timing.entry_timeout_ms
         verdict = await self._settle(self._entry_acceptor(allow_login=True), timeout_ms=timeout,
-                                     stable=self.timing.stable_polls, expected=start)
+                                     stable=self.timing.stable_polls, expected=start, fence=True)
         if verdict.kind == "login":
             await self._login()
             verdict = await self._settle(self._entry_acceptor(allow_login=False), timeout_ms=timeout,
-                                         stable=self.timing.stable_polls, expected=start)
+                                         stable=self.timing.stable_polls, expected=start, fence=True)
         self._act_on_verdict(verdict, start)
 
     async def _login(self) -> None:
@@ -387,7 +393,7 @@ class _Run:
         await self._perform(step)
         stable = self.timing.stable_polls if step.navigates else 1
         verdict = await self._settle(self._step_acceptor(step, next_state), timeout_ms=step.timeout_ms, stable=stable,
-                                     expected=next_state)
+                                     expected=next_state, fence=step.navigates)
         self._act_on_verdict(verdict, next_state)
         if step.verify is not None and not await self._holds(step.verify):
             raise _Stop("failure", "CHECKPOINT_FAILED", self._failure(
