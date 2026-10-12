@@ -29,3 +29,8 @@ Statuses: NOT STARTED · WORKING · BLOCKED · GREEN · CUT
 | 2026-10-12 | `apps/dolibarr/profile.json` stays B's; A's scripted login takes role+name targets and is wired to `Profile.login` at integration | Ownership map; no cross-owner edits |
 | 2026-10-12 | No profile `family`/`versions` fields; plain `app` | Family/version binding layers are design-only |
 | 2026-10-12 | Seed uses SQL through the db container for API keys and user rights | Dolibarr REST cannot store `api_key` or grant rights; fixtures only, never replay/discovery |
+| 2026-10-12 | S9 PASS: the payment is the M6 commit capability (no fallback to invoice validation) | Spike S9 |
+| 2026-10-12 | `RoutePattern` gains `method` and `body` (glob) matching; B owns the change, C's commit detection consumes it | The payment commit is a POST with `action=confirm_paiement` in the body; path + query cannot identify it |
+| 2026-10-12 | An overpayment warning is `validation_rejected`; automation never answers *Yes* | Dolibarr warns but does not refuse an overpayment (S9 b'') |
+| 2026-10-12 | `reset.sh` 15 s budget becomes a warning, not an error | The restore completes in 12–17 s on a loaded host; the budget was a spike target, not a correctness rule |
+| 2026-10-12 | "Current outstanding bill" lives on the Customer tab (`/comm/card.php`) | S4 live observation |
