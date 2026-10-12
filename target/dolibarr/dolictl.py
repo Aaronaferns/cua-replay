@@ -115,3 +115,16 @@ def sql(settings: Settings, statements: str, *, timeout: float = 120.0) -> str:
         # the server's message names tables and columns, not the password; the statements are ours
         raise CtlError(f"sql failed: {proc.stderr.strip()[-300:]}")
     return proc.stdout
+
+
+def expire_session(cookie_value: str | None = None) -> int:
+    """Delete a PHP session server-side so the next navigation shows the login form (M4 "session expiry").
+
+    `cookie_value` is the value of the browser's `DOLSESSID_<hash>` cookie (it is the PHP session id); None deletes
+    every session of the run user. Returns how many sessions were deleted. Tests and the CLI use this; replay never does.
+    """
+    out, _ = run_script("session.sh", *([cookie_value] if cookie_value else []))
+    found = re.search(r"^expired (\d+) session\(s\)", out, re.MULTILINE)
+    if found is None:
+        raise CtlError("session.sh did not report how many sessions it expired")
+    return int(found.group(1))

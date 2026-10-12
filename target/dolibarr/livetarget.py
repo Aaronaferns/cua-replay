@@ -23,6 +23,12 @@ class StaleBaseline(Exception):
     pass
 
 
+def expire_session(cookie_value: str | None = None) -> int:
+    """Expire the browser session whose `DOLSESSID_<hash>` cookie value is given, or every session of the run user
+    (None), server-side. Returns how many were deleted. See `dolictl.expire_session`."""
+    return dolictl.expire_session(cookie_value)
+
+
 def reset_to_baseline() -> Fixtures:
     cfg = settings()
     if not dolictl.DUMP_FILE.exists():
