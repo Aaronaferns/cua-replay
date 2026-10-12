@@ -9,8 +9,10 @@ Layout (`runs/<run_id>/` is git-ignored; curated bundles are promoted into `evid
     ...             whatever the run writes through `json`, `text` and `image`
 
 Guarantees:
-- Every text and JSON payload, every event, and every path-like name is redacted before it touches disk.
-- Relative paths are confined to the run directory (no absolute paths, no `..`, no reserved names).
+- Every text and JSON payload and every event is redacted before it touches disk.
+- Relative paths are confined to the run directory (no absolute paths, no `..`, no reserved names compared
+  case-insensitively, no Windows device names or trailing dots/spaces, no `.tmp` names) and are never substituted:
+  a path that contains a known secret or that a redaction pattern would change is refused.
 - Writes are atomic (temp file + replace). Appending an event is flushed before `event()` returns.
 - `image()` writes the PNG bytes it is given. Pixels cannot be redacted here: masking is the surface's job (declared
   masks plus a generic input/select/textarea/td mask) and happens before the bytes reach this writer. The writer only
@@ -37,6 +39,12 @@ PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 EVENTS_FILE = "events.jsonl"
 MANIFEST_FILE = "manifest.json"
 _RESERVED = {EVENTS_FILE, MANIFEST_FILE}
+_RESERVED_FOLDED = {name.casefold() for name in _RESERVED}
+# Windows device names are special in every directory and with any extension ("nul.txt" opens the NUL device)
+_DEVICE_NAMES = frozenset(
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
+    | {f"{d}{i}" for d in ("com", "lpt") for i in "123456789¹²³"}
+)
 _RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}")
 
 
@@ -155,11 +163,23 @@ class RunBundleWriter:
             or "\x00" in relpath
         ):
             raise EvidenceError("relpath must be a plain relative path inside the run directory")
-        if pure.as_posix() in _RESERVED:
-            raise EvidenceError("relpath is reserved for the bundle")
+        for part in pure.parts:
+            folded = part.casefold()
+            if (
+                part.endswith((".", " "))  # Windows strips them, so "manifest.json." names the manifest
+                or folded.endswith(".tmp")  # the atomic-write scratch name
+                or folded.split(".")[0].rstrip(" ") in _DEVICE_NAMES
+                or any(ord(c) < 0x20 for c in part)
+            ):
+                raise EvidenceError("relpath has a name that is not portable or is used by the writer")
+        if relpath != self.redactor.text(relpath) or self.redactor.contains_known(relpath):
+            # refuse rather than substitute: a renamed file would break every reference to it
+            raise EvidenceError("relpath contains a secret or sensitive value")
         path = (self.run_dir / pure).resolve()
         if not path.is_relative_to(self.run_dir):
             raise EvidenceError("relpath escapes the run directory")
+        if path.relative_to(self.run_dir).as_posix().casefold() in _RESERVED_FOLDED:
+            raise EvidenceError("relpath is reserved for the bundle")
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 

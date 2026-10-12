@@ -59,16 +59,24 @@ BlockHandler = Callable[[BlockedRequest], None]
 
 
 def _loggable(url: str) -> str:
+    """Total: never raises. `parts.port` raises ValueError for 'http://h:99999/' or 'http://h:x/', and the callers sit
+    in event handlers where an exception would skip the cleanup that follows (`_close_ws`, `_leave`)."""
     try:
         parts = urlsplit(url)
-    except ValueError:
+        scheme = parts.scheme.lower()
+        if scheme in ("http", "https", "ws", "wss", "file", "ftp"):
+            host = parts.hostname or ""
+            try:
+                port = f":{parts.port}" if parts.port else ""
+            except ValueError:
+                port = ":invalid-port"
+            return f"{scheme}://{host}{port}{parts.path}"[:200]
+        return f"{scheme}:" if scheme else "invalid-url"
+    except Exception:  # noqa: BLE001 - total by contract
         return "invalid-url"
-    scheme = parts.scheme.lower()
-    if scheme in ("http", "https", "ws", "wss", "file", "ftp"):
-        host = parts.hostname or ""
-        port = f":{parts.port}" if parts.port else ""
-        return f"{scheme}://{host}{port}{parts.path}"[:200]
-    return f"{scheme}:" if scheme else "invalid-url"
+
+
+loggable_url = _loggable  # public name: a URL without query, fragment or userinfo, safe for evidence
 
 
 def new_blocked(

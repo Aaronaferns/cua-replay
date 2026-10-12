@@ -276,15 +276,27 @@ class PolicyGuard:
     Checks run in order: lease, action kind, page URL, target URL, effect ceiling; the first failure decides.
     """
 
-    def __init__(self, policy: Policy, lease: LeaseProvider):
+    def __init__(
+        self,
+        policy: Policy,
+        lease: LeaseProvider,
+        on_deny: Callable[[ActionRequest, PolicyDecision], None] | None = None,
+    ):
         self.policy = policy
         self._lease = lease
+        self._on_deny = on_deny  # evidence hook: called for every denial; its failures never change the decision
 
     def check(self, request: ActionRequest) -> PolicyDecision:
         try:
-            return self._check(request)
+            decision = self._check(request)
         except Exception:  # noqa: BLE001 - a guard that crashes must deny, not propagate
-            return PolicyDecision(allowed=False, rule="guard_error", reason="request could not be evaluated")
+            decision = PolicyDecision(allowed=False, rule="guard_error", reason="request could not be evaluated")
+        if not decision.allowed and self._on_deny is not None:
+            try:
+                self._on_deny(request, decision)
+            except Exception:  # noqa: BLE001 - logging must never decide whether an action is allowed
+                pass
+        return decision
 
     def _check(self, request: ActionRequest) -> PolicyDecision:
         try:

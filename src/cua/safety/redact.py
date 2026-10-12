@@ -23,6 +23,7 @@ import json
 import re
 import threading
 from collections.abc import Iterable, Mapping
+from html.entities import codepoint2name
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, quote_plus
 
@@ -39,7 +40,7 @@ _SENSITIVE_KEYS = frozenset(
     {
         "password", "passwd", "pwd", "secret", "newtoken", "csrftoken", "xcsrftoken", "xxsrftoken", "accesstoken",
         "refreshtoken", "idtoken", "apikey", "xapikey", "dolapikey", "authorization", "proxyauthorization", "cookie",
-        "setcookie", "cookies", "sessionid", "phpsessid",
+        "setcookie", "cookies", "sessionid", "phpsessid", "xauthtoken",
     }
 )  # fmt: skip
 
@@ -47,7 +48,7 @@ _TOKEN_NAMES = (
     r"(?:new_?)?token|csrf_?token|_token|csrfmiddlewaretoken|api_?key|dolapikey|access_token|id_token|refresh_token|"
     r"password|passwd|pwd|secret"
 )
-_HEADER_NAMES = r"set-cookie|cookie|authorization|proxy-authorization|x-api-key|dolapikey|x-csrf-token|x-xsrf-token"
+_HEADER_NAMES = r"set-cookie|cookie|authorization|proxy-authorization|x-api-key|dolapikey|x-csrf-token|x-xsrf-token|x-auth-token"
 
 _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     (
@@ -56,6 +57,12 @@ _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
         rf"\g<1>\g<2>{REDACTED}",
     ),
     ("bearer", re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}"), rf"\g<1> {REDACTED}"),
+    (
+        # the `Token <x>` scheme; needs a digit so that prose such as "Token generation" is left alone
+        "bearer",
+        re.compile(r"(?i)\b(Token)\s+(?=[A-Za-z0-9._~+/=-]*[0-9])[A-Za-z0-9._~+/=-]{8,}"),
+        rf"\g<1> {REDACTED}",
+    ),
     (
         "session_id",
         re.compile(r"(?i)\b(PHPSESSID|DOLSESSID_[0-9A-Za-z]+|session_?id)=[^;&\s\"'<>]+"),
@@ -93,6 +100,26 @@ _PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
 PATTERN_NAMES = tuple(dict.fromkeys(name for name, _, _ in _PATTERNS))
 
 
+_APOSTROPHES = ("&#039;", "&#39;", "&#x27;", "&apos;")  # PHP's ENT_QUOTES, Python/others, ENT_HTML5
+
+
+def _php_html_variants(value: str) -> set[str]:
+    """What PHP's htmlspecialchars / htmlentities make of a value (Dolibarr echoes values through both). Python's
+    `html.escape` writes the apostrophe as `&#x27;` only, PHP writes `&#039;` (HTML 4.01) or `&apos;` (HTML5), and
+    htmlentities turns every non-ASCII character that has a name into one (`M&uuml;ller`)."""
+    special = html.escape(value, quote=False).replace('"', "&quot;")
+    named = "".join(
+        f"&{codepoint2name[ord(c)]};" if ord(c) > 127 and ord(c) in codepoint2name else c for c in special
+    )
+    numeric = "".join(f"&#{ord(c)};" if ord(c) > 127 else c for c in special)
+    hexadecimal = "".join(f"&#x{ord(c):x};" if ord(c) > 127 else c for c in special)
+    out: set[str] = set()
+    for base in (special, named, numeric, hexadecimal):
+        for apostrophe in _APOSTROPHES:
+            out.add(base.replace("'", apostrophe))
+    return out
+
+
 def _variants(value: str) -> set[str]:
     """The forms a value takes in URLs, HTML and JSON."""
     out = {value}
@@ -101,11 +128,16 @@ def _variants(value: str) -> set[str]:
         out.add(quote(q, safe=""))  # double encoding (a redirect target carried in a query string)
     out.add(html.escape(value, quote=True))
     out.add(html.escape(value, quote=False))
+    out |= _php_html_variants(value)
     for ensure_ascii in (True, False):
         encoded = json.dumps(value, ensure_ascii=ensure_ascii)[1:-1]
         out.add(encoded)
         out.add(encoded.replace("/", "\\/"))  # PHP json_encode
     return {v for v in out if v}
+
+
+def _sensitive_name(name: str) -> bool:
+    return name.replace("-", "").replace("_", "").lower() in _SENSITIVE_KEYS
 
 
 def _mask(value: str, keep_last: int) -> str:
@@ -190,9 +222,13 @@ class Redactor:
             return self.text(obj)
         if isinstance(obj, Mapping):
             out: dict[str, Any] = {}
+            # Playwright's `headers_array` and HAR write a header as {"name": "Cookie", "value": "..."}
+            labelled = any(
+                isinstance(obj.get(label), str) and _sensitive_name(obj[label]) for label in ("name", "key")
+            )
             for key, value in obj.items():
                 key_text = self.text(str(key))
-                if key_text.replace("-", "").replace("_", "").lower() in _SENSITIVE_KEYS and value not in (None, ""):
+                if (_sensitive_name(key_text) or (labelled and key == "value")) and value not in (None, ""):
                     out[key_text] = REDACTED
                 else:
                     out[key_text] = self.data(value)
