@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the target (compose project cua-<DOLIBARR_PORT>) and wait until the login page answers.
-# A cold start with demo data takes about 4 minutes (image start + install + demo load); a warm start about 20 s.
+# A cold start with demo data takes about 4 minutes (image start + install + demo load); a warm start about 4 s.
 # Usage: up.sh [timeout_seconds]   (default 600). Runs where docker is: in WSL on this Windows machine.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
