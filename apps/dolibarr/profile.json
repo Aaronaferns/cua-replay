@@ -320,7 +320,7 @@
           {
             "kind": "text",
             "equals": "Service notice",
-            "role": "dialog"
+            "role": "heading"
           },
           {
             "kind": "text",

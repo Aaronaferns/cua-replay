@@ -69,5 +69,21 @@
     "url": "http://localhost:8086/compta/paiement.php",
     "expected": "payment_confirm",
     "outline": "- cell \"Enter payment received from customer\"\n- cell \"Do you confirm this payment input for 50 Euros? All invoices with no remainder to pay will be automatically closed with status \\\"Paid\\\".\": Do you confirm this payment input for 50 Euros?All invoices with no remainder to pay will be automatically closed with status \"Paid\".\n"
+  },
+  "15_login_captcha": {
+    "url": "http://localhost:8086/index.php?mainmenu=home&leftmenu=home",
+    "expected": "login_captcha",
+    "outline": "- textbox \"Login\"\n- textbox \"Password\"\n- textbox \"Security code\"\n- button \"Login\"\n"
+  },
+  "16_app_error": {
+    "url": "http://localhost:8086/societe/card.php?socid=10",
+    "expected": "app_error",
+    "outline": "- heading \"Internal Server Error\"\n"
+  },
+  "17_service_notice": {
+    "url": "http://localhost:8086/societe/list.php?type=c",
+    "expected": "service_notice",
+    "dialog": "- heading \"Service notice\"\n- button \"Dismiss\"\n",
+    "outline": ""
   }
 }

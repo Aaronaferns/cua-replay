@@ -23,11 +23,11 @@
     },
     "outcomes": {
       "customer_not_found": {
-        "description": "No customer has this code; there is nothing to report.",
+        "description": "Customers list whose filter matched nothing: the table body says 'No record found'.",
         "returns": []
       },
       "access_denied": {
-        "description": "The signed-in user has no right to read customers.",
+        "description": "Dolibarr's 'Access denied' page, shown at the URL that was refused.",
         "returns": []
       }
     }

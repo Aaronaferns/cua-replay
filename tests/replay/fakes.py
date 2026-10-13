@@ -224,7 +224,7 @@ class FakeDolibarr:
         for e in page.elements:
             head = f"- {e.role}" + (f' "{e.name}"' if e.name else "") + f" [ref=e{e.uid}]"
             lines.append(head + (f": {e.text}" if e.text else ""))
-        dialog_lines = [f'- button "{e.name}" [ref=e{e.uid}]' for e in page.dialog_elements]
+        dialog_lines = ([f'- heading "{page.dialog}" [ref=e0]'] if page.dialog else []) + [f'- button "{e.name}" [ref=e{e.uid}]' for e in page.dialog_elements]
         return Observation(epoch=self.epoch, facts=PageFacts(url=page.url, title=page.title, dialog=page.dialog,
                                                              native_dialog=page.native_dialog),
                            snapshot="\n".join(lines) + "\n",

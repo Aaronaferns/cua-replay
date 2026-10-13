@@ -23,6 +23,80 @@
         "outputs": {"outstanding_amount": "355.20"},
         "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}]
       }
+    },
+    {
+      "id": "not_found",
+      "description": "no customer has this code: a business outcome, not a failure",
+      "inputs": {"customer_code": "CU0000-0000"},
+      "expect": {"status": "business_outcome", "outcome": "customer_not_found"}
+    },
+    {
+      "id": "nearest_match",
+      "description": "the only row is CU1910-00021: the nearest match is never accepted, and no amount is returned",
+      "inputs": {"customer_code": "CU1910-0002"},
+      "expect": {"status": "failure", "outcome": "IDENTITY_MISMATCH"}
+    },
+    {
+      "id": "no_rights_user",
+      "description": "the user without rights is refused by the application: a business outcome",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "run_as": "noperm",
+      "expect": {"status": "business_outcome", "outcome": "access_denied", "recoveries": ["login"]}
+    },
+    {
+      "id": "session_expired",
+      "description": "the session is deleted server-side before the click: re-login, restart, same amount",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "expire_session_before": "s02_click",
+      "expect": {
+        "status": "success",
+        "outcome": "success",
+        "outputs": {"outstanding_amount": "199.75"},
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}],
+        "recoveries": ["login"]
+      }
+    },
+    {
+      "id": "interstitial_recovered",
+      "description": "a known service-notice modal is dismissed by its handler and the run goes on",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "faults": [{"kind": "interstitial", "match": "/societe/list.php", "times": 1}],
+      "expect": {
+        "status": "success",
+        "outcome": "success",
+        "outputs": {"outstanding_amount": "199.75"},
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}],
+        "recoveries": ["dismiss_notice"]
+      }
+    },
+    {
+      "id": "unknown_dialog",
+      "description": "a modal no profile knows: fail closed, nothing in it is clicked",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "faults": [{"kind": "unknown_dialog", "match": "/societe/list.php"}],
+      "expect": {"status": "failure", "outcome": "UNKNOWN_DIALOG"}
+    },
+    {
+      "id": "app_error",
+      "description": "the card answers with a server error page",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "faults": [{"kind": "app_error", "match": "**/card.php"}],
+      "expect": {"status": "failure", "outcome": "APP_ERROR"}
+    },
+    {
+      "id": "slow_within_timeout",
+      "description": "a slow list within the step timeout is not a failure",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "faults": [{"kind": "slow:2000", "match": "/societe/list.php"}],
+      "expect": {"status": "success", "outcome": "success", "outputs": {"outstanding_amount": "199.75"},
+        "ground_truth": [{"output": "outstanding_amount", "oracle": "dolibarr.customer_outstanding", "input": "customer_code"}]}
+    },
+    {
+      "id": "slow_beyond_timeout",
+      "description": "a list slower than the step timeout, on the retry too: transient retries are exhausted",
+      "inputs": {"customer_code": "CU2601-00901"},
+      "faults": [{"kind": "slow:12000", "match": "/societe/list.php"}],
+      "expect": {"status": "failure", "outcome": "TRANSIENT_EXHAUSTED"}
     }
   ]
 }
