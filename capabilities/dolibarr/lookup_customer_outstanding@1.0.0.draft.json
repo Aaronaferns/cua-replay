@@ -21,7 +21,16 @@
         "sensitivity": "internal"
       }
     },
-    "outcomes": {}
+    "outcomes": {
+      "customer_not_found": {
+        "description": "Customers list whose filter matched nothing: the table body says 'No record found'.",
+        "returns": []
+      },
+      "access_denied": {
+        "description": "Dolibarr's 'Access denied' page, shown at the URL that was refused.",
+        "returns": []
+      }
+    }
   },
   "effect": "read",
   "steps": [

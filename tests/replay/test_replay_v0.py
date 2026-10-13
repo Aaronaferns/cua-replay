@@ -145,13 +145,11 @@ async def test_wrong_password_is_login_failed_not_a_loop(guard):
     assert r.status == "failure" and r.failure.code == "LOGIN_FAILED"
 
 
-async def test_login_form_at_an_app_url_mid_run_uses_the_profile_meaning(fake):
+async def test_login_form_mid_run_without_credentials_fails_closed(fake):
     fake.expire_on_card = True
     r = await run(fake)
-    assert r.status == "failure" and r.outcome == "SESSION_EXPIRED" and r.failure.category == "state"
-    assert r.failure.step_id == "s02_open_card" and r.failure.expected == "customer_card"
-    assert r.failure.observed.state == "login"
-    assert r.outputs == {}
+    assert r.status == "failure" and r.outcome == "LOGIN_REQUIRED" and r.failure.category == "state"
+    assert r.failure.observed.state == "login" and r.outputs == {}
 
 
 async def test_unknown_screen_fails_with_expected_observed_and_near_misses(fake):
@@ -344,7 +342,7 @@ async def test_surface_error_on_a_read_is_a_transient_failure(guard):
             raise SurfaceError("detached")
 
     r = await run(Flaky(guard))
-    assert r.status == "failure" and r.failure.code == "SURFACE_ERROR" and r.failure.category == "transient"
+    assert r.status == "failure" and r.failure.code == "TRANSIENT_EXHAUSTED" and r.failure.category == "transient"
     assert r.retry_safe
 
 

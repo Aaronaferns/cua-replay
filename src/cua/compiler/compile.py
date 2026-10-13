@@ -32,6 +32,7 @@ from cua.artifact.schema import (
     Capability,
     ClickAction,
     Contract,
+    Outcome,
     Effect,
     ExtractAction,
     Fingerprint,
@@ -334,7 +335,9 @@ def _compile(
         title=title or name.replace("_", " ").capitalize(),
         description=description or _intent(trace.goal),
         app=trace.app,
-        contract=Contract(inputs=trace.inputs, outputs=trace.outputs, outcomes={}),
+        contract=Contract(inputs=trace.inputs, outputs=trace.outputs, outcomes={
+            m.outcome: Outcome(description=profile.states[sid].description)
+            for sid, m in profile.default_meaning.items() if m.outcome and sid in profile.states}),
         effect=effect,
         steps=steps,
         success=Success(state=success_state, outputs=list(trace.outputs), checks=checks),

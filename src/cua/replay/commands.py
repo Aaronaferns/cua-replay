@@ -45,7 +45,7 @@ from cua.artifact.approval import (
 )
 from cua.artifact.lock import load_capability, load_profile, lock_hash
 from cua.artifact.schema import Capability, Profile
-from cua.artifact.suite import Suite, suite_problems
+from cua.artifact.suite import Case, Suite, suite_problems
 from cua.artifact.validate import validate_capability
 from cua.replay.suite import CaseRun, Summary, check_validation_runs, compare
 from cua.config import REPO_ROOT
@@ -165,22 +165,63 @@ def approval_of(capability: Capability, profile: Profile, *, draft: bool, root: 
     return approval_state(capability, profile, approval), approval
 
 
+def _noperm_login() -> str:
+    _target_tools()
+    import seed
+
+    return seed.load_fixtures().noperm_login
+
+
 async def _execute(
-    capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False
+    capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False, case: Case | None = None
 ) -> RunResult:
-    """One replay in a fresh session (shared by `replay` and `validate`)."""
+    """One replay in a fresh session (shared by `replay` and `validate`). A suite `case` may run as the no-rights
+    user, install faults on the browser context, and expire the session server-side before a step: all of it is done
+    here, around replay, which never imports the fault harness."""
     profile_path = profile_path_of(capability.app)
-    async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay") as session:
+    run_as = case.run_as if case else None
+    async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay",
+                             login=run_as is None) as session:
         problems = validate_capability(capability, session.profile)
         if problems:
             raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
         cfg = session.settings
-        credentials = (Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
-                       if cfg.cua_run_password is not None else None)
-        return await replay(
-            capability, session.profile, inputs, surface=session.surface, guard=session.guard, lease=session.lease,
-            base_url=session.base_url, credentials=credentials, evidence=session.evidence, run_id=run_id,
-        )
+        if run_as == "noperm":
+            credentials = Credentials(_noperm_login(), cfg.cua_noperm_password.get_secret_value())
+        else:
+            credentials = (Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
+                           if cfg.cua_run_password is not None else None)
+        installation = None
+        if case and case.faults:
+            from cua.evidence.commands import build_faults
+            from cua.faults.harness import install_faults
+
+            def on_fault(event: Any) -> None:
+                if session.evidence is not None:
+                    session.evidence.emit("fault", actor="system", detail=event.model_dump(mode="json"))
+
+            installation = await install_faults(session.surface.page.context, session.policy,
+                                                build_faults(case.faults), on_fault=on_fault)
+        expired = False
+
+        async def before_step(step: Any) -> None:
+            nonlocal expired
+            if case and case.expire_session_before == step.id and not expired:
+                expired = True
+                _target_tools()
+                from livetarget import expire_session
+
+                await asyncio.to_thread(expire_session)
+
+        try:
+            return await replay(
+                capability, session.profile, inputs, surface=session.surface, guard=session.guard,
+                lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=session.evidence,
+                run_id=run_id, before_step=before_step if case and case.expire_session_before else None,
+            )
+        finally:
+            if installation is not None:
+                await installation.uninstall()
 
 
 async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
@@ -401,7 +442,7 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
             try:
                 if case.reset:
                     await asyncio.to_thread(_reset_target)
-                result = await _execute(capability, dict(case.inputs), run_id=case_run_id)
+                result = await _execute(capability, dict(case.inputs), run_id=case_run_id, case=case)
                 status, outcome = result.status, result.outcome
                 truth = {g.output: await asyncio.to_thread(_oracle, g.oracle, case.inputs[g.input])
                          for g in case.expect.ground_truth}

@@ -287,6 +287,50 @@
       "specializes": "payment_form",
       "origin": "observed",
       "edited": false
+    },
+    "login_captcha": {
+      "description": "Login form with a CAPTCHA: a 'Security code' textbox only a person can fill.",
+      "layer": "page",
+      "signature": {
+        "kind": "text",
+        "equals": "Security code",
+        "role": "textbox"
+      },
+      "specializes": "login",
+      "origin": "declared",
+      "edited": false
+    },
+    "app_error": {
+      "description": "The application answered with a server error page.",
+      "layer": "page",
+      "signature": {
+        "kind": "text",
+        "equals": "Internal Server Error",
+        "role": "heading"
+      },
+      "origin": "declared",
+      "edited": false
+    },
+    "service_notice": {
+      "description": "A service-notice modal (maintenance or announcement) with one Dismiss button.",
+      "layer": "dialog",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "text",
+            "equals": "Service notice",
+            "role": "heading"
+          },
+          {
+            "kind": "text",
+            "equals": "Dismiss",
+            "role": "button"
+          }
+        ]
+      },
+      "origin": "declared",
+      "edited": false
     }
   },
   "default_meaning": {
@@ -297,10 +341,44 @@
       "outcome": "customer_not_found"
     },
     "access_denied": {
-      "failure": "PERMISSION_DENIED"
+      "outcome": "access_denied"
+    },
+    "login_captcha": {
+      "failure": "HUMAN_ONLY_LOGIN"
+    },
+    "app_error": {
+      "failure": "APP_ERROR"
     }
   },
-  "handlers": {},
+  "handlers": {
+    "login": {
+      "state": "login",
+      "flow": "login",
+      "then": "restart_if_retry_safe",
+      "max_per_run": 1
+    },
+    "dismiss_notice": {
+      "state": "service_notice",
+      "dismiss": {
+        "description": "button \"Dismiss\"",
+        "strategies": [
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Dismiss",
+            "why": "the notice's only control",
+            "matched_at_record": "1 of 1"
+          }
+        ],
+        "fingerprint": {
+          "role": "button",
+          "tag": "button"
+        }
+      },
+      "then": "reclassify",
+      "max_per_run": 2
+    }
+  },
   "commit_routes": [
     {
       "method": "GET",

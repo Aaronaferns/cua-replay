@@ -7,6 +7,7 @@ and `observe` produces an outline snapshot from the page's elements.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from urllib.parse import parse_qs, urlsplit
@@ -88,6 +89,7 @@ class Page:
     elements: list[El]
     dialog: str | None = None
     native_dialog: str | None = None
+    dialog_elements: list[El] = field(default_factory=list)
 
 
 class FakeDolibarr:
@@ -109,11 +111,18 @@ class FakeDolibarr:
         self.card_code_override: str | None = None
         self.amount_has_row_label = True
         self.expire_on_card = False
+        self.expire_cards = 0  # expire the session on this many card loads, then stop
         self.native_on_card = False
         self.list_header = True
         self.card_has_value_cell = True
         self.delay_polls = 0
         self.amount_text_override: str | None = None
+        self.captcha = False
+        self.app_error_on_card = False
+        self.notice: str | None = None  # a modal over the customer list: its title
+        self.notice_buttons: list[str] = ["Dismiss"]
+        self.access_denied_on_list = False
+        self.hang_on_click = False
         self._next_id = 0
 
     # --- pages -------------------------------------------------------------------------------------------------
@@ -132,7 +141,8 @@ class FakeDolibarr:
                 self.logged_in = True
                 self._goto(self.url)
 
-        return Page(self.url, "Login", [
+        extra = [self._el(role="textbox", name="Security code", tag="input", input_type="text")] if self.captcha else []
+        return Page(self.url, "Login", extra + [
             self._el(role="textbox", name="Login", tag="input", input_type="text"),
             self._el(role="textbox", name="Password", tag="input", input_type="password"),
             self._el(role="button", name="Login", tag="input", input_type="submit", on_click=submit),
@@ -143,11 +153,16 @@ class FakeDolibarr:
         query = {k: v[0] for k, v in parse_qs(parts.query).items()}
         if not self.logged_in:
             return self._login_page()
-        if parts.path == "/societe/card.php" and self.expire_on_card:
+        if parts.path == "/societe/card.php" and (self.expire_on_card or self.expire_cards):
+            self.expire_cards = max(self.expire_cards - 1, 0)
             self.logged_in = False
             return self._login_page()
         if parts.path in ("/index.php", "/"):
             return Page(self.url, "Home", [self._el(role="generic", text="Global view")])
+        if parts.path == "/societe/list.php" and self.access_denied_on_list:
+            return Page(self.url, "Access", [self._el(role="generic", text="Access denied.")])
+        if parts.path == "/societe/card.php" and self.app_error_on_card:
+            return Page(self.url, "Error 500", [self._el(role="heading", name="Internal Server Error")])
         if parts.path == "/societe/list.php":
             return self._list(query)
         if parts.path == "/societe/card.php":
@@ -190,7 +205,15 @@ class FakeDolibarr:
     def _page(self) -> Page:
         if self.loading > 0:
             return Page(self.url, "Loading", [self._el(role="generic", text="Loading...")])
-        return self._render()
+        page = self._render()
+        if self.notice and page.title == "Customers":
+            def dismiss() -> None:
+                self.notice = None
+
+            page.dialog = self.notice
+            page.dialog_elements = [self._el(role="button", name=b, tag="button", on_click=dismiss)
+                                    for b in self.notice_buttons]
+        return page
 
     async def observe(self, *, screenshot: bool = True) -> Observation:
         page = self._page()
@@ -201,9 +224,11 @@ class FakeDolibarr:
         for e in page.elements:
             head = f"- {e.role}" + (f' "{e.name}"' if e.name else "") + f" [ref=e{e.uid}]"
             lines.append(head + (f": {e.text}" if e.text else ""))
+        dialog_lines = ([f'- heading "{page.dialog}" [ref=e0]'] if page.dialog else []) + [f'- button "{e.name}" [ref=e{e.uid}]' for e in page.dialog_elements]
         return Observation(epoch=self.epoch, facts=PageFacts(url=page.url, title=page.title, dialog=page.dialog,
                                                              native_dialog=page.native_dialog),
-                           snapshot="\n".join(lines) + "\n")
+                           snapshot="\n".join(lines) + "\n",
+                           dialog_snapshot="\n".join(dialog_lines) + "\n" if page.dialog else None)
 
     async def settle(self, *, interval_ms: int = 150, timeout_ms: int = 5000) -> bool:
         """The navigation fence: records the call; true when nothing is loading (it never consumes `loading`)."""
@@ -216,7 +241,8 @@ class FakeDolibarr:
     async def find(self, strategy: Strategy) -> list[El]:
         self.log.append(f"find {strategy.kind}")
         out = []
-        for e in self._page().elements:
+        page = self._page()
+        for e in page.dialog_elements if page.dialog else page.elements:
             if strategy.kind == "role":
                 ok = e.role == strategy.role and names_match(strategy.name or "", e.name)
             elif strategy.kind == "same_row":
@@ -255,6 +281,8 @@ class FakeDolibarr:
     async def click(self, element: El, request: ActionRequest) -> PolicyDecision:
         decision = self._allow(request)
         self.log.append(f"click {element.role}")
+        if self.hang_on_click:
+            await asyncio.sleep(3600)
         if element.on_click:
             element.on_click()
         return decision
