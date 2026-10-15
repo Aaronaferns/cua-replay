@@ -157,6 +157,13 @@ def _target_tools() -> None:
         sys.path.insert(0, path)
 
 
+def _expire_session() -> None:
+    _target_tools()
+    from livetarget import expire_session
+
+    expire_session()
+
+
 def _reset_target() -> None:
     """Baseline restore. `reset.sh` exits 4 when the restore finished but overran its 15 s budget on a loaded host; the
     restore happened, so only the fixture check is repeated."""
@@ -231,6 +238,7 @@ async def make_case_evidence(
     from cua.replay.suite import compare
 
     run_id = f"evid-{stamp}-{case.id}"[:100]
+    fault_specs = [*case.faults, *fault_specs]  # the suite case's own faults, then the sidecar's
     faults = build_faults(fault_specs)  # fail on a bad sidecar before touching the target
     if case.reset:
         await asyncio.to_thread(hooks.reset)
@@ -240,8 +248,9 @@ async def make_case_evidence(
     installation = None
     after: dict[str, Any] = {}
     mismatches: list[str] = []
+    session_kw: dict[str, Any] = {"login": False} if case.run_as else {}
     async with hooks.open_session(
-        run_id=run_id, profile=str(profile_path), actor="replay", evidence_root=runs_root
+        run_id=run_id, profile=str(profile_path), actor="replay", evidence_root=runs_root, **session_kw
     ) as session:
         problems = validate_capability(capability, session.profile)
         if problems:
@@ -262,10 +271,25 @@ async def make_case_evidence(
                 if cfg.cua_run_password is not None
                 else None
             )
+            extra: dict[str, Any] = {}
+            if case.run_as == "noperm":
+                from cua.replay.commands import _noperm_login
+
+                credentials = Credentials(_noperm_login(), cfg.cua_noperm_password.get_secret_value())
+            if case.expire_session_before:
+                expired = False
+
+                async def before_step(step: Any) -> None:
+                    nonlocal expired
+                    if step.id == case.expire_session_before and not expired:
+                        expired = True
+                        await asyncio.to_thread(_expire_session)
+
+                extra["before_step"] = before_step
             result = await hooks.replay(
                 capability, session.profile, dict(case.inputs), surface=session.surface, guard=session.guard,
                 lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=writer,
-                run_id=run_id,
+                run_id=run_id, **extra,
             )
         finally:
             if installation is not None:
