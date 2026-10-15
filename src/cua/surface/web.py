@@ -143,7 +143,7 @@ _JS_IN_COLUMN = """(el, h) => {
 }"""
 
 # Selectors from attributes that survive a reload. Ids that look generated (digits, hashes, widget prefixes) are
-# rejected; so are names with brackets and classes shared by styling frameworks.
+# rejected; so are names with brackets. Each remaining class is one candidate (a banner ref has no id or name).
 _JS_CSS_HINTS = r"""(el) => {
   const tag = el.tagName.toLowerCase(), out = [];
   const generated = (v) => /\d{3,}|[0-9a-f]{8,}|^(select2|ui-|ext-|react|:r|dol)/i.test(v);
@@ -156,7 +156,7 @@ _JS_CSS_HINTS = r"""(el) => {
     out.push(tag + '[name="' + esc(name) + '"]' + (tag === 'input' && type ? '[type="' + esc(type) + '"]' : ''));
   }
   const cls = Array.from(el.classList).filter((c) => !generated(c) && /^[A-Za-z][\w-]*$/.test(c));
-  if (cls.length === 1) out.push(tag + '.' + cls[0]);
+  for (const c of cls) out.push(tag + '.' + c);  // a class shared with other elements fails the uniqueness check
   return out;
 }"""
 
