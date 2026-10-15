@@ -1,0 +1,86 @@
+"""A discovery trace with approved commit steps compiles to a commit capability that validates.
+
+The fixture is the live Dolibarr 23 run (Pay opens the confirmation, Validate posts it) trimmed to its performed
+actions, with a synthetic amount locator and a synthetic payment_ref extract appended."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from cua.agent.actions import RequestApproval
+from cua.artifact.lock import dumps, load_profile
+from cua.artifact.predicates import AllOf, TargetEqualsInput, TargetVisible
+from cua.artifact.schema import AssertAction, ClickAction
+from cua.artifact.validate import validate_capability
+from cua.compiler.compile import CompileError, compile_trace
+from cua.compiler.review_card import render_review_card
+from cua.compiler.trace import RecordedTrace
+from cua.replay.effects import derived_effect
+
+ROOT = Path(__file__).resolve().parents[2]
+PROFILE = load_profile(ROOT / "apps" / "dolibarr" / "profile.json")
+TRACE = RecordedTrace.model_validate_json((Path(__file__).parent / "fixtures" / "record_payment_trace.json").read_bytes())
+KW = dict(name="record_invoice_payment", discovered_by="alice")
+
+
+def compiled():
+    return compile_trace(TRACE, PROFILE, **KW)
+
+
+def test_commit_trace_compiles_and_validates():
+    cap = compiled()
+    assert validate_capability(cap, PROFILE) == []
+    assert cap.id == "dolibarr.record_invoice_payment" and cap.effect == "commit"
+    assert list(cap.contract.inputs) == ["invoice_ref", "amount", "method", "bank_account", "request_id"]
+    assert list(cap.contract.outputs) == ["payment_ref"]
+    assert {"validation_rejected", "invoice_not_found", "access_denied"} <= set(cap.contract.outcomes)
+    assert "customer_not_found" not in cap.contract.outcomes
+    assert compiled() == cap and dumps(compiled()) == dumps(cap)
+
+
+def test_only_the_confirming_click_is_the_commit():
+    cap = compiled()
+    effects = {s.do.target: s.effect for s in cap.steps if isinstance(s.do, ClickAction)}
+    assert effects["button_pay"] == "read" and effects["button_validate"] == "commit"
+    assert [s.effect for s in cap.steps if s.effect == "commit"] == ["commit"]
+
+
+def test_commit_step_has_review_asserts_for_the_inputs_and_a_verify():
+    cap = compiled()
+    commit = next(s for s in cap.steps if s.effect == "commit")
+    review = [s.do.that for s in cap.steps if isinstance(s.do, AssertAction) and s.expect == commit.expect]
+    assert sorted(p.input for p in review if isinstance(p, TargetEqualsInput)) == ["amount", "bank_account", "invoice_ref"]
+    assert isinstance(commit.verify, TargetVisible | AllOf)
+    review_steps = [s for s in cap.steps if s.expect == commit.expect and isinstance(s.do, AssertAction)]
+    assert cap.steps.index(commit) > max(cap.steps.index(s) for s in review_steps)
+
+
+def test_a_commit_with_no_confirmation_evidence_is_refused():
+    trace = TRACE.model_copy(update={"actions": [a for a in TRACE.actions if a.action.kind != "extract"],
+                                     "outputs": {}})
+    with pytest.raises(CompileError) as e:
+        compile_trace(trace, PROFILE, **KW)
+    assert any("needs a verify" in p for p in e.value.problems)
+
+
+def test_approval_requests_in_the_trace_are_not_a_reason_to_refuse():
+    ask = TRACE.actions[8].model_copy(update={"action": RequestApproval(rationale="r", ref="f5e349", summary="s")})
+    actions = [*TRACE.actions[:8], ask, *TRACE.actions[8:]]
+    actions = [a.model_copy(update={"seq": i}) for i, a in enumerate(actions, start=1)]
+    assert compile_trace(TRACE.model_copy(update={"actions": actions}), PROFILE, **KW).steps == compiled().steps
+
+
+@pytest.mark.parametrize(("prompts", "declared", "expected"), [
+    (True, "read", "read"), (False, "read", "commit"), (True, "commit", "commit")])
+def test_a_prompting_click_is_not_raised_by_its_name(prompts, declared, expected):
+    cap = compiled()
+    step = next(s for s in cap.steps if isinstance(s.do, ClickAction) and s.do.target == "button_pay")
+    step = step.model_copy(update={"effect": declared})
+    got = derived_effect(PROFILE, step, url=None, target=cap.targets["button_pay"], dirty=True, prompts=prompts)
+    assert got == expected
+
+
+def test_review_card_renders_for_the_commit_capability():
+    assert "commit" in render_review_card(compiled(), PROFILE).lower()

@@ -569,13 +569,15 @@ class _Run:
         resolved = await resolve(self.surface, form.submit, {})
         await self.surface.click(resolved.element, self._request("click", "none", actor="handler"))
 
-    def _classify_effect(self, step: Step) -> str:
+    def _classify_effect(self, step: Step, next_state: str) -> str:
         """The effective effect (never below the declared one); stops the step when it exceeds the capability's
         declared effect (the ceiling) or when a draft would commit. Nothing has been done yet."""
         do = step.do
         url = self.base_url + self._fill(do.route, encode=True) if isinstance(do, NavigateAction) else None
         target = self.cap.targets.get(do.target) if isinstance(do, ClickAction) else None
-        effect = derived_effect(self.profile, step, url=url, target=target, dirty=self.dirty)
+        prompts = next_state != step.expect and next_state in self.profile.states \
+            and self.profile.is_a(next_state, step.expect)
+        effect = derived_effect(self.profile, step, url=url, target=target, dirty=self.dirty, prompts=prompts)
         if EFFECT_RANK[effect] > EFFECT_RANK[self.cap.effect]:
             raise _Stop("failure", "EFFECT_EXCEEDS_CEILING", self._failure(
                 "EFFECT_EXCEEDS_CEILING", "policy",
@@ -637,7 +639,7 @@ class _Run:
         began = self.now_ms()
         last = i + 1 == len(self.cap.steps)
         next_state = self.cap.success.state if last else self.cap.steps[i + 1].expect
-        self.effect = self._classify_effect(step)
+        self.effect = self._classify_effect(step, next_state)
         commit = self.effect == "commit"
         if not commit:
             self.high = max(self.high, self.effect, key=EFFECT_RANK.__getitem__)

@@ -16,14 +16,17 @@ from cua.artifact.schema import EFFECT_RANK, ClickAction, Effect, Profile, Step,
 COMMIT_WORDS = re.compile(r"\b(validate|confirm|pay|payment|paiement|delete|remove|approve)\b", re.IGNORECASE)
 
 
-def derived_effect(profile: Profile, step: Step, *, url: str | None, target: Target | None, dirty: bool) -> Effect:
-    """`url` is the absolute URL a navigate step opens; `target` the artifact target a click acts on."""
+def derived_effect(profile: Profile, step: Step, *, url: str | None, target: Target | None, dirty: bool,
+                   prompts: bool = False) -> Effect:
+    """`url` is the absolute URL a navigate step opens; `target` the artifact target a click acts on. `prompts`: the
+    step leads to a more specific state of its own screen (a "Do you confirm ...?" prompt). Such a click declared
+    below commit is not raised by its name (a "Pay" button that only asks); the commit is the later confirming step."""
     found: Effect = "none"
     if url is not None and is_commit(profile, "GET", url):
         found = "commit"
     if isinstance(step.do, ClickAction) and target is not None:
         names = [s.name for s in target.strategies if s.name]
-        if any(COMMIT_WORDS.search(n) for n in names):
+        if any(COMMIT_WORDS.search(n) for n in names) and not (prompts and step.effect != "commit"):
             found = "commit"
         if dirty and not names and target.fingerprint.input_type == "submit":
             found = "commit"

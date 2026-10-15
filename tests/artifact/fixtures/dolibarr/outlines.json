@@ -85,5 +85,20 @@
     "expected": "service_notice",
     "dialog": "- heading \"Service notice\"\n- button \"Dismiss\"\n",
     "outline": ""
+  },
+  "18_invoice_list": {
+    "url": "http://localhost:8086/compta/facture/list.php?mainmenu=billing",
+    "expected": "invoice_list",
+    "outline": "- cell \"Customer invoices (2)\"\n- columnheader \"Ref.\"\n- link \"FA2610-0001\"\n"
+  },
+  "19_invoice_list_none": {
+    "url": "http://localhost:8086/compta/facture/list.php?search_ref=NOPE",
+    "expected": "invoice_not_found",
+    "outline": "- cell \"Customer invoices (2)\"\n- columnheader \"Ref.\"\n- cell \"No record found\"\n"
+  },
+  "20_payment_overpayment": {
+    "url": "http://localhost:8086/compta/paiement.php",
+    "expected": "payment_overpayment",
+    "outline": "- cell \"Enter payment received from customer\"\n- cell \"Do you confirm this payment input for 50 Euros? All invoices with no remainder to pay will be automatically closed with status \\\"Paid\\\".\": Do you confirm this payment input for 50 Euros?All invoices with no remainder to pay will be automatically closed with status \"Paid\".\n- generic: The payment amount is higher than the outstanding amount to pay.\n"
   }
 }

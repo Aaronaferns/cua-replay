@@ -331,6 +331,82 @@
       },
       "origin": "declared",
       "edited": false
+    },
+    "invoice_list": {
+      "description": "Customer invoice list (any filter).",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/facture/list.php*"
+          },
+          {
+            "kind": "text",
+            "pattern": "Customer invoices \\(\\d+\\)",
+            "role": "cell"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
+    },
+    "invoice_not_found": {
+      "description": "Invoice list whose filter matched nothing: the table body says 'No record found'.",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/facture/list.php*"
+          },
+          {
+            "kind": "text",
+            "pattern": "Customer invoices \\(\\d+\\)",
+            "role": "cell"
+          },
+          {
+            "kind": "text",
+            "equals": "No record found",
+            "role": "cell"
+          }
+        ]
+      },
+      "specializes": "invoice_list",
+      "origin": "observed",
+      "edited": false
+    },
+    "payment_overpayment": {
+      "description": "Payment confirmation carrying Dolibarr's warning that the amount is higher than the outstanding amount (the confirmation defaults to No).",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/paiement.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Enter payment received from customer",
+            "role": "cell"
+          },
+          {
+            "kind": "text",
+            "pattern": "Do you confirm this payment input for .*",
+            "role": "cell"
+          },
+          {
+            "kind": "text",
+            "pattern": ".*higher than the outstanding amount.*"
+          }
+        ]
+      },
+      "specializes": "payment_confirm",
+      "origin": "observed",
+      "edited": false
     }
   },
   "default_meaning": {
@@ -348,6 +424,12 @@
     },
     "app_error": {
       "failure": "APP_ERROR"
+    },
+    "invoice_not_found": {
+      "outcome": "invoice_not_found"
+    },
+    "payment_overpayment": {
+      "outcome": "validation_rejected"
     }
   },
   "handlers": {
