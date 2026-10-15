@@ -83,3 +83,33 @@ async def test_approval_is_single_use(fake_surface, tmp_path):
     assert result.stop_reason == "approval_denied"
     assert [c.approval_id for c in clicks(guard)] == ["ap-1"]
     writer.close()
+
+
+def test_a_link_to_a_post_only_commit_route_is_a_read():
+    from cua.agent.actions import Navigate
+    from cua.agent.executor import effect_of
+    from pathlib import Path
+
+    from cua.artifact.lock import load_profile
+
+    profile = load_profile(Path("apps/dolibarr/profile.json"))
+    form = "http://localhost:8085/compta/paiement.php?facid=458&action=create"  # opens the form; the POST commits
+    assert effect_of(Navigate(rationale="r", url=form), None, form, profile) == "read"
+    valid = "http://localhost:8085/compta/facture/card.php?facid=1&action=confirm_valid&confirm=yes"
+    assert effect_of(Navigate(rationale="r", url=valid), None, valid, profile) == "commit"
+
+
+async def test_model_approval_request_continues_to_the_gated_commit(fake_surface, tmp_path):
+    from cua.agent.actions import RequestApproval
+
+    surface, page, guard = fake_surface
+
+    async def approve(digest, generation):
+        return "ap-7"
+
+    ask = [lambda obs: RequestApproval(rationale="r", ref=unnamed_submit(obs), summary="submit")]
+    loop, writer = build(surface, guard, tmp_path, ScriptedAdapter(steps()[:1] + ask + steps()[1:]), approve=approve)
+    result = await loop.run()
+    assert result.stop_reason != "approval_not_available"
+    assert [c.approval_id for c in clicks(guard)] == ["ap-7"]
+    writer.close()

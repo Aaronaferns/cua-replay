@@ -17,8 +17,7 @@ import json
 import re
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from fnmatch import fnmatchcase
-from urllib.parse import parse_qs, quote, urljoin, urlsplit
+from urllib.parse import quote, urljoin
 
 from cua.agent.actions import (
     Click,
@@ -34,6 +33,7 @@ from cua.agent.actions import (
     string_arguments,
 )
 from cua.artifact.names import normalize_name
+from cua.artifact.routes import is_commit
 from cua.artifact.schema import Effect, Profile
 from cua.compiler.recorder import Recorder, actionable_text, value_cell
 from cua.compiler.trace import TargetRecord
@@ -82,24 +82,13 @@ def effect_of(action: AgentAction, node: snap.Node | None, target_url: str | Non
     named like a commit; so does an unnamed submit button once a field was typed or selected. Everything else that touches the page is a `read`."""
     if action.kind in ("type", "select"):
         return "none"
-    if target_url and _commit_route(profile, target_url):
+    if target_url and is_commit(profile, "GET", target_url):  # a link or navigation is a GET with no form body
         return "commit"
     if action.kind == "click" and node is not None and node.role == "button" and _COMMIT_WORDS.search(node.name or ""):
         return "commit"
     if action.kind == "click" and node is not None and node.role == "button" and dirty and not _ICONS.sub("", node.name or "").strip():
         return "commit"
     return "read"
-
-
-def _commit_route(profile: Profile, url: str) -> bool:
-    parts = urlsplit(url)
-    query = parse_qs(parts.query)
-    for route in profile.commit_routes:
-        if not fnmatchcase(parts.path or "/", route.path):
-            continue
-        if all(any(fnmatchcase(v, pattern) for v in query.get(k, [])) for k, pattern in route.query.items()):
-            return True
-    return False
 
 
 class Executor:
@@ -260,6 +249,9 @@ class Executor:
             case RequestHelp():
                 return Outcome("performed", "Stopping: help was requested.", tokens=tokens, terminal="help")
             case RequestApproval():
+                if self._approve is not None:  # the commit action itself is gated: the operator approves that click
+                    return Outcome("performed", "Approval is automatic: perform the committing action itself and the "
+                                   "operator is asked to approve it before anything happens.", tokens=tokens)
                 return Outcome("performed", "Stopping: approval-gated actions are not available in this run.",
                                tokens=tokens, terminal="approval")
             case Done():
