@@ -407,6 +407,31 @@
       "specializes": "payment_confirm",
       "origin": "observed",
       "edited": false
+    },
+    "payment_card": {
+      "description": "Customer invoice payment card (the recorded payment: ref, amount, bank account).",
+      "layer": "page",
+      "signature": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "url_matches",
+            "pattern": "/compta/paiement/card.php*"
+          },
+          {
+            "kind": "text",
+            "equals": "Payment",
+            "role": "link"
+          },
+          {
+            "kind": "text",
+            "equals": "Bank account",
+            "role": "cell"
+          }
+        ]
+      },
+      "origin": "observed",
+      "edited": false
     }
   },
   "default_meaning": {
