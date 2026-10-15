@@ -55,6 +55,7 @@ import sys
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal
 
@@ -212,7 +213,24 @@ def _rest_view(case: Any) -> dict[str, Any]:
             raise EvidenceCommandError(f"unknown oracle {truth.oracle!r}")
         customer = customer_by_code(admin, case.inputs[truth.input])
         oracles[truth.output] = None if customer is None else str(outstanding_of(admin, customer["id"]))
-    return {"state_sha256": digest, "oracles": oracles}
+    view: dict[str, Any] = {"state_sha256": digest, "oracles": oracles}
+    if "invoice_ref" in case.inputs:  # a commit case: the payments the invoice really has (count and amounts)
+        view["payments"] = _invoice_payments(admin, case.inputs["invoice_ref"])
+    return view
+
+
+def _invoice_payments(admin: Any, invoice_ref: str) -> dict[str, Any] | None:
+    from dolirest import sql_eq
+
+    status, invoice = admin.call("GET", f"/invoices/ref/{invoice_ref}")
+    if status != 200:
+        found = admin.listing("/invoices", sqlfilters=sql_eq("t.ref_client", invoice_ref))
+        invoice = found[0] if found else None
+    if invoice is None:
+        return None
+    status, rows = admin.call("GET", f"/invoices/{invoice['id']}/payments")  # 404 "No payment" = none
+    amounts = sorted(str(Decimal(str(p["amount"]))) for p in rows) if status == 200 else []
+    return {"invoice_id": str(invoice["id"]), "count": len(amounts), "amounts": amounts}
 
 
 # ------------------------------------------------------------------------------------------------- the run
@@ -334,6 +352,11 @@ async def make_case_evidence(
                 "before": before,
                 "after": after,
                 "rest_state_unchanged": before["state_sha256"] == after["state_sha256"],
+                **(
+                    {"new_payments": after["payments"]["count"] - before["payments"]["count"]}
+                    if before.get("payments") and after.get("payments")
+                    else {}
+                ),
                 "expected": {"status": case.expect.status, "outcome": case.expect.outcome},
                 "actual": {"status": result.status, "outcome": result.outcome, "outputs": dict(result.outputs)},
                 "mismatches": mismatches,

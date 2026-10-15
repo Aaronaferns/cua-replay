@@ -60,7 +60,7 @@ from typing import Any, Literal, TextIO
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from cua.artifact.schema import Profile
 from cua.control.capture import CaptureEvent, RequestLogEntry, commit_hit_sink, evidence_sink
@@ -76,12 +76,12 @@ from cua.evidence.events import EvidenceWriter
 
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
 ALLOWED_HOSTNAMES = frozenset({"127.0.0.1", "localhost", "[::1]", "::1"})
-VERDICTS = ("committed", "not_committed", "unknown")
+VERDICTS = ("committed", "not_committed", "unknown", "unsure")
 VERDICT_SCHEMA = "cua.verdict/v1"
 _OPERATOR = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}")
 
-Verdict = Literal["committed", "not_committed", "unknown"]
+Verdict = Literal["committed", "not_committed", "unknown", "unsure"]
 OutcomeKind = Literal["resume", "abort", "mark_complete", "approved", "verdict"]
 Status = Literal["draining", "open", "claimed", "resolved", "review"]
 
@@ -641,7 +641,7 @@ class InterventionHub:
         return self._resolve(item, "mark_complete", reason="operator_mark_complete", operator=operator,
                              outputs=decision.outputs or {})
 
-    async def verdict(self, intervention_id: str, operator: str, verdict: str) -> dict[str, Any]:
+    async def verdict(self, intervention_id: str, operator: str, verdict: str, note: str = "") -> dict[str, Any]:
         """Record the operator's `resolve_commit` verdict for a COMMIT_UNKNOWN intervention: an event and
         `verdicts/<id>.json` in the bundle. In a live run the claiming operator ends the escalation with it (the run
         finishes `indeterminate`, resolved); a reviewed bundle only gains the record. Once per intervention."""
@@ -664,7 +664,7 @@ class InterventionHub:
         record = {
             "schema": VERDICT_SCHEMA, "action": "resolve_commit", "intervention_id": item.id, "run_id": item.request.run_id,
             "capability": item.request.capability, "step_id": item.request.step_id, "verdict": verdict,
-            "operator": operator, "at": self._clock().isoformat(), "mode": "review" if item.review else "live",
+            "operator": operator, "note": note[:500], "at": self._clock().isoformat(), "mode": "review" if item.review else "live",
             "escalated_lease": item.request.lease.model_dump(),
         }
         self._write_verdict(item, operator, verdict, record)
@@ -760,6 +760,7 @@ class ActionBody(BaseModel):
     operator: str
     action_hash: str | None = None
     verdict: str | None = None
+    note: str = Field(default="", max_length=500)
 
 
 def _check_host(value: str | None) -> bool:
@@ -910,7 +911,7 @@ def build_app(hub: InterventionHub) -> FastAPI:
                 outcome = await hub.mark_complete(iid, body.operator)
             reply.update(outcome=outcome.kind, lease=outcome.lease.model_dump())
         elif action == "verdict":
-            record = await hub.verdict(iid, body.operator, body.verdict or "")
+            record = await hub.verdict(iid, body.operator, body.verdict or "", body.note)
             reply["verdict"] = record["verdict"]
         else:
             raise ConsoleError(404, "unknown_action")

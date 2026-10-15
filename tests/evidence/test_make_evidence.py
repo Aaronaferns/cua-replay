@@ -266,6 +266,29 @@ def test_cli_registration_and_usage_error(tmp_path, capsys):
     assert "error:" in capsys.readouterr().err
 
 
+def test_invoice_payments_view_counts_rest_payments():
+    from cua.evidence.commands import _invoice_payments, _target_tools
+
+    _target_tools()
+
+    class Rest:
+        def call(self, method, path):
+            if path == "/invoices/ref/FA-1":
+                return 200, {"id": "7"}
+            assert path == "/invoices/7/payments"
+            return 200, [{"amount": "10.5"}, {"amount": "3"}]
+
+    assert _invoice_payments(Rest(), "FA-1") == {"invoice_id": "7", "count": 2, "amounts": ["10.5", "3"]}
+
+    class NoPay(Rest):
+        def call(self, method, path):
+            return (200, {"id": "7"}) if "ref" in path else (404, {})
+
+    assert _invoice_payments(NoPay(), "FA-1")["count"] == 0
+    (fault,) = build_faults([{"kind": "lost_response_after_commit", "match": "/compta/paiement.php", "times": 1}])
+    assert fault.kind == "lost_response_after_commit" and fault.status == 504
+
+
 async def test_handoff_takes_exactly_one_case(tmp_path):
     with pytest.raises(EvidenceCommandError, match="exactly one case"):
         await run_make_evidence(args_for(tmp_path, handoff=True), hooks=Hooks(None, None, None, None))
