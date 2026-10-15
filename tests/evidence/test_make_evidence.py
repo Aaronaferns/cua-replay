@@ -52,6 +52,8 @@ class FakeWorld:
         self.resets = 0
         self.context = FakeContext()
         self.sessions: list[str] = []
+        self.logins: list[bool] = []
+        self.replay_kw: list[dict] = []
         self.profile = load_profile(REPO_ROOT / "apps" / "dolibarr" / "profile.json")
         self.policy = load_policy("dolibarr-sandbox", variables={"DOLIBARR_PORT": "8087"})
 
@@ -63,13 +65,14 @@ class FakeWorld:
             return {"state_sha256": "abc123", "oracles": oracles}
 
         @asynccontextmanager
-        async def open_session(*, run_id, profile, actor, evidence_root):
+        async def open_session(*, run_id, profile, actor, evidence_root, login=True):
             self.sessions.append(run_id)
+            self.logins.append(login)
             writer = RunBundleWriter(run_id, root=evidence_root)
             session = SimpleNamespace(
                 surface=SimpleNamespace(page=SimpleNamespace(context=self.context)),
                 guard=None, lease=lambda: None, evidence=writer, policy=self.policy, profile=self.profile,
-                settings=Settings(), base_url="http://localhost:8087",
+                settings=Settings(cua_noperm_password="noperm-pass"), base_url="http://localhost:8087",
             )
             try:
                 yield session
@@ -78,6 +81,7 @@ class FakeWorld:
 
         async def replay(capability, profile, inputs, **kw):
             code = inputs["customer_code"]
+            self.replay_kw.append(kw)
             if self.explode_on == code:
                 raise RuntimeError(f"boom {code}")
             amount = AMOUNTS.get(code)
@@ -185,6 +189,30 @@ async def test_declared_faults_are_installed_around_the_replay_and_removed(tmp_p
     assert [f["kind"] for f in truth["faults"]] == ["slow:250", "interstitial"]
     beta = json.loads((tmp_path / "evidence/replay_beta/ground_truth.json").read_text(encoding="utf-8"))
     assert beta["faults"] == []
+
+
+async def test_suite_case_faults_run_as_and_session_expiry_are_honoured(tmp_path, monkeypatch):
+    root = tmp_path / "caps"
+    shutil.copytree(FIXTURES / "dolibarr", root / "dolibarr")
+    suite_path = root / "dolibarr" / "lookup_customer_outstanding.tests.json"
+    doc = json.loads(suite_path.read_text(encoding="utf-8"))
+    beta = next(c for c in doc["cases"] if c["id"] == "beta")
+    beta.update(faults=[{"kind": "slow:250", "match": "/societe/**"}], run_as="noperm",
+                expire_session_before="s02_open_card")
+    suite_path.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setattr("cua.replay.commands._noperm_login", lambda: "noperm")
+    expired = []
+    monkeypatch.setattr("cua.evidence.commands._expire_session", lambda: expired.append(1))
+    world = FakeWorld(tmp_path)
+    outcomes, _ = await run_make_evidence(args_for(tmp_path, capabilities_dir=str(root), cases="beta"), world.hooks())
+    assert outcomes[0].error is None, outcomes[0].error
+    assert world.logins == [False] and len(world.context.routes) == 1
+    truth = json.loads((tmp_path / "evidence/replay_beta/ground_truth.json").read_text(encoding="utf-8"))
+    assert [f["kind"] for f in truth["faults"]] == ["slow:250"]
+    before_step = world.replay_kw[0]["before_step"]
+    for sid in ("s01_open_list", "s02_open_card", "s02_open_card"):
+        await before_step(SimpleNamespace(id=sid))
+    assert expired == [1]  # once, at the named step only
 
 
 def test_faults_file_lookup_prefers_the_versioned_name(tmp_path):

@@ -9,7 +9,24 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
+
+
+@asynccontextmanager
+async def live_console(session: Any, *, host: str = "127.0.0.1", port: int = 0, notify: bool = True) -> AsyncIterator[Any]:
+    """Serve the console over a live `open_session` session; yields the hub (pass it to the interpreter for escalations)."""
+    from cua.control.console import ConsoleServer, InterventionHub, jsonl_notifier  # noqa: PLC0415
+
+    hub = InterventionHub(
+        run_id=session.evidence.run_id, writer=session.evidence, lease=session.lease_manager, profile=session.profile,
+        notify=jsonl_notifier() if notify else None,
+    )
+    async with ConsoleServer(hub, host=host, port=port).running() as url:
+        hub.console_url = url
+        yield hub
 
 
 def cmd_console(args: argparse.Namespace) -> int:

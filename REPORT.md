@@ -18,4 +18,6 @@ Every claim names a test or an evidence bundle. No vendor version lists, product
 
 ## 6. Safety
 
+- Operator console: the Origin check on POSTs is skipped when the request has no Origin header (non-browser clients). Exposure is limited by loopback-only binding, the Host allow-list and JSON-only bodies; there is no authentication.
+
 ## 7. Cuts
