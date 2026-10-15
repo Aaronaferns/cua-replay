@@ -148,12 +148,14 @@ def test_console_command_is_registered():
     assert p.parse_args(["console", "x"]).func.__name__ == "cmd_console"
 
 
-async def test_live_console_serves_a_session_hub(tmp_path, writer):
+async def test_live_console_serves_a_session_hub(tmp_path, writer, browser):
     from types import SimpleNamespace
 
     from cua.control.commands import live_console
 
-    session = SimpleNamespace(evidence=writer, lease_manager=LeaseManager(), profile=None)
+    page = await (await browser.new_context()).new_page()
+    session = SimpleNamespace(evidence=writer, lease_manager=LeaseManager(), profile=None,
+                              surface=SimpleNamespace(page=page))
     async with live_console(session, notify=False) as hub:
         assert hub.live and hub.console_url.startswith("http://127.0.0.1:")
         async with httpx.AsyncClient(base_url=hub.console_url) as c:
