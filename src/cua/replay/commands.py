@@ -183,7 +183,7 @@ async def _execute(
     profile_path = profile_path_of(capability.app)
     run_as = case.run_as if case else None
     async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay",
-                             login=run_as is None) as session:
+                             login=run_as is None and not handoff) as session:  # handoff: replay logs in, so a CAPTCHA escalates
         problems = validate_capability(capability, session.profile)
         if problems:
             raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
