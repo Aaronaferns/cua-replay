@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 from cua.agent.actions import AgentAction
 from cua.artifact.classify import Classification, classify
 from cua.artifact.lock import canonical, dumps, load_profile, sha256_hex
-from cua.artifact.predicates import ScreenNode, ScreenView, TargetEqualsInput, TargetVisible
+from cua.artifact.predicates import AllOf, Predicate, ScreenNode, ScreenView, TargetEqualsInput, TargetVisible
 from cua.artifact.propose import collisions, propose_state, proposed_id, url_glob, with_states
 from cua.artifact.screen import view_from_outline
 from cua.artifact.schema import (
@@ -32,6 +32,7 @@ from cua.artifact.schema import (
     Capability,
     ClickAction,
     Contract,
+    FieldSpec,
     Outcome,
     Effect,
     ExtractAction,
@@ -57,8 +58,7 @@ COMPILER_ID = "cua.compiler/v0"
 _TOKEN = re.compile(r"\{\{([a-z][a-z0-9_]*)\}\}")
 _TOKEN_ENCODED = re.compile(r"%7B%7B([a-z][a-z0-9_]*)%7D%7D", re.IGNORECASE)
 _KEPT = ("navigate", "click", "type", "select", "press", "extract")
-_REFUSED = {"request_approval": "approval-gated actions arrive with the write flow (M6)",
-            "request_help": "a run that needed help is not a compilable read flow (M5)"}
+_REFUSED = {"request_help": "a run that needed help is not a compilable read flow (M5)"}
 
 
 class CompileError(ValueError):
@@ -270,22 +270,38 @@ def _compile(
             return "unresolved"
         return targets.add(a.target, where)
 
+    witness: dict[str, str] = {}  # input -> target whose text shows that input's value (usable on a review screen)
+
+    def is_confirmation_prompt(a: RecordedAction) -> bool:
+        """The click lands on the same form in a more specific state (Dolibarr's "Do you confirm ...?"): it asks for
+        confirmation and cannot be the commit, whatever its name says."""
+        if a.post is None:
+            return False
+        before, after = _classify(profile, a.pre), _classify(profile, a.post)
+        return (before.kind == "state" and after.kind == "state" and before.state in profile.states
+                and after.state is not None and before.state != after.state and profile.is_a(after.state, before.state))
+
     kept = [a for a in trace.actions if a.status == "performed" and a.action.kind in _KEPT]
-    for a in kept:
+    for n, a in enumerate(kept):
         where = f"action {a.seq}"
         act = a.action
         verify = None
+        effect = a.effect
         do: Action
         if act.kind == "navigate":
             do = NavigateAction(route=_route(act.url, origin, problems, where))
         elif act.kind == "click":
             do = ClickAction(target=target_of(a, where))
+            if (label := targets.targets.get(do.target) and targets.targets[do.target].strategies[0].name) \
+                    and (m := re.fullmatch(r"\$\{([a-z][a-z0-9_]*)\}", label)):
+                witness.setdefault(m.group(1), do.target)  # a link named by the input is its own echo
         elif act.kind == "type":
             tid = target_of(a, where)
             do = TypeAction(target=tid, text=lift(act.text))
             if echo_verify and (m := re.fullmatch(r"\$\{([a-z][a-z0-9_]*)\}", do.text)):
                 verify = TargetEqualsInput(target=tid, input=m.group(1), normalizer="exact")
                 seen_pairs.add((m.group(1), tid))
+                witness.setdefault(m.group(1), tid)
         elif act.kind == "select":
             do = SelectAction(target=target_of(a, where), option=lift(act.option))
         elif act.kind == "press":
@@ -295,10 +311,30 @@ def _compile(
         else:  # extract
             do = ExtractAction(target=target_of(a, where), output=act.name)
         navigates = act.kind == "navigate" or (a.post is not None and a.post.url != a.pre.url)
-        steps.append(Step(id="s00", intent=_intent(act.rationale), expect=state_of(a.pre, where), do=do,
-                          effect=a.effect, navigates=navigates, verify=verify))
+        expect = state_of(a.pre, where)
+        if effect == "commit" and act.kind == "click" and is_confirmation_prompt(a):
+            effect = "read"
+        if effect == "commit":
+            for token in trace.inputs:
+                if token in witness:
+                    steps.append(Step(
+                        id="s00", intent=f"The review screen shows the requested <{token}>", expect=expect,
+                        do=AssertAction(that=TargetEqualsInput(target=witness[token], input=token, normalizer="text"),
+                                        on_fail="IDENTITY_MISMATCH"), effect="none"))
+            echoes: list[Predicate] = [
+                TargetEqualsInput(target=targets.add(s.target, where), input=s.token, normalizer="text")
+                for s in a.sightings]
+            for nxt in kept[n + 1:]:  # the output read right after the commit: its element exists once it happened
+                if nxt.action.kind != "extract":
+                    break
+                echoes.append(TargetVisible(target=target_of(nxt, f"action {nxt.seq}")))
+            if echoes:
+                verify = echoes[0] if len(echoes) == 1 else AllOf(of=echoes)
+        steps.append(Step(id="s00", intent=_intent(act.rationale), expect=expect, do=do,
+                          effect=effect, navigates=navigates, verify=verify))
         for sighting in a.sightings:
             tid = targets.add(sighting.target, where)
+            witness.setdefault(sighting.token, tid)
             pair = (sighting.token, tid)
             if pair in seen_pairs:
                 continue
@@ -328,6 +364,10 @@ def _compile(
     # ids are positional so a re-recorded trace with the same shape yields the same ids
     steps = [s.model_copy(update={"id": f"s{i:02d}_{s.do.kind}"}) for i, s in enumerate(steps, start=1)]
     effect: Effect = max_effect([s.effect for s in steps])
+    inputs = dict(trace.inputs)
+    if effect == "commit":  # the caller's idempotency key: never typed into the application
+        inputs.setdefault("request_id", FieldSpec(type="string", description="idempotency key of this commit"))
+    visited = {sid for _, sid in seen_screens}
     cap_id = f"{trace.app}.{name}"
     capability = Capability(
         id=cap_id,
@@ -335,9 +375,10 @@ def _compile(
         title=title or name.replace("_", " ").capitalize(),
         description=description or _intent(trace.goal),
         app=trace.app,
-        contract=Contract(inputs=trace.inputs, outputs=trace.outputs, outcomes={
+        contract=Contract(inputs=inputs, outputs=trace.outputs, outcomes={
             m.outcome: Outcome(description=profile.states[sid].description)
-            for sid, m in profile.default_meaning.items() if m.outcome and sid in profile.states}),
+            for sid, m in profile.default_meaning.items() if m.outcome and sid in profile.states
+            and (not profile.ancestors(sid) or visited & set(profile.ancestors(sid)))}),
         effect=effect,
         steps=steps,
         success=Success(state=success_state, outputs=list(trace.outputs), checks=checks),
