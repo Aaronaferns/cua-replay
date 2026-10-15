@@ -50,6 +50,7 @@ from cua.artifact.suite import Case, Suite, suite_problems
 from cua.artifact.validate import validate_capability
 from cua.replay.suite import CaseRun, Summary, check_validation_runs, compare
 from cua.config import REPO_ROOT
+from cua.replay.commit_ledger import CommitLedger
 from cua.replay.interpreter import Credentials, replay
 from cua.replay.result import RunResult
 
@@ -175,7 +176,7 @@ def _noperm_login() -> str:
 
 async def _execute(
     capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False, case: Case | None = None,
-    handoff: bool = False,
+    handoff: bool = False, draft: bool = False,
 ) -> RunResult:
     """One replay in a fresh session (shared by `replay` and `validate`). A suite `case` may run as the no-rights
     user, install faults on the browser context, and expire the session server-side before a step: all of it is done
@@ -218,6 +219,10 @@ async def _execute(
         try:
             async with contextlib.AsyncExitStack() as stack:
                 hub = None
+                ledger = None
+                if capability.effect == "commit":
+                    ledger = CommitLedger(REPO_ROOT / "runs" / "commit_ledger.sqlite")
+                    stack.callback(ledger.close)
                 if handoff and getattr(session, "lease_manager", None) is not None:  # interactive replay: a HUMAN_ONLY_LOGIN blocks here on the live console
                     from cua.control.commands import live_console
 
@@ -227,6 +232,7 @@ async def _execute(
                     capability, session.profile, inputs, surface=session.surface, guard=session.guard,
                     lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=session.evidence,
                     run_id=run_id, before_step=before_step if case and case.expire_session_before else None, hub=hub,
+                    draft=draft, ledger=ledger,
                 )
         finally:
             if installation is not None:
@@ -248,7 +254,8 @@ async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
         print(f"warning: running {path.name} without a valid approval ({what}; --allow-draft)", file=sys.stderr)
     inputs = parse_inputs(args.input)
     run_id = args.run_id or f"replay-{time.strftime('%Y%m%d-%H%M%S')}-{capability.id.split('.')[-1][:24]}"
-    result = await _execute(capability, inputs, run_id=run_id, headed=args.headed, handoff=True)
+    result = await _execute(capability, inputs, run_id=run_id, headed=args.headed, handoff=True,
+                           draft=state != "approved")
     return result, EXIT_CODES[result.status]
 
 

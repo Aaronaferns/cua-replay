@@ -19,7 +19,12 @@ from the entry while the run is still retry-safe), then the profile's default me
 `before_step` is a hook the suite runner uses to disturb the target (for example expire the session); replay itself
 knows nothing about faults. With a `hub` (`cua.control.console.InterventionHub`), a HUMAN_ONLY_LOGIN screen escalates to a
 person instead of failing: resume restarts from the entry, mark-complete finishes through the success checkpoint and
-output extraction, abort ends the run. Without a hub the run fails with HUMAN_ONLY_LOGIN. Commit confirmation is M6.
+output extraction, abort ends the run. Without a hub the run fails with HUMAN_ONLY_LOGIN.
+
+Commit steps (effective effect, see effects.py) run only after the live review screen matches every input, with the
+attempt marker (ledger ATTEMPTED, evidence commit_attempted) written before the click. Afterwards: confirmed => success,
+a declared rejection => business outcome, anything else => indeterminate COMMIT_UNKNOWN (escalated when a hub is
+present). A commit step is never entered twice in a run; a stored request_id result returns with no UI action.
 
 Imports: artifact, surface, safety, control, evidence and this package. Never agent, compiler.recorder, faults or a
 model SDK (`tests/replay/test_replay_imports.py` enforces it).
@@ -57,12 +62,14 @@ from cua.artifact.schema import (
     TypeAction,
 )
 from cua.artifact.values import ValueRejected, check_input, parse_output
-from cua.control.interventions import HUMAN_ONLY_LOGIN, InterventionRequest
+from cua.control.interventions import COMMIT_UNKNOWN, HUMAN_ONLY_LOGIN, InterventionRequest
 from cua.control.lease import LeaseToken
 from cua.evidence.events import EvidenceEvent, EvidenceWriter
 from cua.evidence.failure import capture_failure_evidence
 from cua.replay.checks import evaluate
+from cua.replay.commit_ledger import CommitLedger, RequestIdReused, inputs_hash
 from cua.replay.classifier import classify_observation, mask_url, views_of
+from cua.replay.effects import derived_effect
 from cua.replay.resolver import ResolutionError, Resolved, resolve
 from cua.replay.result import (
     CommitState,
@@ -142,6 +149,8 @@ class _Run:
         timing: Timing,
         before_step: BeforeStep | None,
         hub: InterventionHub | None,
+        ledger: CommitLedger | None,
+        draft: bool,
     ) -> None:
         self.cap, self.profile, self.inputs = capability, profile, inputs
         self.surface, self.guard, self.lease = surface, guard, lease
@@ -149,6 +158,11 @@ class _Run:
         self.credentials, self.evidence, self.run_id = credentials, evidence, run_id
         self.now_ms, self.sleep, self.timing = now_ms, sleep, timing
         self.before_step, self.hub = before_step, hub
+        self.ledger, self.draft = ledger, draft
+        self.request_id = inputs.get("request_id") if ledger else None
+        self.dirty = False  # something was typed or selected since the last navigation
+        self.effect = "none"  # the effective effect of the step being run
+        self.interventions: list[str] = []
         self.high = "none"  # effect high-water mark of the steps started so far
         self.handled: dict[str, int] = {}
         self.outputs: dict[str, Any] = {}
@@ -168,6 +182,11 @@ class _Run:
     async def run(self) -> RunResult:
         try:
             self._check_inputs()
+            if (stored := self._begin_ledger()) is not None:
+                return stored
+            if self.draft and self.cap.effect == "commit":
+                raise _Stop("failure", "DRAFT_CANNOT_COMMIT", self._failure(
+                    "DRAFT_CANNOT_COMMIT", "policy", "a draft capability never commits; approve it first"))
             while True:
                 try:
                     await self._enter()
@@ -200,7 +219,7 @@ class _Run:
             failure = self._failure("TRANSIENT_EXHAUSTED", "transient",
                                     f"the action did not complete in time or the surface refused it "
                                     f"({type(e).__name__}); retries are used up")
-        if self.commit_state == "unknown" and status == "failure":
+        if self.commit_state in ("attempted", "unknown") and status == "failure":
             status, outcome = "indeterminate", "COMMIT_UNKNOWN"
             failure = self._failure("COMMIT_UNKNOWN", "commit", "the commit action's result is unknown; "
                                                                 "check the application before retrying")
@@ -213,10 +232,13 @@ class _Run:
             outputs=self.outputs if status == "success" else {}, failure=failure, recoveries=self.recoveries,
             drift=self.drift,
             side_effects=SideEffects(commit_state=self.commit_state,
-                                     by="automation" if self.commit_state != "none" else None),
-            retry_safe=self.retry_safe, timings=self.timings,
+                                     by="automation" if self.commit_state != "none" else None,
+                                     request_id=self.request_id),
+            retry_safe=self.retry_safe, timings=self.timings, interventions=self.interventions,
         )
         self._emit("result", detail={"status": status, "outcome": outcome})
+        if self.ledger is not None and self.request_id is not None:
+            self.ledger.finish(self.request_id, result)
         return result
 
     @property
@@ -273,6 +295,25 @@ class _Run:
                     problems.append(f"input {name!r} is invalid: {e}")
         if problems:
             raise _Stop("failure", "INPUT_INVALID", self._failure("INPUT_INVALID", "caller", "; ".join(problems)))
+
+    def _begin_ledger(self) -> RunResult | None:
+        """The stored result when this request_id already finished or its commit's outcome is unknown: no UI action."""
+        if self.ledger is None:
+            return None
+        if self.request_id is None:
+            raise _Stop("failure", "INPUT_INVALID", self._failure("INPUT_INVALID", "caller", "request_id is required"))
+        try:
+            state, stored = self.ledger.begin(self.request_id, inputs_hash(self.inputs))
+        except RequestIdReused:
+            raise _Stop("failure", "REQUEST_ID_REUSED", self._failure(
+                "REQUEST_ID_REUSED", "caller", "this request_id was used with different inputs")) from None
+        if state == "PREPARED":
+            return None
+        if stored is not None:
+            return stored
+        self.commit_state = "unknown"  # ATTEMPTED by a run still in flight
+        raise _Stop("indeterminate", "COMMIT_UNKNOWN", self._failure(
+            "COMMIT_UNKNOWN", "commit", "another run is committing this request_id"))
 
     def _fill(self, text: str, *, encode: bool = False) -> str:
         return TEMPLATE_RE.sub(lambda m: quote(self.inputs[m.group(1)], safe="") if encode else self.inputs[m.group(1)],
@@ -437,22 +478,28 @@ class _Run:
                 verdict.code, MEANING_CATEGORY.get(verdict.code, "state"), detail, expected=expected,
                 c=Classification("state", state=verdict.state)))
 
-    async def _escalate(self, verdict: _Verdict, expected: str) -> None:
+    async def _escalate(self, verdict: _Verdict, expected: str, *, reason: str = HUMAN_ONLY_LOGIN,
+                        detail: str = "the login asks for a security code that automation never fills") -> None:
         """Hand the live session to a person and act on how they end it. Returns only for outcomes this screen cannot
         use (the caller then fails with the original code)."""
         assert self.hub is not None
         shots = [p for p in await self._capture(self.step.id if self.step else None) if p.endswith(".png")]
         request = InterventionRequest.create(
             id=uuid.uuid4().hex[:12], run_id=self.run_id, capability=self.cap.id, version=self.cap.version,
-            step_id=self.step.id if self.step else None, reason=HUMAN_ONLY_LOGIN,
-            detail="the login asks for a security code that automation never fills",
+            step_id=self.step.id if self.step else None, reason=reason, detail=detail,
             classified_state=verdict.state, expected_state=expected, url=mask_url(self.url),
             screenshot=shots[0] if shots else None, effect_so_far=self.high,  # type: ignore[arg-type]
             commit_attempted=self.commit_state != "none", lease=self.lease())
-        self._emit("escalated", detail={"reason": HUMAN_ONLY_LOGIN, "intervention": request.id})
+        self.interventions.append(request.id)
+        self._emit("escalated", detail={"reason": reason, "intervention": request.id})
         out = await self.hub.escalate(request, checkpoint=self._checkpoint, extract_outputs=self._extract_all)
-        self._emit("handoff_ended", detail={"outcome": out.kind, "reason": out.reason})
+        self._emit("handoff_ended", detail={"outcome": out.kind, "reason": out.reason, "verdict": out.verdict})
+        if out.kind != "resume" and self.ledger is not None and self.request_id is not None:
+            self.ledger.attempt(self.request_id)  # a person held the session: it may have committed
         if out.kind == "resume":
+            if not self.retry_safe:
+                raise _Stop("indeterminate", "COMMIT_UNKNOWN", self._failure(
+                    "COMMIT_UNKNOWN", "commit", "a restart after a commit attempt would repeat it"))
             raise _Restart
         if out.kind == "mark_complete":
             self.outputs = dict(out.outputs or {})
@@ -522,57 +569,135 @@ class _Run:
         resolved = await resolve(self.surface, form.submit, {})
         await self.surface.click(resolved.element, self._request("click", "none", actor="handler"))
 
+    def _classify_effect(self, step: Step) -> str:
+        """The effective effect (never below the declared one); stops the step when it exceeds the capability's
+        declared effect (the ceiling) or when a draft would commit. Nothing has been done yet."""
+        do = step.do
+        url = self.base_url + self._fill(do.route, encode=True) if isinstance(do, NavigateAction) else None
+        target = self.cap.targets.get(do.target) if isinstance(do, ClickAction) else None
+        effect = derived_effect(self.profile, step, url=url, target=target, dirty=self.dirty)
+        if EFFECT_RANK[effect] > EFFECT_RANK[self.cap.effect]:
+            raise _Stop("failure", "EFFECT_EXCEEDS_CEILING", self._failure(
+                "EFFECT_EXCEEDS_CEILING", "policy",
+                f"the step is a {effect} but the capability declares {self.cap.effect}"))
+        if effect == "commit" and self.draft:
+            raise _Stop("failure", "DRAFT_CANNOT_COMMIT", self._failure(
+                "DRAFT_CANNOT_COMMIT", "policy", "a draft capability never commits; approve it first"))
+        return effect
+
+    async def _before_commit(self, step: Step) -> None:
+        """Nothing is clicked unless the live review screen is the step's screen and every review assertion (the
+        asserts expecting this same state) holds against the inputs. Then the attempt marker, before the click."""
+        if self.commit_state != "none":
+            raise self._unknown("a commit step is never entered twice")
+        obs = await self._observe()
+        c = classify_observation(self.profile, obs)
+        self.state = c.label
+        review = [s.do.that for s in self.cap.steps if isinstance(s.do, AssertAction) and s.expect == step.expect]
+        if c.kind != "state" or c.state is None or step.expect not in self.profile.lineage(c.state) \
+                or not all([await self._holds(pred) for pred in review]):
+            raise _Stop("failure", "REVIEW_MISMATCH", self._failure(
+                "REVIEW_MISMATCH", "data", "the review screen does not show every input exactly; nothing was "
+                "clicked", expected=step.expect, c=c))
+        if self.ledger is not None and self.request_id is not None and not self.ledger.attempt(self.request_id):
+            raise self._unknown("this request_id was already attempted")
+        self.commit_state, self.high = "attempted", "commit"
+        self._emit("commit_attempted", detail={"request_id": self.request_id})
+
+    def _unknown(self, detail: str) -> _Stop:
+        self.commit_state = "unknown"
+        return _Stop("indeterminate", "COMMIT_UNKNOWN", self._failure("COMMIT_UNKNOWN", "commit", detail))
+
+    async def _after_commit(self, step: Step, next_state: str) -> None:
+        """Confirmed (state reached and the echo holds) => success; a declared rejection => business outcome;
+        anything else is unknown, escalated, and never retried."""
+        try:
+            verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
+                                              timeout_ms=step.timeout_ms, stable=self.timing.stable_polls if step.navigates else 1,
+                                              expected=next_state,
+                                              fence=step.navigates)
+            await self._act_on_verdict(verdict, next_state)
+            if step.verify is None or await self._holds(step.verify):
+                self.commit_state = "confirmed"
+                return
+        except _Stop as stop:
+            if stop.status != "failure":
+                self.commit_state = "rejected" if stop.status == "business_outcome" else self.commit_state
+                raise
+        except (NativeDialogOpen, NotUniqueError, ResolutionError, SurfaceError, TimeoutError):
+            pass
+        stop = self._unknown("the commit was attempted and the application did not confirm it")
+        if self.hub is not None:
+            await self._escalate(_Verdict("failure", COMMIT_UNKNOWN, state=self.state), next_state,
+                                 reason=COMMIT_UNKNOWN, detail="a commit was attempted and its result is unknown")
+        raise stop
+
     async def _run_step(self, i: int, step: Step) -> None:
         self.step = step
         began = self.now_ms()
         last = i + 1 == len(self.cap.steps)
         next_state = self.cap.success.state if last else self.cap.steps[i + 1].expect
-        self.high = max(self.high, step.effect, key=EFFECT_RANK.__getitem__)
+        self.effect = self._classify_effect(step)
+        commit = self.effect == "commit"
+        if not commit:
+            self.high = max(self.high, self.effect, key=EFFECT_RANK.__getitem__)
         if self.before_step is not None:
             await self.before_step(step)
-        self._emit("action", action=step.do.model_dump(mode="json", exclude_none=True), detail={"effect": step.effect})
-        await self._perform(step)
-        stable = self.timing.stable_polls if step.navigates else 1
-        verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
-                                          timeout_ms=step.timeout_ms, stable=stable, expected=next_state,
-                                          fence=step.navigates)
-        await self._act_on_verdict(verdict, next_state)
-        if step.verify is not None and not await self._holds(step.verify):
-            raise _Stop("failure", "CHECKPOINT_FAILED", self._failure(
-                "CHECKPOINT_FAILED", "state", "the value echo after the action does not match", expected=next_state))
+        if commit:
+            await self._before_commit(step)
+        self._emit("action", action=step.do.model_dump(mode="json", exclude_none=True), detail={"effect": self.effect})
+        await self._perform(step, commit)
+        if commit:
+            await self._after_commit(step, next_state)
+        else:
+            stable = self.timing.stable_polls if step.navigates else 1
+            verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
+                                              timeout_ms=step.timeout_ms, stable=stable, expected=next_state,
+                                              fence=step.navigates)
+            await self._act_on_verdict(verdict, next_state)
+            if step.verify is not None and not await self._holds(step.verify):
+                raise _Stop("failure", "CHECKPOINT_FAILED", self._failure(
+                    "CHECKPOINT_FAILED", "state", "the value echo after the action does not match", expected=next_state))
         self.timings[step.id] = self.now_ms() - began
 
-    async def _perform(self, step: Step) -> None:
+    async def _perform(self, step: Step, commit: bool) -> None:
         try:
-            await self._bounded(lambda: self._do(step), step.timeout_ms, retries=0 if step.effect == "commit" else 1)
-        except (PolicyDenied, ResolutionError, _Stop):
-            raise  # nothing was done (or the run already ended with a verdict)
+            await self._bounded(lambda: self._do(step), step.timeout_ms, retries=0 if commit else 1)
+        except (PolicyDenied, ResolutionError):
+            if commit:  # the surface refused before acting: the click never happened
+                self.commit_state = "none"
+                if self.ledger is not None and self.request_id is not None:
+                    self.ledger.withdraw(self.request_id)
+            raise
+        except _Stop:
+            raise
         except Exception:
-            if step.effect == "commit":
+            if commit:
                 self.commit_state = "unknown"
             raise
-        if step.effect == "commit":
-            self.commit_state = "attempted"
 
     async def _do(self, step: Step) -> None:
         do = step.do
         decision: PolicyDecision | None = None
         if isinstance(do, NavigateAction):
+            self.dirty = False
             url = self.base_url + self._fill(do.route, encode=True)
-            decision = await self.surface.navigate(url, self._request("navigate", step.effect, target_url=url))
+            decision = await self.surface.navigate(url, self._request("navigate", self.effect, target_url=url))
         elif isinstance(do, ClickAction):
             element = await self._element(do.target)
-            decision = await self.surface.click(element, self._request("click", step.effect))  # type: ignore[arg-type]
+            decision = await self.surface.click(element, self._request("click", self.effect))  # type: ignore[arg-type]
         elif isinstance(do, TypeAction):
+            self.dirty = True
             element = await self._element(do.target)
             decision = await self.surface.type(element, self._fill(do.text),  # type: ignore[arg-type]
-                                               self._request("type", step.effect))
+                                               self._request("type", self.effect))
         elif isinstance(do, SelectAction):
+            self.dirty = True
             element = await self._element(do.target)
             decision = await self.surface.select(element, self._fill(do.option),  # type: ignore[arg-type]
-                                                 self._request("select", step.effect))
+                                                 self._request("select", self.effect))
         elif isinstance(do, PressAction):
-            decision = await self.surface.press(do.key, self._request("press", step.effect))
+            decision = await self.surface.press(do.key, self._request("press", self.effect))
         elif isinstance(do, ExtractAction):
             await self._extract(step, do)
         elif isinstance(do, AssertAction):
@@ -628,11 +753,13 @@ async def replay(
     sleep: Sleep | None = None,
     before_step: BeforeStep | None = None,
     hub: InterventionHub | None = None,
+    ledger: CommitLedger | None = None,
+    draft: bool = False,
 ) -> RunResult:
     """Run `capability` once and return its `RunResult`. Never raises for application or policy outcomes."""
     return await _Run(
         capability, profile, dict(inputs), surface=surface, guard=guard, lease=lease, base_url=base_url,
         credentials=credentials, evidence=evidence, run_id=run_id or uuid.uuid4().hex[:12],
         now_ms=now_ms or (lambda: int(time.monotonic() * 1000)), sleep=sleep or asyncio.sleep,
-        timing=timing or Timing(), before_step=before_step, hub=hub,
+        timing=timing or Timing(), before_step=before_step, hub=hub, ledger=ledger, draft=draft,
     ).run()

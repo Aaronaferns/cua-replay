@@ -314,7 +314,7 @@ async def test_commit_effect_marks_the_run_not_retry_safe(guard):
     doc["steps"][1]["effect"] = "commit"
     r = await run(FakeDolibarr(guard), Capability.model_validate(doc))
     assert r.status == "success"
-    assert r.side_effects.commit_state == "attempted" and r.side_effects.by == "automation" and not r.retry_safe
+    assert r.side_effects.commit_state == "confirmed" and r.side_effects.by == "automation" and not r.retry_safe
     assert [q.effect for q in guard.requests if q.kind == "click"] == ["commit"]
 
 
