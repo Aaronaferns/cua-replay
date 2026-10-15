@@ -12,18 +12,8 @@ import cua
 from cua.config import Settings
 from cua.safety.redact import Redactor, safe_error_message
 
-# Models exempt from `hide_input_in_errors=True`, with the reason. These are not design exemptions: they are models
-# owned by Agent A (src/cua/surface/**, outside Agent C's write boundary) that still need the one-line fix
-# `hide_input_in_errors=True` in their `model_config`. They are listed here until A makes the change; the test below
-# fails once an exempted model complies, so the entries cannot go stale.
-_PENDING_OWNER_A = "owned by Agent A (surface); needs hide_input_in_errors=True in model_config (contract request)"
-EXEMPT: dict[str, str] = {
-    "cua.surface.base.Observation": _PENDING_OWNER_A,
-    "cua.surface.base.PageFacts": _PENDING_OWNER_A,
-    "cua.surface.login.LoginTargets": _PENDING_OWNER_A,
-    "cua.surface.login.Target": _PENDING_OWNER_A,
-    "cua.surface.web.WebScope": _PENDING_OWNER_A,
-}
+# Models exempt from `hide_input_in_errors=True`, with the reason (design exemptions only).
+EXEMPT: dict[str, str] = {}
 
 
 def _all_cua_models() -> list[type[BaseModel]]:

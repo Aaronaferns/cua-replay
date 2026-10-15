@@ -40,7 +40,7 @@ class NativeDialogOpen(SurfaceError):
 
 
 class PageFacts(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     url: str
     title: str
@@ -53,7 +53,7 @@ class Observation(BaseModel):
     """What one observation of the surface saw. `snapshot` is scoped to the main content; refs are valid only for
     this `epoch`."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     epoch: int
     facts: PageFacts

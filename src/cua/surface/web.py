@@ -63,7 +63,7 @@ class WebScope(BaseModel):
     """Where the main content, the dialog layer and the menus are, per app. CSS selectors are surface configuration,
     never artifact content."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     main: str = 'main, [role="main"]'  # the whole page is observed when this does not match exactly one element
     dialogs: str = '[role="dialog"], [role="alertdialog"], dialog[open]'

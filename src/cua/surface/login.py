@@ -35,14 +35,14 @@ class LoginFailed(LoginError):
 
 
 class Target(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     role: str
     name: str
 
 
 class LoginTargets(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
     username: Target
     password: Target
