@@ -197,9 +197,10 @@ class AgentLoop:
         obs = await self._observe()
         sightings = []
         if result.status == "performed":
-            wanted = self.recorder.sighting_refs(obs)
+            after_commit = result.effect == "commit"
+            wanted = self.recorder.sighting_refs(obs, after_commit=after_commit)
             if wanted:
-                sightings = await self.recorder.sightings(obs, wanted)
+                sightings = await self.recorder.sightings(obs, wanted, after_commit=after_commit)
                 post = self.recorder.screen(obs)
                 return post, sightings, await self.surface.observe(screenshot=self._wants_image)
         return self.recorder.screen(obs), sightings, obs

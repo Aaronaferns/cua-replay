@@ -108,6 +108,7 @@ def _js_fingerprint() -> str:
       let rowLabel = null, columnHeader = null;
       const colIndex = (r, c) => { let i = 0; for (const x of r.cells) { if (x === c) return i; i += x.colSpan || 1; } return -1; };
       const cellAt = (r, col) => { let i = 0; for (const x of r.cells) { const s = x.colSpan || 1; if (col >= i && col < i + s) return x; i += s; } return null; };
+      const plain = (r) => !r.querySelector('a, input, select, textarea, button');
       if (row && row.tagName === 'TR') {
         const table = row.closest('table');
         const rows = table ? Array.from(table.rows) : [];
@@ -117,6 +118,12 @@ def _js_fingerprint() -> str:
         } else {
           const first = row.cells[0];
           rowLabel = first ? first.innerText : null;
+          // A header row of plain cells (Dolibarr's payments table): the first row, holding no link or control,
+          // heads the record rows below it (rows holding one). A label/value row stays label-only.
+          const top = rows[0];
+          if (top && top !== row && plain(top) && !plain(row)) {
+            const h = cellAt(top, colIndex(row, cell)); columnHeader = h ? h.innerText : null;
+          }
         }
       }
       return {tag, inputType, rowLabel, columnHeader};
