@@ -1,0 +1,52 @@
+{
+  "run_id": "evid-20261015-180133-alpha_two_unpaid_invoices",
+  "status": "closed",
+  "created": "2026-10-15T22:01:45.223750+00:00",
+  "updated": "2026-10-15T22:03:03.954199+00:00",
+  "events": 48,
+  "redaction": {
+    "known_values": 14,
+    "patterns": [
+      "header",
+      "bearer",
+      "session_id",
+      "token_param",
+      "token_field",
+      "token_json",
+      "ssn",
+      "email"
+    ]
+  },
+  "files": [
+    {
+      "path": "events.jsonl",
+      "bytes": 23378,
+      "sha256": "da5e21acafb03a8459169768ecdf07ef088290c20db3e7ed7a7813b87df29a2f"
+    },
+    {
+      "path": "failure/run.png",
+      "bytes": 20948,
+      "sha256": "a29d5db5f5b5bef986a4da9aafdfc729235dc510b662464494c5284215149516"
+    },
+    {
+      "path": "failure/run.snapshot.json",
+      "bytes": 1391,
+      "sha256": "3e93eb88ef9c1169e225f6aad06c97cf1dbf9ac5c4e582d0512fd8d568c9a3be"
+    },
+    {
+      "path": "ground_truth.json",
+      "bytes": 869,
+      "sha256": "07992d0b22a13a256b3d1e04ca26a807e51c989b7fe3dbc98fa8e1f1cd5f2251"
+    },
+    {
+      "path": "interventions/24a740e3c779.json",
+      "bytes": 693,
+      "sha256": "1b6367dccbbd8a4da13a388c9350eb6c2b13c42a979a2ff79fcf6771e12768ca"
+    },
+    {
+      "path": "result.json",
+      "bytes": 657,
+      "sha256": "eea574fbe630af1894d8d97a5971288997baa9d594039a0535baab8838ede3d6"
+    }
+  ]
+}

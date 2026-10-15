@@ -1,0 +1,35 @@
+{
+  "schema": "cua.ground_truth/v1",
+  "source": "Dolibarr REST (admin key): a side channel the replay never uses",
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "case": "alpha_two_unpaid_invoices",
+  "inputs": {
+    "customer_code": "CU2601-00901"
+  },
+  "faults": [],
+  "before": {
+    "state_sha256": "0f161ffea190c2c82f1ef2487c771b4b1307fd9b9f1ad6473abe4284b2b65ab4",
+    "oracles": {
+      "outstanding_amount": "199.75"
+    }
+  },
+  "after": {
+    "state_sha256": "0f161ffea190c2c82f1ef2487c771b4b1307fd9b9f1ad6473abe4284b2b65ab4",
+    "oracles": {
+      "outstanding_amount": "199.75"
+    }
+  },
+  "rest_state_unchanged": true,
+  "expected": {
+    "status": "success",
+    "outcome": "success"
+  },
+  "actual": {
+    "status": "success",
+    "outcome": "success",
+    "outputs": {
+      "outstanding_amount": "199.75"
+    }
+  },
+  "mismatches": []
+}

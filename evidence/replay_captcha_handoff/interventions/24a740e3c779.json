@@ -1,0 +1,23 @@
+{
+  "schema": "cua.intervention/v1",
+  "id": "24a740e3c779",
+  "run_id": "evid-20261015-180133-alpha_two_unpaid_invoices",
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "version": "1.0.0",
+  "step_id": null,
+  "reason": "HUMAN_ONLY_LOGIN",
+  "detail": "the login asks for a security code that automation never fills",
+  "classified_state": "login_captcha",
+  "expected_state": "home",
+  "url": "invalid-url",
+  "screenshot": "failure/run.png",
+  "effect_so_far": "none",
+  "commit_attempted": false,
+  "lease": {
+    "holder": "none",
+    "generation": 1
+  },
+  "created_at": "2026-10-15T22:01:49.364046Z",
+  "sla_seconds": 900.0,
+  "sla_deadline": "2026-10-15T22:16:49.364046Z"
+}
