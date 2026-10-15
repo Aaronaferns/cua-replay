@@ -2,7 +2,7 @@
 
 `dolibarr.lookup_customer_outstanding@1.0.0` | effect **read** | app `dolibarr`
 
-- lock hash: `cceac729a19bea783f57c1b8e9ef532af02eb038f1564316e21a91314738987f`
+- lock hash: `9000a67f6a753ff913c4b3aad1b553786a5944e1352d64598c234544ea4ab01f`
 - discovered by: claude-opus-5-5 (compiler `cua.compiler/v0`, trace `discovery_lookup_customer_outstanding`, sha256 `1d65bc52793d5c494b4f68e74be666020764a8474cbbd331f617287393e84dcc`)
 - approval binds to the lock hash above: any change to the capability or the app profile makes it stale
 

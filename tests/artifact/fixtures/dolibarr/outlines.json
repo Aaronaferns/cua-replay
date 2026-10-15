@@ -100,5 +100,10 @@
     "url": "http://localhost:8086/compta/paiement.php",
     "expected": "payment_overpayment",
     "outline": "- cell \"Enter payment received from customer\"\n- cell \"Do you confirm this payment input for 50 Euros? All invoices with no remainder to pay will be automatically closed with status \\\"Paid\\\".\": Do you confirm this payment input for 50 Euros?All invoices with no remainder to pay will be automatically closed with status \"Paid\".\n- generic: The payment amount is higher than the outstanding amount to pay.\n"
+  },
+  "21_payment_card": {
+    "url": "http://localhost:8086/compta/paiement/card.php?id=89",
+    "expected": "payment_card",
+    "outline": "- link \" Payment\"\n- cell \"Payment method\"\n- cell \"Bank account\"\n"
   }
 }

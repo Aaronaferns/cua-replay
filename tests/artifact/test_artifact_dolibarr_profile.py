@@ -29,7 +29,7 @@ def test_profile_loads_and_validates(profile):
     assert validate_profile(profile) == []
     assert set(profile.states) == {
         "login", "home", "customer_list", "customer_not_found", "customer_card", "customer_tab", "invoice_card",
-        "payment_form", "payment_confirm", "invoice_list", "invoice_not_found", "payment_overpayment", "access_denied", "invoice_validate_confirm",
+        "payment_form", "payment_confirm", "invoice_list", "payment_card", "invoice_not_found", "payment_overpayment", "access_denied", "invoice_validate_confirm",
         "login_captcha", "app_error", "service_notice",
     }
     assert profile.entry.start_state in profile.states and profile.login.state in profile.states
