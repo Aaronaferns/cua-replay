@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cua.agent.executor import Approver
 from cua.agent.loop import MAX_STEPS, WALL_CLOCK_S, AgentLoop, LoopResult
 from cua.agent.model import ModelAdapter, Task
 from cua.artifact.lock import dumps
@@ -51,6 +52,7 @@ async def discover(
     discovered_by: str | None = None,
     max_steps: int = MAX_STEPS,
     wall_clock_s: float = WALL_CLOCK_S,
+    approve: Approver | None = None,
 ) -> DiscoveryResult:
     evidence = session.evidence
     add = getattr(evidence, "add_secret_values", None)
@@ -66,7 +68,7 @@ async def discover(
     loop = AgentLoop(
         surface=session.surface, guard=session.guard, lease=session.lease, evidence=evidence, adapter=adapter,
         recorder=recorder, profile=session.profile, task=task, inputs=input_values, max_steps=max_steps,
-        wall_clock_s=wall_clock_s,
+        wall_clock_s=wall_clock_s, approve=approve,
     )
     result = await loop.run()
 

@@ -12,8 +12,10 @@ Messages returned to the model never contain input or extracted values.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from fnmatch import fnmatchcase
 from urllib.parse import parse_qs, quote, urljoin, urlsplit
@@ -44,11 +46,16 @@ _TOKEN = re.compile(r"\{\{([a-z][a-z0-9_]*)\}\}")
 _NUMBERS = re.compile(r"\d[\d.,]*\d|\d")
 # A numeric record id literal in a URL query (socid=63, id=7, facid=216): it names this record only.
 _RECORD_ID = re.compile(r"[?&;]\w*id=\d+", re.IGNORECASE)
+_ICONS = re.compile(r"[-]")  # icon-font glyphs: a button named only by one is unnamed
 _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f  ]")
 # Substitution targets: only these arguments carry input tokens into the application.
 _SUBSTITUTED = {"text", "option", "url"}
 # Buttons whose name raises a click to a commit (the regex can only raise a class, never lower one).
 _COMMIT_WORDS = re.compile(r"\b(delete|validate|confirm|pay|save|create|submit|modify)\b", re.IGNORECASE)
+
+
+# Asks the console to approve one commit: (action hash, lease generation) -> approval id, or None to deny.
+Approver = Callable[[str, int], Awaitable[str | None]]
 
 
 class Rejected(Exception):
@@ -68,15 +75,18 @@ class Outcome:
     terminal: str | None = None  # "done" | "help" | "approval"
 
 
-def effect_of(action: AgentAction, node: snap.Node | None, target_url: str | None, profile: Profile) -> Effect:
+def effect_of(action: AgentAction, node: snap.Node | None, target_url: str | None, profile: Profile,
+              dirty: bool = False) -> Effect:
     """Effect class, decided here and never by the model: typing and selecting change nothing until submitted; routes
     the profile lists as commits (path + query globs) raise a navigation or link click to `commit`; so does a button
-    named like a commit. Everything else that touches the page is a `read`."""
+    named like a commit; so does an unnamed submit button once a field was typed or selected. Everything else that touches the page is a `read`."""
     if action.kind in ("type", "select"):
         return "none"
     if target_url and _commit_route(profile, target_url):
         return "commit"
     if action.kind == "click" and node is not None and node.role == "button" and _COMMIT_WORDS.search(node.name or ""):
+        return "commit"
+    if action.kind == "click" and node is not None and node.role == "button" and dirty and not _ICONS.sub("", node.name or "").strip():
         return "commit"
     return "read"
 
@@ -104,11 +114,15 @@ class Executor:
         inputs: Mapping[str, str],
         outputs: Mapping[str, object],
         actor: str = "agent",
+        approve: Approver | None = None,
     ) -> None:
         self.surface, self.guard, self.lease, self.recorder, self.profile = surface, guard, lease, recorder, profile
         self._inputs = dict(inputs)
         self._outputs = set(outputs)
         self._actor = actor
+        self._approve = approve  # None: every commit is denied
+        self._used_approvals: set[str] = set()
+        self._dirty = False  # a field was typed or selected since the last navigation or commit
         self.extracted: dict[str, str] = {}
         self._effect: Effect = "none"  # what the action in flight was classified as (kept for denials and errors)
         self._target: TargetRecord | None = None
@@ -154,9 +168,28 @@ class Executor:
 
     # -- requests --------------------------------------------------------------------------------------------------
 
-    def _request(self, kind: ActionKind, obs: Observation, effect: Effect, target_url: str | None = None) -> ActionRequest:
+    def _request(self, kind: ActionKind, obs: Observation, effect: Effect, target_url: str | None = None,
+                 approval_id: str | None = None) -> ActionRequest:
         return ActionRequest(kind=kind, actor=self._actor, page_url=obs.facts.url, target_url=target_url,  # type: ignore[arg-type]
-                             effect=effect, lease=self.lease())
+                             effect=effect, lease=self.lease(), approval_id=approval_id)
+
+    async def _gate(self, action: AgentAction, effect: Effect, target: TargetRecord | None, url: str | None,
+                    tokens: list[str]) -> tuple[str | None, Outcome | None]:
+        """A commit needs a single-use approval bound to (action hash, lease generation). Returns (approval id, None)
+        to go ahead, or (None, the terminal outcome) when it is denied; nothing has touched the UI then."""
+        if effect != "commit":
+            return None, None
+        generation = self.lease().generation
+        locators = sorted(s for c in (target.candidates if target else []) for s in c.strategy.locator_strings())
+        digest = hashlib.sha256(json.dumps([action.kind, url, tokens, locators]).encode()).hexdigest()
+        approval = await self._approve(digest, generation) if self._approve else None
+        if approval and approval not in self._used_approvals and self.lease().generation == generation:
+            self._used_approvals.add(approval)
+            return approval, None
+        decision = PolicyDecision(allowed=False, rule="approval_required", reason="a commit needs a console approval",
+                                  approvable=True)
+        return None, Outcome("blocked", "Stopping: this action commits and was not approved. Nothing was done.",
+                             effect, decision, tokens, target, terminal="approval")
 
     @staticmethod
     def _href(obs: Observation, ref: str) -> str | None:
@@ -255,23 +288,33 @@ class Executor:
                                             "input placeholder.", tokens=tokens)
                 url = self.substitute(action.url, url=True)
                 effect = self._effect = effect_of(action, None, url, self.profile)
-                decision = await self.surface.navigate(url, self._request("navigate", obs, effect, url))
+                approval, denied = await self._gate(action, effect, None, url, tokens)
+                if denied:
+                    return denied
+                decision = await self.surface.navigate(url, self._request("navigate", obs, effect, url, approval))
+                self._dirty = False
                 return Outcome("performed", "Navigated.", effect, decision, tokens)
             case Click() | Type() | Select() | Extract():
                 element, node, ref = await self._resolve(action.ref, obs, read_only=action.kind == "extract")
                 href = self._href(obs, action.ref) if action.kind == "click" else None
-                effect = self._effect = effect_of(action, node, href, self.profile)
+                effect = self._effect = effect_of(action, node, href, self.profile, self._dirty)
                 target = self._target = await self._record(element, node, ref, obs)
                 if isinstance(action, Click):
-                    decision = await self.surface.click(element, self._request("click", obs, effect, href))
+                    approval, denied = await self._gate(action, effect, target, href, tokens)
+                    if denied:
+                        return denied
+                    decision = await self.surface.click(element, self._request("click", obs, effect, href, approval))
+                    self._dirty = self._dirty and effect != "commit"
                     return Outcome("performed", "Clicked.", effect, decision, tokens, target)
                 if isinstance(action, Type):
                     decision = await self.surface.type(element, self.substitute(action.text),
                                                        self._request("type", obs, effect))
+                    self._dirty = True
                     return Outcome("performed", "Typed.", effect, decision, tokens, target)
                 if isinstance(action, Select):
                     decision = await self.surface.select(element, self.substitute(action.option),
                                                          self._request("select", obs, effect))
+                    self._dirty = True
                     return Outcome("performed", "Selected.", effect, decision, tokens, target)
                 return await self._extract(action, element, obs, effect, tokens, target)
         raise AssertionError(f"unhandled action kind {action.kind}")  # pragma: no cover
