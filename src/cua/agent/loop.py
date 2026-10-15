@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from cua.agent.actions import AgentAction
-from cua.agent.executor import Executor, Outcome
+from cua.agent.executor import Approver, Executor, Outcome
 from cua.agent.model import Feedback, ModelAdapter, ModelTurn, Task, Usage, render_observation
 from cua.agent.stuck import StuckDetector, screen_signature
 from cua.artifact.schema import Profile
@@ -64,10 +64,11 @@ class AgentLoop:
         inputs: Mapping[str, str],
         max_steps: int = MAX_STEPS,
         wall_clock_s: float = WALL_CLOCK_S,
+        approve: Approver | None = None,
     ) -> None:
         self.surface, self.evidence, self.adapter, self.recorder, self.task = surface, evidence, adapter, recorder, task
         self.executor = Executor(surface=surface, guard=guard, lease=lease, recorder=recorder, profile=profile,
-                                 inputs=inputs, outputs=task.outputs)
+                                 inputs=inputs, outputs=task.outputs, approve=approve)
         self._lease = lease
         self._max_steps = max_steps
         self._wall_clock_s = wall_clock_s
@@ -168,12 +169,13 @@ class AgentLoop:
 
             if result.terminal:
                 self.recorder.add(action, tokens=result.tokens, effect=result.effect, policy=_policy(result),
-                                  status="performed", error=None, target=result.target, pre=pre, post=None,
+                                  status=result.status, error=None, target=result.target, pre=pre, post=None,
                                   sightings=[], started_at=started_at, duration_ms=duration_ms)
                 if result.terminal == "done":
                     outcome, reason, done_evidence = "done", None, result.done_evidence
                 else:
-                    reason = "help_requested" if result.terminal == "help" else "approval_not_available"
+                    reason = ("help_requested" if result.terminal == "help"
+                              else "approval_denied" if result.status == "blocked" else "approval_not_available")
                 break
 
             post, sightings, obs = await self._after(result, obs)
