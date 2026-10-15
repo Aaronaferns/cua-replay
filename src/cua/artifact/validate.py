@@ -204,6 +204,12 @@ def validate_capability(cap: Capability, profile: Profile) -> list[str]:
 
     if cap.effect != max_effect([s.effect for s in cap.steps]):
         problems.append("capability effect must equal the maximum step effect")
+    for step in cap.steps:
+        if step.effect == "commit":
+            if step.verify is None:
+                problems.append(f"step {step.id!r}: a commit step needs a verify (the confirmation echo)")
+            if not any(isinstance(o.do, AssertAction) and o.expect == step.expect for o in cap.steps):
+                problems.append(f"step {step.id!r}: a commit step needs a review assert on its screen")
 
     if cap.success.state not in states:
         problems.append(f"success.state {cap.success.state!r} is not a state")
