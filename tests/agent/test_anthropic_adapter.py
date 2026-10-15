@@ -202,3 +202,11 @@ async def test_errors_become_a_clean_stop(exc, label):
 def test_the_key_is_required_without_a_client():
     with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
         AnthropicAdapter(None)
+
+
+def test_write_runs_swap_only_the_read_only_rule():
+    from cua.agent.anthropic_adapter import READ_ONLY_RULE, WRITE_RULE
+
+    adapter = AnthropicAdapter(None, client=object(), writes=True)
+    assert adapter._system == SYSTEM_PROMPT.replace(READ_ONLY_RULE, WRITE_RULE) and READ_ONLY_RULE not in adapter._system
+    assert AnthropicAdapter(None, client=object())._system == SYSTEM_PROMPT

@@ -54,6 +54,15 @@ checked and the element you extracted from.
 """
 
 
+READ_ONLY_RULE = SYSTEM_PROMPT[SYSTEM_PROMPT.index("- This is a read-only job"):SYSTEM_PROMPT.index("- Check that you")]
+WRITE_RULE = (
+    "- This job makes exactly the one data change the goal asks for, once; make no other change. A person approves "
+    "every data-changing click before it happens: just perform the click and the system asks them. If the application "
+    "warns you or asks you to confirm something the goal did not ask for (such as an amount higher than what is owed), "
+    "never answer yes: call request_help.\n"
+)
+
+
 def _first_message(task: Task, obs_text: str) -> str:
     inputs = "\n".join(f"- {{{{{n}}}}}: {s.description or s.type}" for n, s in task.inputs.items()) or "- (none)"
     outputs = "\n".join(f"- {n} ({s.type}): {s.description}".rstrip(": ") for n, s in task.outputs.items())
@@ -78,6 +87,7 @@ class AnthropicAdapter:
         *,
         effort: str = "high",
         screenshots: bool = False,
+        writes: bool = False,
         client: Any | None = None,
     ) -> None:
         if client is None:
@@ -87,6 +97,7 @@ class AnthropicAdapter:
         self._client = client
         self.effort = effort
         self.screenshots = screenshots
+        self._system = SYSTEM_PROMPT.replace(READ_ONLY_RULE, WRITE_RULE) if writes else SYSTEM_PROMPT
         self._tools = tool_definitions()
         self._messages: list[dict[str, Any]] = []
         self._pending: list[str] = []  # tool_use ids of the last assistant turn, still owed a tool_result
@@ -140,7 +151,7 @@ class AnthropicAdapter:
             message = await self._client.beta.messages.create(
                 model=MODEL,
                 max_tokens=MAX_TOKENS,
-                system=SYSTEM_PROMPT,
+                system=self._system,
                 tools=self._tools,
                 tool_choice={"type": "auto", "disable_parallel_tool_use": True},
                 messages=self._messages,

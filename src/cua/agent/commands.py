@@ -95,7 +95,8 @@ async def _run(args: argparse.Namespace) -> int:
     else:
         from cua.agent.anthropic_adapter import AnthropicAdapter
 
-        adapter = AnthropicAdapter(cfg.anthropic_api_key, effort=args.effort, screenshots=args.screenshots)
+        adapter = AnthropicAdapter(cfg.anthropic_api_key, effort=args.effort, screenshots=args.screenshots,
+                                  writes=args.approve_commits)
     run_id = args.run_id or f"discovery_{args.capability}_{datetime.now(UTC):%Y%m%dT%H%M%SZ}"
 
     async with open_session(run_id=run_id, policy=args.policy, profile=args.profile, headed=args.headed,
