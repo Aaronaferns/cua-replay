@@ -160,6 +160,9 @@ _JS_CSS_HINTS = r"""(el) => {
   return out;
 }"""
 
+_JS_IN_PLAIN_ROW = """(el) => !el.closest('tr').querySelector('a, input, select, textarea, button')"""
+
+_COMMIT_LOAD_MS = 60_000
 _ROWS = "xpath=./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr"
 
 
@@ -477,8 +480,23 @@ class WebSurface:
         return [c for c in candidates if await c.locator.evaluate(_JS_IN_COLUMN, handle)]
 
     async def _headers(self, column: str) -> list[WebElement]:
-        return await self._verified(self._page.get_by_role("columnheader", name=name_pattern(column)),
-                                    "columnheader", column, "columnheader")
+        found = await self._verified(self._page.get_by_role("columnheader", name=name_pattern(column)),
+                                     "columnheader", column, "columnheader")
+        if found:
+            return found
+        # A header row of plain cells (no <th> sort links): the cells named so in a row holding no control or link.
+        for role in ("cell", "rowheader"):
+            for h in await self._verified(self._page.get_by_role(role, name=name_pattern(column)), role, column, role):
+                if await h.locator.evaluate(_JS_IN_PLAIN_ROW):
+                    found.append(h)
+        return found
+
+    async def _has_key(self, cells: Locator, key: str) -> bool:
+        """Does one of the row's own cells read as the key (a bare ref, or a link holding it)?"""
+        for i in range(await cells.count()):
+            if same_name(key, await self.read_text(WebElement(cells.nth(i), "row key"))):
+                return True
+        return False
 
     async def _table_cell(self, s: Strategy) -> list[WebElement]:
         """The cell in column `column` of the row keyed by `row_key` (or of every row, when the caller wants the table
@@ -490,10 +508,10 @@ class WebSurface:
             table = header.locator.locator("xpath=ancestor::table[1]")
             rows = table.locator(_ROWS)
             if s.row_key is not None:
-                rows = rows.filter(has=self._page.get_by_role("cell", name=name_pattern(s.row_key)))
+                rows = rows.filter(has_text=s.row_key)
             for i in range(await rows.count()):
                 cells = rows.nth(i).locator("xpath=./td | ./th")
-                if s.row_key is not None and not await self._verified(cells, "cell", s.row_key, "row key"):
+                if s.row_key is not None and not await self._has_key(cells, s.row_key):
                     continue  # the key sits in a nested table, not in a cell of this row
                 in_column = await self._in_column(await self._verified(cells, None, None, "table_cell"), header)
                 if s.role and s.role not in _NAMED_FROM_CONTENT and s.role != "generic":
@@ -596,7 +614,16 @@ class WebSurface:
     async def click(self, element: WebElement, request: ActionRequest) -> PolicyDecision:
         locator = await self._unique(element)
         decision = self._authorize(request, "click")
-        await self._act("click", locator.click(timeout=self._action_timeout))
+        if request.effect != "commit":
+            await self._act("click", locator.click(timeout=self._action_timeout))
+            return decision
+        # A commit's POST may answer slowly: the click is done once it lands, so it never waits on the navigation and
+        # a load that does not finish in time is not an error (the commit happened; it is never retried).
+        await self._act("click", locator.click(timeout=self._action_timeout, no_wait_after=True))
+        try:
+            await self._race_native(self._page.wait_for_load_state("load", timeout=_COMMIT_LOAD_MS))
+        except (asyncio.TimeoutError, PlaywrightError):
+            pass
         return decision
 
     async def type(self, element: WebElement, text: str, request: ActionRequest) -> PolicyDecision:
