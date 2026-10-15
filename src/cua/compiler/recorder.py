@@ -82,13 +82,14 @@ class Recorder:
 
     # -- token sightings -------------------------------------------------------------------------------------------
 
-    def sighting_refs(self, obs: Observation) -> list[tuple[str, snap.Node]]:
+    def sighting_refs(self, obs: Observation, *, after_commit: bool = False) -> list[tuple[str, snap.Node]]:
         """(token, node) pairs: display elements in this observation whose text is an input's value. One per token
-        that has not been sighted yet. Pure text work: no `find()`, so the refs stay live."""
+        that has not been sighted yet (every token on the screen after a commit: that is its confirmation echo). Pure
+        text work: no `find()`, so the refs stay live."""
         found: list[tuple[str, snap.Node]] = []
         nodes = snap.parse(actionable_text(obs))
         for token, value in self._values.items():
-            if token in self._sighted or not value:
+            if (token in self._sighted and not after_commit) or not value:
                 continue
             wanted = normalize_name(value)
             for i, node in enumerate(nodes):
@@ -99,9 +100,13 @@ class Recorder:
                     break
         return found
 
-    async def sightings(self, obs: Observation, wanted: list[tuple[str, snap.Node]]) -> list[TokenSighting]:
+    async def sightings(self, obs: Observation, wanted: list[tuple[str, snap.Node]], *,
+                        after_commit: bool = False) -> list[TokenSighting]:
         """Resolve the sighted elements and keep those a later replay can find by the row's label (rank 2): a label
-        and its value is what an identity check reads. Resolves every ref first, then records (find() drops refs)."""
+        and its value is what an identity check reads. After a commit, a record row also does: the value's column in
+        the row keyed by another input (a payments table row: Amount in the row of {{method}}). A row keyed by the
+        sighted value itself would echo it whatever was saved, so that finder is dropped. Resolves every ref first,
+        then records (find() drops refs)."""
         resolved: list[tuple[str, snap.Node, Element]] = []
         for token, node in wanted:
             try:
@@ -112,7 +117,15 @@ class Recorder:
         for token, node, element in resolved:
             rec = await self.target(element, ref=node.ref or "", role=node.role, name=node.name or node.value,
                                     dialog=obs.facts.dialog)
-            if any(c.rank == 2 for c in rec.candidates):
+            fresh = token not in self._sighted
+            if after_commit:
+                own = "{{" + token + "}}"
+                rec = rec.model_copy(update={"candidates": [
+                    c for c in rec.candidates if not (c.strategy.kind == "table_cell" and c.strategy.row_key == own)]})
+            # A token already sighted is sighted again after a commit only in a record row: a label/value pair seen
+            # before the commit (the invoice's own ref) would echo it whether or not the commit happened.
+            if any((fresh and c.rank == 2) or (after_commit and c.strategy.kind == "table_cell" and c.strategy.row_key)
+                   for c in rec.candidates):
                 out.append(TokenSighting(token=token, target=rec))
                 self._sighted.add(token)
         return out

@@ -138,6 +138,11 @@ class _Targets:
             if (key := canonical(s)) not in seen:
                 seen.add(key)
                 strategies.append(s)
+        # A finder that carries data (the new payment's ref as a link name) finds only the recorded record: when a
+        # structural one was recorded too, the data one is left out. With none, validation refuses it as before.
+        structural = [s for s in strategies if not any(volatile_text(v) for v in s.locator_strings())]
+        if structural:
+            strategies = structural
         if not strategies:
             self._problems.append(f"{where}: no stable locator was recorded for the {rec.role} it acts on")
             return "unresolved"

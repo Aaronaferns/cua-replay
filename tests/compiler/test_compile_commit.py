@@ -12,11 +12,11 @@ import pytest
 from cua.agent.actions import RequestApproval
 from cua.artifact.lock import dumps, load_profile
 from cua.artifact.predicates import AllOf, TargetEqualsInput, TargetVisible
-from cua.artifact.schema import AssertAction, ClickAction
+from cua.artifact.schema import AssertAction, ClickAction, ExtractAction, Fingerprint, Strategy
 from cua.artifact.validate import validate_capability
 from cua.compiler.compile import CompileError, compile_trace
 from cua.compiler.review_card import render_review_card
-from cua.compiler.trace import RecordedTrace
+from cua.compiler.trace import LocatorCandidate, RecordedTrace, TargetRecord, TokenSighting
 from cua.replay.effects import derived_effect
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -84,3 +84,38 @@ def test_a_prompting_click_is_not_raised_by_its_name(prompts, declared, expected
 
 def test_review_card_renders_for_the_commit_capability():
     assert "commit" in render_review_card(compiled(), PROFILE).lower()
+
+
+def _strategy(**fields) -> Strategy:
+    return Strategy(why="t", matched_at_record="t", **fields)
+
+
+def _payments_cell(role: str, column: str, row_key: str, name: str | None = None) -> TargetRecord:
+    cands = [LocatorCandidate(rank=3, strategy=_strategy(kind="table_cell", column=column, row_key=row_key),
+                              match_count=1, same_element=True)]
+    if name:  # the new payment's ref, as the element's own name: it finds only the recorded payment
+        cands.insert(0, LocatorCandidate(rank=1, strategy=_strategy(kind="role", role=role, name=name),
+                                         match_count=1, same_element=True))
+    return TargetRecord(ref="f6e1", role=role, name=name or "", candidates=cands,
+                        fingerprint=Fingerprint(role=role, tag="td", column_header=column))
+
+
+def test_a_finder_that_carries_the_new_record_is_left_out_when_a_structural_one_was_recorded():
+    extract = TRACE.actions[9].model_copy(update={"target": _payments_cell("cell", "Payments", "{{method}}",
+                                                                           name="PAY2610-0028")})
+    cap = compile_trace(TRACE.model_copy(update={"actions": [*TRACE.actions[:9], extract, TRACE.actions[10]]}),
+                        PROFILE, **KW)
+    assert validate_capability(cap, PROFILE) == []
+    tid = next(s.do.target for s in cap.steps if isinstance(s.do, ExtractAction))
+    assert [(s.kind, s.column, s.row_key) for s in cap.targets[tid].strategies] == [("table_cell", "Payments",
+                                                                                     "${method}")]
+
+
+def test_the_amount_in_the_new_payment_row_is_the_commit_verify():
+    commit = TRACE.actions[8].model_copy(update={"sightings": [
+        TokenSighting(token="amount", target=_payments_cell("cell", "Amount", "{{method}}"))]})
+    trace = TRACE.model_copy(update={"actions": [*TRACE.actions[:8], commit, TRACE.actions[10]], "outputs": {}})
+    cap = compile_trace(trace, PROFILE, **KW)
+    step = next(s for s in cap.steps if s.effect == "commit")
+    assert isinstance(step.verify, TargetEqualsInput) and step.verify.input == "amount"
+    assert cap.targets[step.verify.target].strategies[0].row_key == "${method}"
