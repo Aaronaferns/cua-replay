@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import re
 import sys
@@ -173,7 +174,8 @@ def _noperm_login() -> str:
 
 
 async def _execute(
-    capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False, case: Case | None = None
+    capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False, case: Case | None = None,
+    handoff: bool = False,
 ) -> RunResult:
     """One replay in a fresh session (shared by `replay` and `validate`). A suite `case` may run as the no-rights
     user, install faults on the browser context, and expire the session server-side before a step: all of it is done
@@ -214,11 +216,18 @@ async def _execute(
                 await asyncio.to_thread(expire_session)
 
         try:
-            return await replay(
-                capability, session.profile, inputs, surface=session.surface, guard=session.guard,
-                lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=session.evidence,
-                run_id=run_id, before_step=before_step if case and case.expire_session_before else None,
-            )
+            async with contextlib.AsyncExitStack() as stack:
+                hub = None
+                if handoff and getattr(session, "lease_manager", None) is not None:  # interactive replay: a HUMAN_ONLY_LOGIN blocks here on the live console
+                    from cua.control.commands import live_console
+
+                    hub = await stack.enter_async_context(live_console(session))
+                    print(f"console: {hub.console_url}  (loopback only)", file=sys.stderr, flush=True)
+                return await replay(
+                    capability, session.profile, inputs, surface=session.surface, guard=session.guard,
+                    lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=session.evidence,
+                    run_id=run_id, before_step=before_step if case and case.expire_session_before else None, hub=hub,
+                )
         finally:
             if installation is not None:
                 await installation.uninstall()
@@ -239,7 +248,7 @@ async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
         print(f"warning: running {path.name} without a valid approval ({what}; --allow-draft)", file=sys.stderr)
     inputs = parse_inputs(args.input)
     run_id = args.run_id or f"replay-{time.strftime('%Y%m%d-%H%M%S')}-{capability.id.split('.')[-1][:24]}"
-    result = await _execute(capability, inputs, run_id=run_id, headed=args.headed)
+    result = await _execute(capability, inputs, run_id=run_id, headed=args.headed, handoff=True)
     return result, EXIT_CODES[result.status]
 
 
