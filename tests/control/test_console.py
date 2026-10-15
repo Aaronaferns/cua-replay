@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 
 import httpx2 as httpx
 import pytest
@@ -120,9 +121,20 @@ async def test_verdict_only_for_commit_unknown(hub, api):
     await asyncio.sleep(0.05)
     await act(api, "i1", "claim")
     assert (await act(api, "i1", "verdict", verdict="maybe")).status_code == 400
-    assert (await act(api, "i1", "verdict", verdict="committed")).json()["verdict"] == "committed"
-    assert (await settle(task)).kind == "verdict"
-    assert (hub.writer.run_dir / "verdicts" / "i1.json").is_file()
+    assert (await act(api, "i1", "verdict", verdict="committed", note="payment seen in REST")).json()["verdict"] == "committed"
+    out = await settle(task)
+    assert out.kind == "verdict" and out.verdict == "committed"
+    record = json.loads((hub.writer.run_dir / "verdicts" / "i1.json").read_text(encoding="utf-8"))
+    assert record["note"] == "payment seen in REST" and record["action"] == "resolve_commit"
+
+
+async def test_verdict_unsure_is_accepted_and_only_once(hub, api):
+    task = asyncio.create_task(hub.escalate(req(hub, reason=COMMIT_UNKNOWN)))
+    await asyncio.sleep(0.05)
+    await act(api, "i1", "claim")
+    assert (await act(api, "i1", "verdict", verdict="unsure")).status_code == 200
+    assert (await act(api, "i1", "verdict", verdict="committed")).status_code == 409
+    assert (await settle(task)).verdict == "unsure"
 
 
 async def test_foreign_host_and_origin_are_refused(api):
