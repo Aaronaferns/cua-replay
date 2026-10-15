@@ -782,6 +782,7 @@ def _page(title: str, body: str, *, refresh: int | None = None) -> HTMLResponse:
         "<small>local demo console: no authentication, the id is only a label</small></p>"
         f"{body}"
         "<script>const op=document.getElementById('op');op.value=localStorage.getItem('cua_operator')||'';"
+        "op.addEventListener('input',()=>localStorage.setItem('cua_operator',op.value.trim()));"
         "async function act(path,extra){const o=op.value.trim();localStorage.setItem('cua_operator',o);"
         "const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},"
         "body:JSON.stringify(Object.assign({operator:o},extra||{}))});const j=await r.json();"
