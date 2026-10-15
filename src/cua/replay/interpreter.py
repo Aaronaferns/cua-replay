@@ -17,7 +17,9 @@ handler whose state matches (a budgeted recovery: log in, or click one dismiss c
 from the entry while the run is still retry-safe), then the profile's default meaning, then unknown (fail closed).
 `retry_safe` is computed from the effect high-water mark of the steps that started. Failures carry masked evidence.
 `before_step` is a hook the suite runner uses to disturb the target (for example expire the session); replay itself
-knows nothing about faults. Human handoff and commit confirmation arrive with M5 and M6.
+knows nothing about faults. With a `hub` (`cua.control.console.InterventionHub`), a HUMAN_ONLY_LOGIN screen escalates to a
+person instead of failing: resume restarts from the entry, mark-complete finishes through the success checkpoint and
+output extraction, abort ends the run. Without a hub the run fails with HUMAN_ONLY_LOGIN. Commit confirmation is M6.
 
 Imports: artifact, surface, safety, control, evidence and this package. Never agent, compiler.recorder, faults or a
 model SDK (`tests/replay/test_replay_imports.py` enforces it).
@@ -31,7 +33,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 from cua.artifact.classify import Classification
@@ -55,6 +57,7 @@ from cua.artifact.schema import (
     TypeAction,
 )
 from cua.artifact.values import ValueRejected, check_input, parse_output
+from cua.control.interventions import HUMAN_ONLY_LOGIN, InterventionRequest
 from cua.control.lease import LeaseToken
 from cua.evidence.events import EvidenceEvent, EvidenceWriter
 from cua.evidence.failure import capture_failure_evidence
@@ -72,6 +75,9 @@ from cua.replay.result import (
 )
 from cua.safety.policy import ActionKind, ActionRequest, Actor, Guard, PolicyDecision, PolicyDenied
 from cua.surface.base import NativeDialogOpen, NotUniqueError, Observation, Surface, SurfaceError
+
+if TYPE_CHECKING:
+    from cua.control.console import InterventionHub
 
 Sleep = Callable[[float], Awaitable[None]]
 BeforeStep = Callable[[Step], Awaitable[None]]
@@ -135,13 +141,14 @@ class _Run:
         sleep: Sleep,
         timing: Timing,
         before_step: BeforeStep | None,
+        hub: InterventionHub | None,
     ) -> None:
         self.cap, self.profile, self.inputs = capability, profile, inputs
         self.surface, self.guard, self.lease = surface, guard, lease
         self.base_url = base_url.rstrip("/")
         self.credentials, self.evidence, self.run_id = credentials, evidence, run_id
         self.now_ms, self.sleep, self.timing = now_ms, sleep, timing
-        self.before_step = before_step
+        self.before_step, self.hub = before_step, hub
         self.high = "none"  # effect high-water mark of the steps started so far
         self.handled: dict[str, int] = {}
         self.outputs: dict[str, Any] = {}
@@ -417,16 +424,62 @@ class _Run:
         if handler.then == "restart_if_retry_safe":
             raise _Restart
 
-    def _act_on_verdict(self, verdict: _Verdict, expected: str) -> None:
+    async def _act_on_verdict(self, verdict: _Verdict, expected: str) -> None:
         if verdict.kind == "outcome":
             assert verdict.code is not None
             raise _Stop("business_outcome", verdict.code)
         if verdict.kind == "failure":
             assert verdict.code is not None
+            if verdict.code == HUMAN_ONLY_LOGIN and self.hub is not None:
+                await self._escalate(verdict, expected)
             detail = (f"the screen is in state {verdict.state!r}, which the profile treats as {verdict.code}")
             raise _Stop("failure", verdict.code, self._failure(
                 verdict.code, MEANING_CATEGORY.get(verdict.code, "state"), detail, expected=expected,
                 c=Classification("state", state=verdict.state)))
+
+    async def _escalate(self, verdict: _Verdict, expected: str) -> None:
+        """Hand the live session to a person and act on how they end it. Returns only for outcomes this screen cannot
+        use (the caller then fails with the original code)."""
+        assert self.hub is not None
+        shots = [p for p in await self._capture(self.step.id if self.step else None) if p.endswith(".png")]
+        request = InterventionRequest.create(
+            id=uuid.uuid4().hex[:12], run_id=self.run_id, capability=self.cap.id, version=self.cap.version,
+            step_id=self.step.id if self.step else None, reason=HUMAN_ONLY_LOGIN,
+            detail="the login asks for a security code that automation never fills",
+            classified_state=verdict.state, expected_state=expected, url=mask_url(self.url),
+            screenshot=shots[0] if shots else None, effect_so_far=self.high,  # type: ignore[arg-type]
+            commit_attempted=self.commit_state != "none", lease=self.lease())
+        self._emit("escalated", detail={"reason": HUMAN_ONLY_LOGIN, "intervention": request.id})
+        out = await self.hub.escalate(request, checkpoint=self._checkpoint, extract_outputs=self._extract_all)
+        self._emit("handoff_ended", detail={"outcome": out.kind, "reason": out.reason})
+        if out.kind == "resume":
+            raise _Restart
+        if out.kind == "mark_complete":
+            self.outputs = dict(out.outputs or {})
+            raise _Stop("success", "success")
+        if out.kind == "abort":
+            raise _Stop("failure", "RUN_ABORTED", self._failure(
+                "RUN_ABORTED", "control", f"the run was ended during the human handoff ({out.reason})", expected=expected))
+
+    async def _checkpoint(self) -> bool:
+        """The success state and every success check hold on the live page."""
+        obs = await self._observe()
+        c = classify_observation(self.profile, obs)
+        self.state = c.label
+        if c.kind != "state" or c.state is None or self.cap.success.state not in self.profile.lineage(c.state):
+            return False
+        return all([await self._holds(check) for check in self.cap.success.checks])
+
+    async def _extract_all(self) -> dict[str, Any] | None:
+        """Read every declared output off the live page by the capability's own extract steps."""
+        found: dict[str, Any] = {}
+        for step in self.cap.steps:
+            if isinstance(step.do, ExtractAction):
+                resolved = await self._resolve(step.do.target, primary_only=True)
+                shown = await self.surface.read_text(resolved.element)
+                found[step.do.output] = parse_output(self.cap.contract.outputs[step.do.output], shown,
+                                                     self.profile.number_format)
+        return found if all(name in found for name in self.cap.success.outputs) else None
 
     # --- the run -----------------------------------------------------------------------------------------------
 
@@ -439,13 +492,18 @@ class _Run:
         self._emit("action", action={"kind": "navigate", "entry": True}, policy=decision)
         verdict = await self._await_state(self._acceptor({}, start), timeout_ms=self.timing.entry_timeout_ms,
                                           stable=self.timing.stable_polls, expected=start, fence=True)
-        self._act_on_verdict(verdict, start)
+        await self._act_on_verdict(verdict, start)
 
     async def _bounded(self, make: Callable[[], Awaitable[Any]], timeout_ms: int, *, retries: int) -> Any:
         """Run one action within `timeout_ms`; a timeout or a surface error is retried `retries` times, then raised."""
         for attempt in range(retries + 1):
             try:
-                return await asyncio.wait_for(make(), timeout_ms / 1000)
+                task = asyncio.ensure_future(make())
+                try:
+                    return await asyncio.wait_for(asyncio.shield(task), timeout_ms / 1000)
+                finally:
+                    task.cancel()  # a no-op when done; either way the outcome is retrieved, never left unread
+                    await asyncio.gather(task, return_exceptions=True)
             except (NativeDialogOpen, NotUniqueError):
                 raise
             except (TimeoutError, SurfaceError):
@@ -478,7 +536,7 @@ class _Run:
         verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
                                           timeout_ms=step.timeout_ms, stable=stable, expected=next_state,
                                           fence=step.navigates)
-        self._act_on_verdict(verdict, next_state)
+        await self._act_on_verdict(verdict, next_state)
         if step.verify is not None and not await self._holds(step.verify):
             raise _Stop("failure", "CHECKPOINT_FAILED", self._failure(
                 "CHECKPOINT_FAILED", "state", "the value echo after the action does not match", expected=next_state))
@@ -569,11 +627,12 @@ async def replay(
     now_ms: Callable[[], int] | None = None,
     sleep: Sleep | None = None,
     before_step: BeforeStep | None = None,
+    hub: InterventionHub | None = None,
 ) -> RunResult:
     """Run `capability` once and return its `RunResult`. Never raises for application or policy outcomes."""
     return await _Run(
         capability, profile, dict(inputs), surface=surface, guard=guard, lease=lease, base_url=base_url,
         credentials=credentials, evidence=evidence, run_id=run_id or uuid.uuid4().hex[:12],
         now_ms=now_ms or (lambda: int(time.monotonic() * 1000)), sleep=sleep or asyncio.sleep,
-        timing=timing or Timing(), before_step=before_step,
+        timing=timing or Timing(), before_step=before_step, hub=hub,
     ).run()
