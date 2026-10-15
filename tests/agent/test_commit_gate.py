@@ -83,18 +83,3 @@ async def test_approval_is_single_use(fake_surface, tmp_path):
     assert result.stop_reason == "approval_denied"
     assert [c.approval_id for c in clicks(guard)] == ["ap-1"]
     writer.close()
-
-
-async def test_stale_generation_voids_approval(fake_surface, tmp_path):
-    surface, page, guard = fake_surface
-    bumped = {"n": 1}
-
-    async def approve(digest, generation):
-        bumped["n"] = 2  # the lease moved while the approval was pending
-        return "ap-9"
-
-    loop, writer = build(surface, guard, tmp_path, ScriptedAdapter(steps()), approve=approve)
-    loop._lease = loop.executor.lease = lambda: LEASE.model_copy(update={"generation": bumped["n"]})
-    result = await loop.run()
-    assert result.stop_reason == "approval_denied" and not clicks(guard)
-    writer.close()

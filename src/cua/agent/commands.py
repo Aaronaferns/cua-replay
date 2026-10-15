@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import re
 import sys
 from datetime import UTC, datetime
@@ -47,6 +48,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--policy", default="dolibarr-sandbox")
     p.add_argument("--profile", default="apps/dolibarr/profile.json")
     p.add_argument("--evidence-root", type=Path, help="where run directories go (default: runs/)")
+    p.add_argument("--approve-commits", action="store_true",
+                   help="serve the live console so an operator can approve each commit (default: commits are denied)")
     p.add_argument("--transcript", type=Path, help="replay a recorded transcript.json instead of calling the model")
     p.set_defaults(func=run)
 
@@ -97,9 +100,18 @@ async def _run(args: argparse.Namespace) -> int:
 
     async with open_session(run_id=run_id, policy=args.policy, profile=args.profile, headed=args.headed,
                             evidence_root=args.evidence_root, actor="agent", config=cfg) as session:
-        result = await discover(session, adapter, capability=args.capability, goal=args.goal, input_values=values,
-                                input_specs=inputs, output_specs=outputs, discovered_by=args.discovered_by,
-                                max_steps=args.max_steps, wall_clock_s=args.wall_clock)
+        async with contextlib.AsyncExitStack() as stack:
+            approve = None
+            if args.approve_commits:
+                from cua.control.approver import console_approver
+                from cua.control.commands import live_console
+
+                hub = await stack.enter_async_context(live_console(session))
+                print(f"console: {hub.console_url}", file=sys.stderr, flush=True)
+                approve = console_approver(hub, capability=args.capability)
+            result = await discover(session, adapter, capability=args.capability, goal=args.goal, input_values=values,
+                                    input_specs=inputs, output_specs=outputs, discovered_by=args.discovered_by,
+                                    max_steps=args.max_steps, wall_clock_s=args.wall_clock, approve=approve)
 
     loop = result.loop
     total = {k: sum(getattr(u, k) for u in loop.usage) for k in

@@ -183,7 +183,7 @@ class Executor:
         locators = sorted(s for c in (target.candidates if target else []) for s in c.strategy.locator_strings())
         digest = hashlib.sha256(json.dumps([action.kind, url, tokens, locators]).encode()).hexdigest()
         approval = await self._approve(digest, generation) if self._approve else None
-        if approval and approval not in self._used_approvals and self.lease().generation == generation:
+        if approval and approval not in self._used_approvals:
             self._used_approvals.add(approval)
             return approval, None
         decision = PolicyDecision(allowed=False, rule="approval_required", reason="a commit needs a console approval",

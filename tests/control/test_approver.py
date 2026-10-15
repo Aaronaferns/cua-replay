@@ -1,4 +1,4 @@
-"""Discovery's console approval: bound to (action hash, generation), single use, stale generation refused."""
+"""Discovery's console approval: the approver redeems it once at the post-release generation; stale generation refused."""
 
 from __future__ import annotations
 
@@ -30,20 +30,17 @@ async def approved(hub, approver=None):
     return await asyncio.wait_for(task, 2)
 
 
-async def test_approval_is_single_use(hub):
+async def test_approver_redeems_its_approval_once(hub):
     approval = await approved(hub)
     assert approval is not None
-    gen = hub.lease.generation
-    assert hub.approvals.consume(approval, action_hash=HASH, generation=gen).ok
-    assert hub.approvals.consume(approval, action_hash=HASH, generation=gen).reason == "already_used"
+    assert hub.approvals.consume(approval, action_hash=HASH, generation=hub.lease.generation).reason == "already_used"
 
 
-async def test_approval_for_another_action_or_generation_is_rejected(hub):
-    approver = console_approver(hub)
-    a = await approved(hub, approver)
-    assert hub.approvals.consume(a, action_hash="b" * 64, generation=hub.lease.generation).reason == "action_mismatch"
-    b = await approved(hub, approver)
-    assert hub.approvals.consume(b, action_hash=HASH, generation=hub.lease.generation - 1).reason == "generation_mismatch"
+def test_approval_for_another_action_or_generation_is_rejected(hub):
+    a = hub.approvals.issue(action_hash=HASH, generation=3, operator="ann").approval_id
+    assert hub.approvals.consume(a, action_hash="b" * 64, generation=3).reason == "action_mismatch"
+    b = hub.approvals.issue(action_hash=HASH, generation=3, operator="ann").approval_id
+    assert hub.approvals.consume(b, action_hash=HASH, generation=2).reason == "generation_mismatch"
 
 
 async def test_stale_generation_gets_no_escalation_and_no_approval(hub):

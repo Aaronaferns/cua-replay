@@ -29,6 +29,9 @@ def console_approver(
             reason=APPROVAL_REQUIRED, url=url, lease=hub.lease.token(), step_id=step_id, effect_so_far="read",
         )
         outcome = await hub.escalate(request, action_hash=action_hash)
-        return outcome.approval_id if outcome.kind == "approved" else None
+        if outcome.kind != "approved":
+            return None
+        check = hub.approvals.consume(outcome.approval_id, action_hash=action_hash, generation=hub.lease.generation)
+        return outcome.approval_id if check.ok else None
 
     return approver
