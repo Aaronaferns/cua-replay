@@ -105,6 +105,7 @@ def args_for(tmp_path: Path, **over) -> argparse.Namespace:
     values = {
         "capability": "dolibarr.lookup_customer_outstanding", "version": None, "cases": None,
         "out": str(tmp_path / "evidence"), "runs_root": str(tmp_path / "runs"), "capabilities_dir": str(FIXTURES),
+        "handoff": False,
     }
     values.update(over)
     return argparse.Namespace(**values)
@@ -263,3 +264,8 @@ def test_cli_registration_and_usage_error(tmp_path, capsys):
     parsed.capabilities_dir = str(FIXTURES)
     assert cmd_make_evidence(parsed) == 2
     assert "error:" in capsys.readouterr().err
+
+
+async def test_handoff_takes_exactly_one_case(tmp_path):
+    with pytest.raises(EvidenceCommandError, match="exactly one case"):
+        await run_make_evidence(args_for(tmp_path, handoff=True), hooks=Hooks(None, None, None, None))

@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import hashlib
 import json
 import shutil
@@ -134,19 +135,28 @@ class Hooks:
     rest_view(case)      the application's REST view for a case (blocking): {"state_sha256": str, "oracles": {...}}
     open_session(**kw)   `cua.control.runtime.open_session`
     replay(...)          `cua.replay.interpreter.replay`
+    captcha(on)          switch the target's login CAPTCHA on/off (blocking; `--handoff` only)
     """
 
     reset: Callable[[], None]
     rest_view: Callable[[Any], dict[str, Any]]
     open_session: Callable[..., Any]
     replay: Callable[..., Awaitable[Any]]
+    captcha: Callable[[bool], None] | None = None
 
 
 def default_hooks() -> Hooks:
     from cua.control.runtime import open_session
     from cua.replay.interpreter import replay
 
-    return Hooks(reset=_reset_target, rest_view=_rest_view, open_session=open_session, replay=replay)
+    return Hooks(reset=_reset_target, rest_view=_rest_view, open_session=open_session, replay=replay, captcha=_captcha)
+
+
+def _captcha(on: bool) -> None:
+    _target_tools()
+    import dolictl
+
+    dolictl.run_script("captcha.sh", "on" if on else "off")
 
 
 def _target_tools() -> None:
@@ -232,6 +242,7 @@ async def make_case_evidence(
     stamp: str,
     runs_root: Path | None,
     profile_path: Path,
+    handoff: bool = False,
 ) -> CaseOutcome:
     from cua.artifact.validate import validate_capability
     from cua.replay.interpreter import Credentials
@@ -243,12 +254,17 @@ async def make_case_evidence(
     if case.reset:
         await asyncio.to_thread(hooks.reset)
     before = await asyncio.to_thread(hooks.rest_view, case)
+    if handoff:  # the human-only login gate: replay logs in itself, meets the CAPTCHA and escalates to the console
+        assert hooks.captcha is not None
+        await asyncio.to_thread(hooks.captcha, True)
 
     result = None
     installation = None
     after: dict[str, Any] = {}
     mismatches: list[str] = []
-    session_kw: dict[str, Any] = {"login": False} if case.run_as else {}
+    session_kw: dict[str, Any] = {"login": False} if case.run_as or handoff else {}
+    if handoff:
+        session_kw["headed"] = True
     async with hooks.open_session(
         run_id=run_id, profile=str(profile_path), actor="replay", evidence_root=runs_root, **session_kw
     ) as session:
@@ -286,14 +302,22 @@ async def make_case_evidence(
                         await asyncio.to_thread(_expire_session)
 
                 extra["before_step"] = before_step
-            result = await hooks.replay(
-                capability, session.profile, dict(case.inputs), surface=session.surface, guard=session.guard,
-                lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=writer,
-                run_id=run_id, **extra,
-            )
+            async with contextlib.AsyncExitStack() as stack:
+                if handoff:
+                    from cua.control.commands import live_console
+
+                    extra["hub"] = hub = await stack.enter_async_context(live_console(session))
+                    print(f"console: {hub.console_url}  (claim, log in in the browser, resume)", flush=True)
+                result = await hooks.replay(
+                    capability, session.profile, dict(case.inputs), surface=session.surface, guard=session.guard,
+                    lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=writer,
+                    run_id=run_id, **extra,
+                )
         finally:
             if installation is not None:
                 await installation.uninstall()
+            if handoff:
+                await asyncio.to_thread(hooks.captcha, False)
         after = await asyncio.to_thread(hooks.rest_view, case)
         truth = {k: v for k, v in after["oracles"].items() if v is not None}
         mismatches = compare(case, result, truth, list(capability.contract.outputs))
@@ -317,7 +341,7 @@ async def make_case_evidence(
         )
         run_dir = writer.run_dir
     # the session is closed: the manifest now lists every file, result.json and ground_truth.json included
-    target = out / f"replay_{case.id}"
+    target = out / ("replay_captcha_handoff" if handoff else f"replay_{case.id}")
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(run_dir, target)
@@ -346,6 +370,8 @@ async def run_make_evidence(args: argparse.Namespace, hooks: Hooks | None = None
     wanted = [c for c in args.cases.split(",") if c] if args.cases else ids
     if unknown := sorted(set(wanted) - set(ids)):
         raise EvidenceCommandError(f"no such case in the suite: {', '.join(unknown)}")
+    if args.handoff and len(wanted) != 1:
+        raise EvidenceCommandError("--handoff takes exactly one case (--cases <id>)")
     fault_map = load_faults(find_faults_file(capability.name, capability.version, path.parent), capability.id, set(ids))
     out = Path(args.out)
     if not out.is_absolute():
@@ -360,7 +386,7 @@ async def run_make_evidence(args: argparse.Namespace, hooks: Hooks | None = None
         try:
             outcome = await make_case_evidence(
                 case, capability, fault_specs=fault_map.get(case.id, []), hooks=hooks, out=out, stamp=stamp,
-                runs_root=runs_root, profile_path=profile_path_of(capability.app),
+                runs_root=runs_root, profile_path=profile_path_of(capability.app), handoff=args.handoff,
             )
         except Exception as e:  # noqa: BLE001 - one broken case must not stop the others
             outcome = CaseOutcome(case.id, None, None, None, [], error=safe_error_message(e))
@@ -395,6 +421,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--version", default=None, help="default: the highest version on disk")
     p.add_argument("--cases", default=None, help="comma-separated case ids; default: every case in the suite")
     p.add_argument("--out", default="evidence/", help="where the replay_<case_id>/ folders go")
+    p.add_argument("--handoff", action="store_true",
+                   help="human handoff bundle: CAPTCHA on, live console, headed; one case -> replay_captcha_handoff/")
     p.add_argument("--runs-root", default=None, help=argparse.SUPPRESS)  # tests: where run bundles are written
     p.add_argument("--capabilities-dir", default=None, help=argparse.SUPPRESS)  # tests: a folder of <app>/ folders
     p.set_defaults(func=cmd_make_evidence)
