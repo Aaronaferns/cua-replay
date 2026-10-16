@@ -261,6 +261,8 @@ async def make_case_evidence(
     runs_root: Path | None,
     profile_path: Path,
     handoff: bool = False,
+    console: bool = False,
+    name: str | None = None,
 ) -> CaseOutcome:
     from cua.artifact.validate import validate_capability
     from cua.replay.interpreter import Credentials
@@ -269,6 +271,7 @@ async def make_case_evidence(
     run_id = f"evid-{stamp}-{case.id}"[:100]
     fault_specs = [*case.faults, *fault_specs]  # the suite case's own faults, then the sidecar's
     faults = build_faults(fault_specs)  # fail on a bad sidecar before touching the target
+    console = console or handoff  # a live console + headed browser; --handoff adds the login CAPTCHA
     if case.reset:
         await asyncio.to_thread(hooks.reset)
     before = await asyncio.to_thread(hooks.rest_view, case)
@@ -281,7 +284,7 @@ async def make_case_evidence(
     after: dict[str, Any] = {}
     mismatches: list[str] = []
     session_kw: dict[str, Any] = {"login": False} if case.run_as or handoff else {}
-    if handoff:
+    if console:
         session_kw["headed"] = True
     async with hooks.open_session(
         run_id=run_id, profile=str(profile_path), actor="replay", evidence_root=runs_root, **session_kw
@@ -321,11 +324,11 @@ async def make_case_evidence(
 
                 extra["before_step"] = before_step
             async with contextlib.AsyncExitStack() as stack:
-                if handoff:
+                if console:
                     from cua.control.commands import live_console
 
                     extra["hub"] = hub = await stack.enter_async_context(live_console(session))
-                    print(f"console: {hub.console_url}  (claim, log in in the browser, resume)", flush=True)
+                    print(f"console: {hub.console_url}  (claim, then resume / give the verdict)", flush=True)
                 result = await hooks.replay(
                     capability, session.profile, dict(case.inputs), surface=session.surface, guard=session.guard,
                     lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=writer,
@@ -364,7 +367,7 @@ async def make_case_evidence(
         )
         run_dir = writer.run_dir
     # the session is closed: the manifest now lists every file, result.json and ground_truth.json included
-    target = out / ("replay_captcha_handoff" if handoff else f"replay_{case.id}")
+    target = out / (name or ("replay_captcha_handoff" if handoff else f"replay_{case.id}"))
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(run_dir, target)
@@ -393,8 +396,10 @@ async def run_make_evidence(args: argparse.Namespace, hooks: Hooks | None = None
     wanted = [c for c in args.cases.split(",") if c] if args.cases else ids
     if unknown := sorted(set(wanted) - set(ids)):
         raise EvidenceCommandError(f"no such case in the suite: {', '.join(unknown)}")
-    if args.handoff and len(wanted) != 1:
-        raise EvidenceCommandError("--handoff takes exactly one case (--cases <id>)")
+    if (args.handoff or args.console) and len(wanted) != 1:
+        raise EvidenceCommandError("--handoff and --console take exactly one case (--cases <id>)")
+    if args.name and (len(wanted) != 1 or "/" in args.name or "\\" in args.name or args.name.startswith(".")):
+        raise EvidenceCommandError("--name is one folder name and needs exactly one case")
     fault_map = load_faults(find_faults_file(capability.name, capability.version, path.parent), capability.id, set(ids))
     out = Path(args.out)
     if not out.is_absolute():
@@ -410,6 +415,7 @@ async def run_make_evidence(args: argparse.Namespace, hooks: Hooks | None = None
             outcome = await make_case_evidence(
                 case, capability, fault_specs=fault_map.get(case.id, []), hooks=hooks, out=out, stamp=stamp,
                 runs_root=runs_root, profile_path=profile_path_of(capability.app), handoff=args.handoff,
+                console=args.console, name=args.name,
             )
         except Exception as e:  # noqa: BLE001 - one broken case must not stop the others
             outcome = CaseOutcome(case.id, None, None, None, [], error=safe_error_message(e))
@@ -446,6 +452,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--out", default="evidence/", help="where the replay_<case_id>/ folders go")
     p.add_argument("--handoff", action="store_true",
                    help="human handoff bundle: CAPTCHA on, live console, headed; one case -> replay_captcha_handoff/")
+    p.add_argument("--console", action="store_true",
+                   help="live console + headed browser, no CAPTCHA: a human gives the resolve_commit verdict on "
+                        "COMMIT_UNKNOWN (the escalation waits for it, bounded by the 15 min SLA); one case")
+    p.add_argument("--name", default=None, help="bundle folder name instead of replay_<case_id> (one case)")
     p.add_argument("--runs-root", default=None, help=argparse.SUPPRESS)  # tests: where run bundles are written
     p.add_argument("--capabilities-dir", default=None, help=argparse.SUPPRESS)  # tests: a folder of <app>/ folders
     p.set_defaults(func=cmd_make_evidence)

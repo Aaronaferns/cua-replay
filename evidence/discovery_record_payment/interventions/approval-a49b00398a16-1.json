@@ -1,0 +1,23 @@
+{
+  "schema": "cua.intervention/v1",
+  "id": "approval-a49b00398a16-1",
+  "run_id": "discovery_record_payment",
+  "capability": "record_invoice_payment",
+  "version": null,
+  "step_id": null,
+  "reason": "APPROVAL_REQUIRED",
+  "detail": "",
+  "classified_state": null,
+  "expected_state": null,
+  "url": "http://localhost/",
+  "screenshot": null,
+  "effect_so_far": "read",
+  "commit_attempted": false,
+  "lease": {
+    "holder": "none",
+    "generation": 1
+  },
+  "created_at": "2026-10-15T23:58:16.081068Z",
+  "sla_seconds": 900.0,
+  "sla_deadline": "2026-10-16T00:13:16.081068Z"
+}

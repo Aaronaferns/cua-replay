@@ -50,6 +50,7 @@ class FakeWorld:
         self.wrong_amount = wrong_amount
         self.explode_on = explode_on
         self.resets = 0
+        self.headed = None
         self.context = FakeContext()
         self.sessions: list[str] = []
         self.logins: list[bool] = []
@@ -65,8 +66,9 @@ class FakeWorld:
             return {"state_sha256": "abc123", "oracles": oracles}
 
         @asynccontextmanager
-        async def open_session(*, run_id, profile, actor, evidence_root, login=True):
+        async def open_session(*, run_id, profile, actor, evidence_root, login=True, headed=False):
             self.sessions.append(run_id)
+            self.headed = headed
             self.logins.append(login)
             writer = RunBundleWriter(run_id, root=evidence_root)
             session = SimpleNamespace(
@@ -105,7 +107,7 @@ def args_for(tmp_path: Path, **over) -> argparse.Namespace:
     values = {
         "capability": "dolibarr.lookup_customer_outstanding", "version": None, "cases": None,
         "out": str(tmp_path / "evidence"), "runs_root": str(tmp_path / "runs"), "capabilities_dir": str(FIXTURES),
-        "handoff": False,
+        "handoff": False, "console": False, "name": None,
     }
     values.update(over)
     return argparse.Namespace(**values)
@@ -292,3 +294,29 @@ def test_invoice_payments_view_counts_rest_payments():
 async def test_handoff_takes_exactly_one_case(tmp_path):
     with pytest.raises(EvidenceCommandError, match="exactly one case"):
         await run_make_evidence(args_for(tmp_path, handoff=True), hooks=Hooks(None, None, None, None))
+
+
+async def test_console_runs_headed_with_a_hub_and_names_the_bundle(tmp_path, monkeypatch):
+    hub = SimpleNamespace(console_url="http://127.0.0.1:1")
+
+    @asynccontextmanager
+    async def fake_console(session):
+        yield hub
+
+    monkeypatch.setattr("cua.control.commands.live_console", fake_console)
+    world = FakeWorld(tmp_path)
+    outcomes, code = await run_make_evidence(
+        args_for(tmp_path, console=True, cases="alpha", name="replay_commit_unknown"), world.hooks()
+    )
+    assert code == 0, [(o.mismatches, o.error) for o in outcomes]
+    assert world.headed is True and world.logins == [True]  # no CAPTCHA: the normal scripted login
+    assert world.replay_kw[0]["hub"] is hub
+    assert (tmp_path / "evidence" / "replay_commit_unknown" / "ground_truth.json").exists()
+
+
+async def test_console_and_name_need_exactly_one_case(tmp_path):
+    for over in ({"console": True}, {"name": "x"}):
+        with pytest.raises(EvidenceCommandError, match="exactly one case"):
+            await run_make_evidence(args_for(tmp_path, **over), hooks=Hooks(None, None, None, None))
+    with pytest.raises(EvidenceCommandError, match="folder name"):
+        await run_make_evidence(args_for(tmp_path, cases="alpha", name="../x"), hooks=Hooks(None, None, None, None))
