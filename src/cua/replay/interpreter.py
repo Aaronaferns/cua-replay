@@ -182,6 +182,7 @@ class _Run:
     async def run(self) -> RunResult:
         try:
             self._check_inputs()
+            self._preflight()
             if (stored := self._begin_ledger()) is not None:
                 return stored
             if self.draft and self.cap.effect == "commit":
@@ -527,6 +528,23 @@ class _Run:
                 found[step.do.output] = parse_output(self.cap.contract.outputs[step.do.output], shown,
                                                      self.profile.number_format)
         return found if all(name in found for name in self.cap.success.outputs) else None
+
+    def _preflight(self) -> None:
+        """Static policy check of every route the run would touch (entry, navigate steps, a commit capability's
+        literal commit paths), before the ledger or any UI action. The first denial stops the run. A guard without a
+        policy (a test double) has nothing to check statically."""
+        policy = getattr(self.guard, "policy", None)
+        if policy is None:
+            return
+        routes = [self.profile.entry.route]
+        routes += [self._fill(s.do.route, encode=True) for s in self.cap.steps if isinstance(s.do, NavigateAction)]
+        if self.cap.effect == "commit":
+            routes += [r.path for r in self.profile.commit_routes if r.path != "*"]
+        for route in routes:
+            decision = policy.check_url(self.base_url + route)
+            if not decision.allowed:
+                self._emit("policy", policy=decision)
+                raise PolicyDenied(decision)
 
     # --- the run -----------------------------------------------------------------------------------------------
 

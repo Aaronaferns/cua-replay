@@ -263,12 +263,18 @@ async def make_case_evidence(
     handoff: bool = False,
     console: bool = False,
     name: str | None = None,
+    policy: str | None = None,
 ) -> CaseOutcome:
     from cua.artifact.validate import validate_capability
     from cua.replay.interpreter import Credentials
     from cua.replay.suite import compare
 
     run_id = f"evid-{stamp}-{case.id}"[:100]
+    if policy:  # a policy that denies a route the capability needs: the run must stop at the static preflight
+        expect = case.expect.model_copy(update={"status": "failure", "outcome": "POLICY_DENIED", "outputs": {},
+                                                "ground_truth": [], "payments": case.expect.payments and
+                                                case.expect.payments.model_copy(update={"amounts": []})})
+        case = case.model_copy(update={"expect": expect})
     fault_specs = [*case.faults, *fault_specs]  # the suite case's own faults, then the sidecar's
     faults = build_faults(fault_specs)  # fail on a bad sidecar before touching the target
     console = console or handoff  # a live console + headed browser; --handoff adds the login CAPTCHA
@@ -286,7 +292,9 @@ async def make_case_evidence(
     session_kw: dict[str, Any] = {"login": False} if case.run_as or handoff else {}
     if console:
         session_kw["headed"] = True
-    if capability.effect == "commit":  # the same policy validate uses: the read-only sandbox denies the commit route
+    if policy:
+        session_kw |= {"policy": policy, "login": False}  # not even the login page is opened
+    elif capability.effect == "commit":  # the same policy validate uses: the read-only sandbox denies the commit route
         session_kw["policy"] = f"{capability.app}-sandbox-commit"
     inputs = {k: v.replace("{run_id}", run_id) for k, v in case.inputs.items()}  # a fresh request_id, as in validate
     async with hooks.open_session(
@@ -313,9 +321,9 @@ async def make_case_evidence(
             )
             extra: dict[str, Any] = {}
             if case.run_as == "noperm":
-                from cua.replay.commands import _noperm_login
+                from cua.replay.commands import noperm_login
 
-                credentials = Credentials(_noperm_login(), cfg.cua_noperm_password.get_secret_value())
+                credentials = Credentials(noperm_login(), cfg.cua_noperm_password.get_secret_value())
             if case.expire_session_before:
                 expired = False
 
@@ -425,6 +433,7 @@ async def run_make_evidence(args: argparse.Namespace, hooks: Hooks | None = None
                 case, capability, fault_specs=fault_map.get(case.id, []), hooks=hooks, out=out, stamp=stamp,
                 runs_root=runs_root, profile_path=profile_path_of(capability.app), handoff=args.handoff,
                 console=args.console, name=args.name,
+                policy=getattr(args, "policy", None),
             )
         except Exception as e:  # noqa: BLE001 - one broken case must not stop the others
             outcome = CaseOutcome(case.id, None, None, None, [], error=safe_error_message(e))
@@ -465,6 +474,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
                    help="live console + headed browser, no CAPTCHA: a human gives the resolve_commit verdict on "
                         "COMMIT_UNKNOWN (the escalation waits for it, bounded by the 15 min SLA); one case")
     p.add_argument("--name", default=None, help="bundle folder name instead of replay_<case_id> (one case)")
+    p.add_argument("--policy", default=None,
+                   help="run each case under this policy (for example dolibarr-sandbox-deny-payment) and expect "
+                        "failure/POLICY_DENIED at the static preflight, with REST state unchanged")
     p.add_argument("--runs-root", default=None, help=argparse.SUPPRESS)  # tests: where run bundles are written
     p.add_argument("--capabilities-dir", default=None, help=argparse.SUPPRESS)  # tests: a folder of <app>/ folders
     p.set_defaults(func=cmd_make_evidence)

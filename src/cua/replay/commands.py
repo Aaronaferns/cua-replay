@@ -148,6 +148,10 @@ def approvals_dir() -> Path:
     return REPO_ROOT / "approvals"
 
 
+def evidence_dir() -> Path:
+    return REPO_ROOT / "evidence"
+
+
 def validation_dir() -> Path:
     """Where `cua validate` writes `<run_id>/summary.json` (runtime output, never committed)."""
     return REPO_ROOT / "runs" / "validation"
@@ -169,7 +173,7 @@ def approval_of(capability: Capability, profile: Profile, *, draft: bool, root: 
     return approval_state(capability, profile, approval), approval
 
 
-def _noperm_login() -> str:
+def noperm_login() -> str:
     _target_tools()
     import seed
 
@@ -200,7 +204,7 @@ async def _execute(
             raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
         cfg = session.settings
         if run_as == "noperm":
-            credentials = Credentials(_noperm_login(), cfg.cua_noperm_password.get_secret_value())
+            credentials = Credentials(noperm_login(), cfg.cua_noperm_password.get_secret_value())
         else:
             credentials = (Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
                            if cfg.cua_run_password is not None else None)
@@ -516,6 +520,15 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
     out = validation_dir() / run_id / "summary.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes((json.dumps(json.loads(summary.model_dump_json(by_alias=True)), indent=2) + "\n").encode("utf-8"))
+    if args.repeat > 1:  # the committed flake report: a flake is a case whose outcome differs across repeats
+        outcomes: dict[str, set[tuple[str | None, str | None, bool]]] = {}
+        for r in runs:
+            outcomes.setdefault(r.case_id, set()).add((r.status, r.outcome, r.passed))
+        report = {"capability": capability.id, "version": capability.version, "n": args.repeat,
+                  "cases": [{"id": c.id, "runs": args.repeat, "passed": sum(r.passed for r in runs if r.case_id == c.id)}
+                            for c in suite.cases],
+                  "flakes": [c.id for c in suite.cases if len(outcomes[c.id]) > 1]}
+        (evidence_dir() / "validation_suite.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return summary, EXIT_SUCCESS if summary.passed else EXIT_FAILURE
 
 
