@@ -468,3 +468,17 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--runs-root", default=None, help=argparse.SUPPRESS)  # tests: where run bundles are written
     p.add_argument("--capabilities-dir", default=None, help=argparse.SUPPRESS)  # tests: a folder of <app>/ folders
     p.set_defaults(func=cmd_make_evidence)
+
+    lint = subparsers.add_parser("lint", help="scan evidence/ for secrets, SSNs, cookies and unmasked e-mails")
+    lint.add_argument("--root", default="evidence/")
+    from cua.safety.lint import cmd_lint
+
+    lint.set_defaults(func=cmd_lint)
+
+    demo = subparsers.add_parser("demo", help="demo helpers")
+    demo_sub = demo.add_subparsers(dest="demo_command", required=True)
+    up = demo_sub.add_parser("up", help="start the target, wait for health, reset it, print the URL")
+    up.add_argument("--timeout", type=int, default=600, help="seconds to wait for health")
+    from cua.evidence.demo import cmd_demo_up
+
+    up.set_defaults(func=cmd_demo_up)
