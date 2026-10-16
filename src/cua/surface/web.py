@@ -5,7 +5,7 @@ sees what an operator works with and not 30k characters of menus. Acting by ref 
 engine; finding by `Strategy` uses Playwright's role engine with normalized-exact names, re-checked against the
 element's own AI-snapshot line, so observation, recording and replay share one accessible-name engine.
 
-Facts verified against Playwright 1.63 while building this (see tests/surface):
+Facts verified against the pinned Playwright while building this (see tests/surface):
 - refs from a locator-scoped AI snapshot resolve with `page.locator("aria-ref=<ref>")`, and a ref whose element is
   gone counts 0 immediately (no auto-wait). Only the refs of the *latest* snapshot resolve: the next `aria_snapshot`
   call, on any locator, drops the earlier ones. So `observe()` takes the snapshot that carries the actionable refs
@@ -71,7 +71,7 @@ class WebScope(BaseModel):
     include_urls: bool = True  # keep `/url:` lines (CSRF tokens are always masked)
 
 
-# Dolibarr 23 page layout: #id-top (top menu + user block), #id-left (left menu), #id-right (main content).
+# Dolibarr page layout: #id-top (top menu + user block), #id-left (left menu), #id-right (main content).
 # jQuery UI dialogs are appended to <body> with role="dialog", outside #id-right.
 DOLIBARR_SCOPE = WebScope(main="#id-right", menus=("#id-top", "#id-left"))
 
