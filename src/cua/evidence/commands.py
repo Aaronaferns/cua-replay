@@ -286,6 +286,9 @@ async def make_case_evidence(
     session_kw: dict[str, Any] = {"login": False} if case.run_as or handoff else {}
     if console:
         session_kw["headed"] = True
+    if capability.effect == "commit":  # the same policy validate uses: the read-only sandbox denies the commit route
+        session_kw["policy"] = f"{capability.app}-sandbox-commit"
+    inputs = {k: v.replace("{run_id}", run_id) for k, v in case.inputs.items()}  # a fresh request_id, as in validate
     async with hooks.open_session(
         run_id=run_id, profile=str(profile_path), actor="replay", evidence_root=runs_root, **session_kw
     ) as session:
@@ -324,13 +327,17 @@ async def make_case_evidence(
 
                 extra["before_step"] = before_step
             async with contextlib.AsyncExitStack() as stack:
+                if capability.effect == "commit":
+                    from cua.replay.commit_ledger import CommitLedger
+
+                    extra["ledger"] = stack.enter_context(contextlib.closing(CommitLedger((runs_root or Path("runs")) / "commit_ledger.sqlite")))
                 if console:
                     from cua.control.commands import live_console
 
                     extra["hub"] = hub = await stack.enter_async_context(live_console(session))
                     print(f"console: {hub.console_url}  (claim, then resume / give the verdict)", flush=True)
                 result = await hooks.replay(
-                    capability, session.profile, dict(case.inputs), surface=session.surface, guard=session.guard,
+                    capability, session.profile, inputs, surface=session.surface, guard=session.guard,
                     lease=session.lease, base_url=session.base_url, credentials=credentials, evidence=writer,
                     run_id=run_id, **extra,
                 )
@@ -350,7 +357,7 @@ async def make_case_evidence(
                 "source": "Dolibarr REST (admin key): a side channel the replay never uses",
                 "capability": capability.id,
                 "case": case.id,
-                "inputs": dict(case.inputs),
+                "inputs": inputs,
                 "faults": [{k: v for k, v in s.items()} for s in fault_specs],
                 "before": before,
                 "after": after,
