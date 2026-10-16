@@ -231,6 +231,7 @@ Files inside a bundle:
 | File | What it is |
 |---|---|
 | `repo-map.md` | This file |
+| `review-guide.md` | A step-by-step plan for reviewing the repository |
 | `architecture-review-v2.md` | The design review: requirements coverage, options considered, chosen architecture |
 | `build-plan-v2.md` | The milestone plan (M0–M8), gates and cut list the build followed |
 | `contracts.md` | Interfaces between subsystems |

@@ -7,6 +7,7 @@ the same session, and a write (commit) is performed at most once. The target is 
 - `REPORT.md`: design, taxonomy, safety table, cuts.
 - `evidence/README.md`: each committed evidence bundle and where to look.
 - `docs/repo-map.md`: every folder and file and what it is for.
+- `docs/review-guide.md`: where to start and in what order, if you are reviewing.
 - `docs/implementation-status.md`: what is built.
 
 ## Prerequisites
