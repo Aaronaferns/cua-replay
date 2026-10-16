@@ -16,13 +16,14 @@ imports a browser engine or a model SDK.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from cua.agent.actions import AgentAction
 from cua.artifact.classify import Classification, classify
 from cua.artifact.lock import canonical, dumps, load_profile, sha256_hex
-from cua.artifact.predicates import AllOf, Predicate, ScreenNode, ScreenView, TargetEqualsInput, TargetVisible
+from cua.artifact.predicates import AllOf, Predicate, ScreenNode, ScreenView, TargetEqualsInput, TargetVisible, url_path
 from cua.artifact.propose import collisions, propose_state, proposed_id, url_glob, with_states
 from cua.artifact.screen import view_from_outline
 from cua.artifact.schema import (
@@ -98,17 +99,22 @@ def _view(screen: ScreenRecord) -> ScreenView:
     return view_from_outline(screen.url, screen.snapshot)
 
 
+def _heading(screen: ScreenRecord, trace: RecordedTrace) -> str | None:
+    """The first heading, unless it echoes an input or carries data: then the URL alone identifies the page."""
+    h = screen.heading
+    return None if not h or volatile_text(h) or _echoes_input(h, trace) else h
+
+
 def _classify(profile: Profile, screen: ScreenRecord) -> Classification:
     dialog = ScreenView(url=screen.url, nodes=(ScreenNode(role="dialog", name=screen.dialog),)) if screen.dialog else None
     return classify(profile, _view(screen), dialog)
 
 
 def _route(url: str, origin: tuple[str, str], problems: list[str], where: str) -> str:
-    parts = urlsplit(lift(url))
+    parts = urlsplit(lifted := lift(url))
     if (parts.scheme, parts.netloc) not in (origin, ("", "")):
         problems.append(f"{where}: navigates outside the application origin")
-    path = parts.path or "/"
-    return f"{path}?{parts.query}" if parts.query else path
+    return url_path(lifted)
 
 
 # --- targets -----------------------------------------------------------------------------------------------------
@@ -184,7 +190,7 @@ def _validate_run(trace: RecordedTrace, profile: Profile) -> list[str]:
     last = trace.actions[-1]
     if last.action.kind != "done" or last.status != "performed":
         problems.append("the run must end with a performed done action")
-    extracted: dict[str, int] = {}
+    extracted: Counter[str] = Counter()
     for a in trace.actions:
         where = f"action {a.seq}"
         if a.action.kind in _REFUSED:
@@ -197,10 +203,9 @@ def _validate_run(trace: RecordedTrace, profile: Profile) -> list[str]:
         if a.status == "performed" and a.action.kind == "extract":
             if a.action.name not in trace.outputs:
                 problems.append(f"{where}: extracts undeclared output {a.action.name!r}")
-            extracted[a.action.name] = extracted.get(a.action.name, 0) + 1
+            extracted[a.action.name] += 1
     for name in trace.outputs:
-        count = extracted.get(name, 0)
-        if count == 0:
+        if (count := extracted[name]) == 0:
             problems.append(f"output {name!r} was never extracted")
         elif count > 1:
             problems.append(f"output {name!r} was extracted {count} times; one extract per output")
@@ -247,18 +252,13 @@ def _compile(
     proposed_for: dict[tuple[str, str | None], str] = {}  # (url glob, heading) -> proposed state id
     seen_screens: list[tuple[ScreenView, str]] = []  # every screen with the state it must classify as
 
-    def heading_of(screen: ScreenRecord) -> str | None:
-        """The first heading, unless it echoes an input or carries data: then the URL alone identifies the page."""
-        h = screen.heading
-        return None if not h or volatile_text(h) or _echoes_input(h, trace) else h
-
     def state_of(screen: ScreenRecord, where: str) -> str:
         c = _classify(profile, screen)
         if c.kind == "state" and c.state is not None:
             seen_screens.append((_view(screen), c.state))
             return c.state
         if propose and c.kind == "unknown" and screen.dialog is None:
-            key = (url_glob(screen.url), heading_of(screen))
+            key = (url_glob(screen.url), _heading(screen, trace))
             if key not in proposed_for:
                 sid = proposed_id(screen.url, [*profile.states, *proposals])
                 proposals[sid] = propose_state(screen.url, key[1])
@@ -409,7 +409,6 @@ def compile_file(trace_path: Path, profile_path: Path, **kwargs: str | bool | No
     return compile_to_json(trace, load_profile(Path(profile_path)), **kwargs)
 
 
-
 def template_signatures(trace: RecordedTrace, profile: Profile) -> dict[str, State]:
     """Spike S5: the template state (URL glob + first heading) of every distinct screen the trace passed through,
     keyed by the profile state that screen classifies as. Pure; used to judge how well the template generalizes."""
@@ -422,7 +421,5 @@ def template_signatures(trace: RecordedTrace, profile: Profile) -> dict[str, Sta
                 continue
             c = _classify(profile, screen)
             if c.kind == "state" and c.state is not None and c.state not in out:
-                heading = screen.heading
-                clean = None if not heading or volatile_text(heading) or _echoes_input(heading, trace) else heading
-                out[c.state] = propose_state(screen.url, clean)
+                out[c.state] = propose_state(screen.url, _heading(screen, trace))
     return out
