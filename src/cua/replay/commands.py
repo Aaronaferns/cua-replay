@@ -453,6 +453,32 @@ def _payments_of(invoice_ref: str) -> list[str]:
     return sorted(f"{Decimal(str(p['amount'])):.2f}" for p in (payments or []) if status == 200)
 
 
+_SEED_INVOICE = re.compile(r"\{seed_invoice:([^}]+)\}")
+
+
+def _seed_invoice_ref(ref_client: str) -> str:
+    """The reference Dolibarr gave a seeded invoice. Dolibarr numbers an invoice by month (`FA<yymm>-<n>`) when the
+    seed validates it, so suites name seeded invoices by the `ref_client` the seed sets, which never changes."""
+    _target_tools()
+    from dolirest import Rest, sql_eq
+
+    from cua.config import settings
+
+    found = Rest.admin(settings()).listing("/invoices", sqlfilters=sql_eq("t.ref_client", ref_client))
+    if not found:
+        raise CommandError("no seeded invoice has that customer reference")
+    return found[0]["ref"]
+
+
+def case_inputs(case: Case, run_id: str) -> Case:
+    """The case with its suite placeholders filled: `{run_id}` (a fresh request_id per run) and
+    `{seed_invoice:<ref_client>}` (a seeded invoice's current reference)."""
+    def fill(value: str) -> str:
+        return _SEED_INVOICE.sub(lambda m: _seed_invoice_ref(m.group(1)), value.replace("{run_id}", run_id))
+
+    return case.model_copy(update={"inputs": {k: fill(v) for k, v in case.inputs.items()}})
+
+
 def _ui_actions(run_id: str) -> int:
     events = REPO_ROOT / "runs" / run_id / "events.jsonl"
     return sum(json.loads(line).get("kind") == "action" for line in events.read_text(encoding="utf-8").splitlines())
@@ -480,12 +506,12 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
     for repeat in range(1, args.repeat + 1):
         for case in suite.cases:
             case_run_id = f"{run_id}-{case.id}-{repeat}"
-            case = case.model_copy(update={"inputs": {k: v.replace("{run_id}", case_run_id) for k, v in case.inputs.items()}})  # fresh request_id per case and repeat
             began = time.monotonic()
             status = outcome = None
             try:
                 if case.reset:
                     await asyncio.to_thread(_reset_target)
+                case = await asyncio.to_thread(case_inputs, case, case_run_id)  # after the reset: the seed is in place
                 result = await _execute(capability, dict(case.inputs), run_id=case_run_id, case=case)
                 status, outcome = result.status, result.outcome
                 truth = {g.output: await asyncio.to_thread(_oracle, g.oracle, case.inputs[g.input])

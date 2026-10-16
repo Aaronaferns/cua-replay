@@ -232,3 +232,14 @@ def test_ground_truth_beats_a_missing_literal():
 def test_extra_outputs_on_success_are_a_mismatch():
     case = Suite.model_validate(suite_doc()).cases[0]
     assert compare(case, _result(outputs={"outstanding_amount": "75.37", "extra": "1"}), {}, ["outstanding_amount"])
+
+
+def test_case_inputs_fill_the_run_id_and_seeded_invoice_refs(monkeypatch):
+    # Dolibarr numbers invoices by month, so a suite names a seeded invoice by the ref_client the seed sets
+    monkeypatch.setattr(commands, "_seed_invoice_ref", {"CUA-SEED-BETA-1": "FA2611-0039"}.__getitem__)
+    case = Suite.model_validate({"schema": "cua.suite/v1", "capability": "dolibarr.x", "cases": [{
+        "id": "c", "inputs": {"invoice_ref": "{seed_invoice:CUA-SEED-BETA-1}", "request_id": "w-{run_id}"},
+        "expect": {"status": "success", "outcome": "success"}}]}).cases[0]
+    filled = commands.case_inputs(case, "r1")
+    assert filled.inputs == {"invoice_ref": "FA2611-0039", "request_id": "w-r1"}
+    assert case.inputs["invoice_ref"] == "{seed_invoice:CUA-SEED-BETA-1}"  # the suite itself is untouched

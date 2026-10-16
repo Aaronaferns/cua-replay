@@ -5,13 +5,13 @@
     {
       "id": "pay_other_invoice",
       "description": "an invoice the discovery run never saw: replay records exactly one payment of the requested amount, checked against the application's own payments list",
-      "inputs": {"invoice_ref": "FA2610-0039", "amount": "25.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
+      "inputs": {"invoice_ref": "{seed_invoice:CUA-SEED-BETA-1}", "amount": "25.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
       "expect": {"status": "success", "outcome": "success", "payments": {"invoice_input": "invoice_ref", "amounts": ["25.00"]}}
     },
     {
       "id": "overpayment",
       "description": "more than the invoice outstanding: Dolibarr's warning is a business outcome and no payment exists",
-      "inputs": {"invoice_ref": "FA2610-0037", "amount": "500.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
+      "inputs": {"invoice_ref": "{seed_invoice:CUA-SEED-ALPHA-1}", "amount": "500.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
       "expect": {"status": "business_outcome", "outcome": "validation_rejected", "payments": {"invoice_input": "invoice_ref", "amounts": []}}
     },
     {
@@ -23,14 +23,14 @@
     {
       "id": "lost_response_after_commit",
       "description": "the confirm request reaches Dolibarr but the browser is told 504: the outcome is unknown, the commit is never clicked again, and exactly one payment exists",
-      "inputs": {"invoice_ref": "FA2610-0038", "amount": "30.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
+      "inputs": {"invoice_ref": "{seed_invoice:CUA-SEED-ALPHA-2}", "amount": "30.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
       "faults": [{"kind": "lost_response_after_commit", "match": "/compta/paiement.php", "body_fields": {"action": "confirm_paiement", "confirm": "yes"}}],
       "expect": {"status": "indeterminate", "outcome": "COMMIT_UNKNOWN", "payments": {"invoice_input": "invoice_ref", "amounts": ["30.00"]}}
     },
     {
       "id": "same_request_id_replayed",
       "description": "the same request_id again returns the stored result with no UI action and no second payment",
-      "inputs": {"invoice_ref": "FA2610-0040", "amount": "15.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
+      "inputs": {"invoice_ref": "{seed_invoice:CUA-SEED-BETA-2}", "amount": "15.00", "method": "Cash", "bank_account": "CUA Seed Operating Account (EUR)", "request_id": "w7d-{run_id}"},
       "repeat_same_request": true,
       "expect": {"status": "success", "outcome": "success", "payments": {"invoice_input": "invoice_ref", "amounts": ["15.00"]}}
     }

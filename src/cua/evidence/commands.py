@@ -255,7 +255,7 @@ async def make_case_evidence(
     policy: str | None = None,
 ) -> CaseOutcome:
     from cua.artifact.validate import validate_capability
-    from cua.replay.commands import credentials_for
+    from cua.replay.commands import case_inputs, credentials_for
     from cua.replay.suite import compare
 
     run_id = f"evid-{stamp}-{case.id}"[:100]
@@ -269,6 +269,7 @@ async def make_case_evidence(
     console = console or handoff  # a live console + headed browser; --handoff adds the login CAPTCHA
     if case.reset:
         await asyncio.to_thread(hooks.reset)
+    case = await asyncio.to_thread(case_inputs, case, run_id)  # a fresh request_id, as in validate; seeded invoice refs
     before = await asyncio.to_thread(hooks.rest_view, case)
     if handoff:  # the human-only login gate: replay logs in itself, meets the CAPTCHA and escalates to the console
         assert hooks.captcha is not None
@@ -285,7 +286,7 @@ async def make_case_evidence(
         session_kw |= {"policy": policy, "login": False}  # not even the login page is opened
     elif capability.effect == "commit":  # the same policy validate uses: the read-only sandbox denies the commit route
         session_kw["policy"] = f"{capability.app}-sandbox-commit"
-    inputs = {k: v.replace("{run_id}", run_id) for k, v in case.inputs.items()}  # a fresh request_id, as in validate
+    inputs = dict(case.inputs)
     async with hooks.open_session(
         run_id=run_id, profile=str(profile_path), actor="replay", evidence_root=runs_root, **session_kw
     ) as session:
