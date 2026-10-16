@@ -13,6 +13,9 @@ the same session, and a write (commit) is performed at most once. The target is 
 - Python 3.12 and [uv](https://docs.astral.sh/uv/).
 - Docker (on Windows: Docker inside WSL2) for the live target.
 - An Anthropic API key, for discovery only. Replay and validation never call a model.
+- Windows: clone to a short path (for example `C:\src\cua`); a deep path can exceed the path-length limit while
+  `uv sync` unpacks dependencies. On Windows the `cua` CLI runs natively and reaches Docker through `wsl -d Ubuntu`;
+  to run the CLI inside WSL instead, install uv there first.
 
 ## Setup
 

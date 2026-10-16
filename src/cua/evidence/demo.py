@@ -6,23 +6,21 @@ The scripts run where Docker runs: bash (WSL on Windows). Keep WSL alive on Wind
 
 from __future__ import annotations
 
-import shutil
-import subprocess
-
-from cua.config import REPO_ROOT, settings
-
-_DIR = REPO_ROOT / "target" / "dolibarr"
+from cua.config import settings
 
 
 def cmd_demo_up(args) -> int:
-    bash = shutil.which("bash")
-    if bash is None:
-        print("bash is required to run the target scripts (on Windows: Git Bash or run from WSL)")
-        return 2
-    for script, extra in (("up.sh", [str(args.timeout)]), ("reset.sh", [])):
-        if subprocess.run([bash, (_DIR / script).as_posix(), *extra], cwd=REPO_ROOT).returncode:
-            print(f"{script} failed (is Docker running? is the WSL distribution alive?)")
-            return 1
+    from cua.evidence.commands import _reset_target, _target_tools
+
+    _target_tools()
+    import dolictl  # routes the scripts through WSL on Windows, where Docker runs
+
+    try:
+        dolictl.run_script("up.sh", str(args.timeout), timeout=args.timeout + 60)
+        _reset_target()
+    except (dolictl.CtlError, OSError) as e:
+        print(f"demo up failed (is Docker running? is the WSL distribution alive?): {e}")
+        return 1
     print(f"target ready: http://localhost:{settings().dolibarr_port}/index.php")
     print("Windows: keep WSL alive (open a WSL terminal, or run `wsl -- sleep infinity`) or the container stops.")
     return 0
