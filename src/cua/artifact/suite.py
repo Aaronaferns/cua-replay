@@ -34,11 +34,20 @@ class GroundTruth(_Strict):
     input: str
 
 
+class PaymentsTruth(_Strict):
+    """After the case, the payments the application lists (REST) on the invoice named by input `invoice_input` have
+    exactly these amounts (the target is reset before each case, so these are the payments the case created)."""
+
+    invoice_input: str
+    amounts: list[str]
+
+
 class Expect(_Strict):
     status: Status
     outcome: str  # "success", a declared business outcome, or a failure code
     outputs: dict[str, str] = {}  # exact expected output values (decimal strings, ISO dates)
     ground_truth: list[GroundTruth] = []
+    payments: PaymentsTruth | None = None
     recoveries: list[str] = []  # handler names, as a multiset; the default is "none needed"
     allow_drift: bool = False  # a fallback strategy may be used without failing the case
 
@@ -53,6 +62,7 @@ class Case(_Strict):
     faults: list[dict[str, Any]] = []  # fault specs (`kind`, `match`, ...), installed on the browser context
     run_as: Literal["noperm"] | None = None  # log in as the user with no rights instead of the run user
     expire_session_before: str | None = None  # step id: the session is deleted server-side before that step
+    repeat_same_request: bool = False  # run again with the same inputs: the stored result, no UI action, no new payment
 
     @field_validator("id")
     @classmethod
@@ -102,6 +112,8 @@ def suite_problems(suite: Suite, capability: Capability) -> list[str]:
         if case.expire_session_before is not None and case.expire_session_before not in {s.id for s in capability.steps}:
             problems.append(f"case {case.id}: no step {case.expire_session_before!r} to expire the session before")
         e = case.expect
+        if e.payments is not None and e.payments.invoice_input not in case.inputs:
+            problems.append(f"case {case.id}: payments truth from input {e.payments.invoice_input!r}, which is not given")
         if e.status == "success" and e.outcome != "success":
             problems.append(f"case {case.id}: a success has the outcome 'success'")
         if e.status == "business_outcome" and e.outcome not in outcomes:

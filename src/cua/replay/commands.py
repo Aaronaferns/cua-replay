@@ -31,6 +31,7 @@ import re
 import sys
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -183,7 +184,8 @@ async def _execute(
     here, around replay, which never imports the fault harness."""
     profile_path = profile_path_of(capability.app)
     run_as = case.run_as if case else None
-    async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay",
+    policy = f"{capability.app}-sandbox-commit" if capability.effect == "commit" else f"{capability.app}-sandbox"
+    async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay", policy=policy,
                              login=run_as is None and not handoff) as session:  # handoff: replay logs in, so a CAPTCHA escalates
         problems = validate_capability(capability, session.profile)
         if problems:
@@ -431,6 +433,26 @@ def _oracle(name: str, value: str) -> str:
     raise CommandError(f"unknown oracle {name!r}")
 
 
+def _payments_of(invoice_ref: str) -> list[str]:
+    """Amounts of the payments Dolibarr lists on the invoice (the posting oracle), sorted."""
+    _target_tools()
+    from dolirest import Rest, sql_eq
+
+    from cua.config import settings
+
+    admin = Rest.admin(settings())
+    found = admin.listing("/invoices", sqlfilters=sql_eq("t.ref", invoice_ref))
+    if not found:
+        raise CommandError("the payments oracle found no such invoice")
+    status, payments = admin.call("GET", f"/invoices/{found[0]['id']}/payments")
+    return sorted(f"{Decimal(str(p['amount'])):.2f}" for p in (payments or []) if status == 200)
+
+
+def _ui_actions(run_id: str) -> int:
+    events = REPO_ROOT / "runs" / run_id / "events.jsonl"
+    return sum(json.loads(line).get("kind") == "action" for line in events.read_text(encoding="utf-8").splitlines())
+
+
 def find_suite_file(capability: Capability, folder: Path) -> Path:
     for name in (f"{capability.name}@{capability.version}.tests.json", f"{capability.name}.tests.json"):
         if (folder / name).is_file():
@@ -453,6 +475,7 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
     for repeat in range(1, args.repeat + 1):
         for case in suite.cases:
             case_run_id = f"{run_id}-{case.id}-{repeat}"
+            case = case.model_copy(update={"inputs": {k: v.replace("{run_id}", case_run_id) for k, v in case.inputs.items()}})  # fresh request_id per case and repeat
             began = time.monotonic()
             status = outcome = None
             try:
@@ -462,7 +485,18 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
                 status, outcome = result.status, result.outcome
                 truth = {g.output: await asyncio.to_thread(_oracle, g.oracle, case.inputs[g.input])
                          for g in case.expect.ground_truth}
-                mismatches = compare(case, result, truth, list(capability.contract.outputs))
+                paid = (await asyncio.to_thread(_payments_of, case.inputs[case.expect.payments.invoice_input])
+                        if case.expect.payments else None)
+                mismatches = compare(case, result, truth, list(capability.contract.outputs), paid)
+                if case.repeat_same_request:
+                    again = await _execute(capability, dict(case.inputs), run_id=f"{case_run_id}-again")
+                    if (again.status, again.outcome, again.outputs) != (result.status, result.outcome, result.outputs):
+                        mismatches.append("the same request_id did not return the stored result")
+                    if _ui_actions(f"{case_run_id}-again"):
+                        mismatches.append("the same request_id acted in the UI")
+                    if case.expect.payments and await asyncio.to_thread(
+                            _payments_of, case.inputs[case.expect.payments.invoice_input]) != paid:
+                        mismatches.append("the same request_id changed the payments")
             except Exception as e:  # a case that cannot be run is a failed case, not a crashed validation
                 mismatches = [f"the case could not be run: {type(e).__name__}"]
             runs.append(CaseRun(case_id=case.id, repeat=repeat, run_id=case_run_id, passed=not mismatches,

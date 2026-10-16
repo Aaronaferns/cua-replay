@@ -344,7 +344,7 @@
           },
           {
             "kind": "text",
-            "pattern": "Customer invoices \\(\\d+\\)",
+            "pattern": "Customer invoices( \\(\\d+\\))?",
             "role": "cell"
           }
         ]
@@ -364,7 +364,7 @@
           },
           {
             "kind": "text",
-            "pattern": "Customer invoices \\(\\d+\\)",
+            "pattern": "Customer invoices( \\(\\d+\\))?",
             "role": "cell"
           },
           {

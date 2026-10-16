@@ -82,6 +82,12 @@ def test_a_prompting_click_is_not_raised_by_its_name(prompts, declared, expected
     assert got == expected
 
 
+def test_a_link_named_enter_payment_only_opens_the_form():
+    cap = compiled()
+    step = next(s for s in cap.steps if isinstance(s.do, ClickAction) and s.do.target == "link_enter_payment")
+    assert derived_effect(PROFILE, step, url=None, target=cap.targets["link_enter_payment"], dirty=False) == "read"
+
+
 def test_review_card_renders_for_the_commit_capability():
     assert "commit" in render_review_card(compiled(), PROFILE).lower()
 
