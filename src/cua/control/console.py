@@ -445,8 +445,7 @@ class InterventionHub:
     def queue(self) -> list[dict[str, Any]]:
         """Every intervention, open ones first, as short summaries."""
         rows = [self._summary(item) for item in self._items.values()]
-        rows.sort(key=lambda r: (r["status"] == "resolved" or r["status"] == "review", r["created_at"]))
-        return rows
+        return sorted(rows, key=lambda r: (r["status"] in ("resolved", "review"), r["created_at"]))
 
     def open_interventions(self) -> list[Escalation]:
         return [i for i in self._items.values() if not i.review and i.outcome is None]
@@ -899,15 +898,11 @@ def build_app(hub: InterventionHub) -> FastAPI:
         if action == "claim":
             token = await hub.claim(iid, body.operator)
             reply["lease"] = token.model_dump()
-        elif action in ("resume", "abort", "approve", "mark-complete"):
-            if action == "resume":
-                outcome = await hub.resume(iid, body.operator)
-            elif action == "abort":
-                outcome = await hub.abort(iid, body.operator)
-            elif action == "approve":
-                outcome = await hub.approve(iid, body.operator, expected_action_hash=body.action_hash)
-            else:
-                outcome = await hub.mark_complete(iid, body.operator)
+        elif action == "approve":
+            outcome = await hub.approve(iid, body.operator, expected_action_hash=body.action_hash)
+            reply.update(outcome=outcome.kind, lease=outcome.lease.model_dump())
+        elif end := {"resume": hub.resume, "abort": hub.abort, "mark-complete": hub.mark_complete}.get(action):
+            outcome = await end(iid, body.operator)
             reply.update(outcome=outcome.kind, lease=outcome.lease.model_dump())
         elif action == "verdict":
             record = await hub.verdict(iid, body.operator, body.verdict or "", body.note)
