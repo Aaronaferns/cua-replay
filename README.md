@@ -10,6 +10,26 @@ the same session, and a write (commit) is performed at most once. The target is 
 - `docs/review-guide.md`: where to start and in what order, if you are reviewing.
 - `docs/implementation-status.md`: what is built.
 
+## Reviewer quickstart
+
+Needs Docker, bash and [uv](https://docs.astral.sh/uv/); no API key. On macOS and Linux the target scripts run
+directly. On Windows the CLI runs natively and starts the target through WSL: you need a WSL distribution named
+`Ubuntu` in which `docker` works (with Docker Desktop, turn on WSL integration for it; another name: set the
+environment variable `CUA_WSL_DISTRO`), and a short clone path such as `C:\src\cua`.
+
+| Step | Command | Expect | Time |
+|---|---|---|---|
+| 1 | `uv sync` then `uv run playwright install chromium` | Dependencies and a browser installed | 1–3 min |
+| 2 | `cp .env.example .env` (PowerShell: `Copy-Item .env.example .env`) | The example values work as-is for the local sandbox | — |
+| 3 | `uv run cua demo up` | `target ready: http://localhost:8085/index.php` (first run pulls the images and seeds the data) | ~3 min first time, ~20 s after |
+| 4 | `uv run cua capabilities` | Two capabilities, both `approved` | seconds |
+| 5 | `uv run cua replay dolibarr.lookup_customer_outstanding --input customer_code=CU2601-00902` | `success`, `outstanding_amount = 355.20` | ~30 s |
+| 6 | `uv run cua validate dolibarr.record_invoice_payment` | `5/5 passed`, including the lost-response case ending `COMMIT_UNKNOWN` | ~5 min |
+| 7 | `uv run cua lint` | `clean` | seconds |
+
+Add `--headed` to step 5 to watch the browser. Port 8085 is taken? Set `DOLIBARR_PORT` in `.env` before step 3.
+Then read `docs/review-guide.md`. Without Docker, steps 4 and 7 and the offline tests still run (below).
+
 ## Prerequisites
 
 - Python 3.12 and [uv](https://docs.astral.sh/uv/).
