@@ -1,0 +1,17 @@
+{
+  "schema": "cua.verdict/v1",
+  "action": "resolve_commit",
+  "intervention_id": "00141e8e8bdf",
+  "run_id": "evid-20261015-211120-lost_response_after_commit",
+  "capability": "dolibarr.record_invoice_payment",
+  "step_id": "s13_click",
+  "verdict": "committed",
+  "operator": "aaronferns",
+  "note": "",
+  "at": "2026-10-16T01:12:53.198395+00:00",
+  "mode": "live",
+  "escalated_lease": {
+    "holder": "none",
+    "generation": 1
+  }
+}

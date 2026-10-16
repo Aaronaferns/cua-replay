@@ -1,0 +1,14 @@
+{
+  "step_id": "s13_click",
+  "epoch": 79,
+  "facts": {
+    "url": "http://localhost:8085/compta/paiement.php",
+    "title": "",
+    "dialog": null,
+    "native_dialog": null,
+    "frames_unavailable": false
+  },
+  "snapshot": "- generic [active] [ref=f7e1]: Gateway Time-out",
+  "dialog_snapshot": null,
+  "menu_summary": []
+}

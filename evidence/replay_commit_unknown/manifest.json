@@ -1,0 +1,57 @@
+{
+  "run_id": "evid-20261015-211120-lost_response_after_commit",
+  "status": "closed",
+  "created": "2026-10-16T01:11:31.490725+00:00",
+  "updated": "2026-10-16T01:12:54.598759+00:00",
+  "events": 69,
+  "redaction": {
+    "known_values": 14,
+    "patterns": [
+      "header",
+      "bearer",
+      "session_id",
+      "token_param",
+      "token_field",
+      "token_json",
+      "ssn",
+      "email"
+    ]
+  },
+  "files": [
+    {
+      "path": "events.jsonl",
+      "bytes": 31913,
+      "sha256": "e80df9682b2ae9f25385867ef66f81cecae1abcf4e105379f1c383621582b83f"
+    },
+    {
+      "path": "failure/s13_click.png",
+      "bytes": 6657,
+      "sha256": "d8616f4410d5efe45ec8ecc1c404ce85edd22954da00bfc835db876e71d6d51b"
+    },
+    {
+      "path": "failure/s13_click.snapshot.json",
+      "bytes": 328,
+      "sha256": "c7ed1ca41024225f7420a8db3b37444b1d6f6b3b0dc3288bb2adc6c398412cc5"
+    },
+    {
+      "path": "ground_truth.json",
+      "bytes": 1359,
+      "sha256": "004f44dfd5fa2ec552604585849b8774f4b97e19424d701803b8306d9d315bf1"
+    },
+    {
+      "path": "interventions/00141e8e8bdf.json",
+      "bytes": 689,
+      "sha256": "dd399582c5de6f8b95bd3234962a69efb1f7315a32ec73ca463e28a92c7c6696"
+    },
+    {
+      "path": "result.json",
+      "bytes": 1408,
+      "sha256": "2af1afeda14fc1633792d4c3db0956e536eb65d31f33549607cd753d974306b4"
+    },
+    {
+      "path": "verdicts/00141e8e8bdf.json",
+      "bytes": 440,
+      "sha256": "acb0c39537f2603809223e56dfff02c27a3291b282b7f7470512715571d9a2e9"
+    }
+  ]
+}

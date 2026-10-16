@@ -1,0 +1,53 @@
+{
+  "run_id": "evid-20261015-211120-lost_response_after_commit",
+  "capability": "dolibarr.record_invoice_payment",
+  "version": "1.0.0",
+  "lock_hash": "bc3d3a7c49c4e27987254135bc17181a9d8de6435a584bc29974635693c461ac",
+  "status": "indeterminate",
+  "outcome": "COMMIT_UNKNOWN",
+  "outputs": {},
+  "failure": {
+    "code": "COMMIT_UNKNOWN",
+    "category": "commit",
+    "step_id": "s13_click",
+    "step_intent": "Confirm the requested payment (Yes is selected); this commits the payment.",
+    "expected": null,
+    "observed": {
+      "state": "unknown",
+      "url": "/compta/paiement.php",
+      "near_misses": []
+    },
+    "detail": "the commit was attempted and the application did not confirm it",
+    "evidence": [
+      "failure/s13_click.png",
+      "failure/s13_click.snapshot.json"
+    ],
+    "approvable": false
+  },
+  "recoveries": [],
+  "drift": [],
+  "side_effects": {
+    "commit_state": "unknown",
+    "by": "automation",
+    "request_id": "w7d-evid-20261015-211120-lost_response_after_commit"
+  },
+  "retry_safe": false,
+  "interventions": [
+    "00141e8e8bdf"
+  ],
+  "timings": {
+    "s01_navigate": 1047,
+    "s02_click": 1188,
+    "s03_click": 1062,
+    "s04_select": 141,
+    "s05_select": 125,
+    "s06_assert": 109,
+    "s07_click": 141,
+    "s08_type": 1265,
+    "s09_click": 1032,
+    "s10_assert": 109,
+    "s11_assert": 703,
+    "s12_assert": 94,
+    "total_ms": 71016
+  }
+}

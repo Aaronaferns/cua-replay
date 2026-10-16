@@ -1,0 +1,55 @@
+{
+  "schema": "cua.ground_truth/v1",
+  "source": "Dolibarr REST (admin key): a side channel the replay never uses",
+  "capability": "dolibarr.record_invoice_payment",
+  "case": "lost_response_after_commit",
+  "inputs": {
+    "invoice_ref": "FA2610-0038",
+    "amount": "30.00",
+    "method": "Cash",
+    "bank_account": "CUA Seed Operating Account (EUR)",
+    "request_id": "w7d-evid-20261015-211120-lost_response_after_commit"
+  },
+  "faults": [
+    {
+      "kind": "lost_response_after_commit",
+      "match": "/compta/paiement.php",
+      "body_fields": {
+        "action": "confirm_paiement",
+        "confirm": "yes"
+      }
+    }
+  ],
+  "before": {
+    "state_sha256": "0f161ffea190c2c82f1ef2487c771b4b1307fd9b9f1ad6473abe4284b2b65ab4",
+    "oracles": {},
+    "payments": {
+      "invoice_id": "459",
+      "count": 0,
+      "amounts": []
+    }
+  },
+  "after": {
+    "state_sha256": "b888be2d3ef4bc9b2a8f161af8cbc244cdae0ef81997f6638d3ebb9916cce433",
+    "oracles": {},
+    "payments": {
+      "invoice_id": "459",
+      "count": 1,
+      "amounts": [
+        "30.00000000"
+      ]
+    }
+  },
+  "rest_state_unchanged": false,
+  "new_payments": 1,
+  "expected": {
+    "status": "indeterminate",
+    "outcome": "COMMIT_UNKNOWN"
+  },
+  "actual": {
+    "status": "indeterminate",
+    "outcome": "COMMIT_UNKNOWN",
+    "outputs": {}
+  },
+  "mismatches": []
+}
