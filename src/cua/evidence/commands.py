@@ -348,7 +348,9 @@ async def make_case_evidence(
                 await asyncio.to_thread(hooks.captcha, False)
         after = await asyncio.to_thread(hooks.rest_view, case)
         truth = {k: v for k, v in after["oracles"].items() if v is not None}
-        mismatches = compare(case, result, truth, list(capability.contract.outputs))
+        paid = after.get("payments")
+        payments = [f"{Decimal(a):.2f}" for a in paid["amounts"]] if paid else None  # the suite's format, as validate
+        mismatches = compare(case, result, truth, list(capability.contract.outputs), payments)
         writer.json("result.json", result.model_dump(mode="json"))
         writer.json(
             "ground_truth.json",
