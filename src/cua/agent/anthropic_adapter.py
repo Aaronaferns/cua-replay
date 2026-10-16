@@ -19,8 +19,7 @@ import base64
 from typing import Any
 
 import anthropic
-from pydantic import ValidationError
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 from cua.agent.actions import ACTION_MODELS, parse_action
 from cua.agent.model import Feedback, ModelTurn, Task, Usage, render_observation, tool_definitions
@@ -29,6 +28,12 @@ from cua.surface.base import Observation
 MODEL = "claude-opus-5-5"
 BETAS = ["server-side-fallback-2026-07-01"]
 MAX_TOKENS = 16000
+_ERROR_CATEGORIES = (  # most specific first
+    (anthropic.BadRequestError, "bad_request"), (anthropic.AuthenticationError, "authentication"),
+    (anthropic.PermissionDeniedError, "permission_denied"), (anthropic.NotFoundError, "not_found"),
+    (anthropic.RateLimitError, "rate_limited"), (anthropic.APIStatusError, "api_status"),
+    (anthropic.APIConnectionError, "connection"),
+)
 
 SYSTEM_PROMPT = """\
 You operate a web application through a small set of tools to reach a goal. You see the page as text: an accessibility \
@@ -128,9 +133,8 @@ class AnthropicAdapter:
             ok = feedback.ok if feedback else True
             text = feedback.message if feedback else "ok"
             content.append({"type": "tool_result", "tool_use_id": first, "content": text, "is_error": not ok})
-            for extra in rest:
-                content.append({"type": "tool_result", "tool_use_id": extra, "is_error": True,
-                                "content": "Not executed: call exactly one tool per turn."})
+            content += [{"type": "tool_result", "tool_use_id": extra, "is_error": True,
+                         "content": "Not executed: call exactly one tool per turn."} for extra in rest]
         elif feedback is not None:
             content.append({"type": "text", "text": feedback.message})
         content += self._observation_blocks(obs)
@@ -160,21 +164,8 @@ class AnthropicAdapter:
                 betas=BETAS,
                 fallbacks="default",
             )
-        # most specific first; the SDK has already retried 429 and 5xx
-        except anthropic.BadRequestError as e:
-            return self._error("bad_request", e)
-        except anthropic.AuthenticationError as e:
-            return self._error("authentication", e)
-        except anthropic.PermissionDeniedError as e:
-            return self._error("permission_denied", e)
-        except anthropic.NotFoundError as e:
-            return self._error("not_found", e)
-        except anthropic.RateLimitError as e:
-            return self._error("rate_limited", e)
-        except anthropic.APIStatusError as e:
-            return self._error("api_status", e)
-        except anthropic.APIConnectionError as e:
-            return self._error("connection", e)
+        except (anthropic.APIStatusError, anthropic.APIConnectionError) as e:  # the SDK has already retried 429/5xx
+            return self._error(next(category for kind, category in _ERROR_CATEGORIES if isinstance(e, kind)), e)
 
         usage = self._usage(message)
         if message.stop_reason == "refusal":  # before any content is read
@@ -219,7 +210,7 @@ class AnthropicAdapter:
     @staticmethod
     def _error(category: str, e: anthropic.APIError) -> ModelTurn:
         status = getattr(e, "status_code", None)
-        detail = f"{category}" + (f" (HTTP {status})" if status else "")
+        detail = category + (f" (HTTP {status})" if status else "")
         if isinstance(e, anthropic.BadRequestError):  # a schema or history problem: the text is how it is fixed
             detail += f": {str(getattr(e, 'message', ''))[:300]}"
         return ModelTurn(stop="error", detail=detail, usage=Usage(request_id=getattr(e, "request_id", None)))
