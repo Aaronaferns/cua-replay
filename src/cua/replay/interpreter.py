@@ -33,6 +33,7 @@ model SDK (`tests/replay/test_replay_imports.py` enforces it).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -253,11 +254,9 @@ class _Run:
         masks: list[Any] = []
         for step in self.cap.steps:
             if isinstance(step.do, ExtractAction):
-                try:
+                with contextlib.suppress(Exception):  # best effort: explaining a failure must not replace it
                     found = await self.surface.find(self.cap.targets[step.do.target].strategies[0])
                     masks += found if len(found) == 1 else []
-                except Exception:  # noqa: BLE001 - best effort: explaining a failure must not replace it
-                    pass
         return (await capture_failure_evidence(self.surface, self.evidence, masks=masks, step_id=step_id)).paths
 
     def _failure(self, code: str, category: str, detail: str, *, expected: str | None = None,
@@ -632,11 +631,7 @@ class _Run:
         """Confirmed (state reached and the echo holds) => success; a declared rejection => business outcome;
         anything else is unknown, escalated, and never retried."""
         try:
-            verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
-                                              timeout_ms=step.timeout_ms, stable=self.timing.stable_polls if step.navigates else 1,
-                                              expected=next_state,
-                                              fence=step.navigates)
-            await self._act_on_verdict(verdict, next_state)
+            await self._await_next(step, next_state)
             if step.verify is None or await self._holds(step.verify):
                 self.commit_state = "confirmed"
                 return
@@ -670,15 +665,19 @@ class _Run:
         if commit:
             await self._after_commit(step, next_state)
         else:
-            stable = self.timing.stable_polls if step.navigates else 1
-            verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
-                                              timeout_ms=step.timeout_ms, stable=stable, expected=next_state,
-                                              fence=step.navigates)
-            await self._act_on_verdict(verdict, next_state)
+            await self._await_next(step, next_state)
             if step.verify is not None and not await self._holds(step.verify):
                 raise _Stop("failure", "CHECKPOINT_FAILED", self._failure(
                     "CHECKPOINT_FAILED", "state", "the value echo after the action does not match", expected=next_state))
         self.timings[step.id] = self.now_ms() - began
+
+    async def _await_next(self, step: Step, next_state: str) -> None:
+        """Wait for the screen the step leads to (a branch or `next_state`) and act on what it means."""
+        verdict = await self._await_state(self._acceptor({b.state: b for b in step.on}, next_state),
+                                          timeout_ms=step.timeout_ms,
+                                          stable=self.timing.stable_polls if step.navigates else 1,
+                                          expected=next_state, fence=step.navigates)
+        await self._act_on_verdict(verdict, next_state)
 
     async def _perform(self, step: Step, commit: bool) -> None:
         try:
