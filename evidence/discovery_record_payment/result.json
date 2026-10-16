@@ -1,0 +1,130 @@
+{
+  "capability": "record_invoice_payment",
+  "outcome": "done",
+  "stop_reason": null,
+  "steps": 14,
+  "outputs": {
+    "payment_ref": "PAY2610-0028"
+  },
+  "model": "scripted",
+  "usage": [
+    {
+      "turn": 1,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 2,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 3,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 4,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 5,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 6,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 7,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 8,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 9,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 10,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 11,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 12,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 13,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    },
+    {
+      "turn": 14,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "request_id": null
+    }
+  ],
+  "usage_total": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0
+  }
+}

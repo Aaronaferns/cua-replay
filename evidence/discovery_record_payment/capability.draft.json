@@ -1,0 +1,881 @@
+{
+  "schema": "cua.capability/v1",
+  "id": "dolibarr.record_invoice_payment",
+  "version": "1.0.0",
+  "title": "Record invoice payment",
+  "description": "Record a payment of <amount> on customer invoice <invoice_ref> using payment method <method> into bank account <bank_account>, confirm it, and read the reference of the payment that was created.",
+  "app": "dolibarr",
+  "contract": {
+    "inputs": {
+      "invoice_ref": {
+        "type": "string",
+        "description": "",
+        "sensitivity": "internal"
+      },
+      "amount": {
+        "type": "string",
+        "description": "",
+        "sensitivity": "internal"
+      },
+      "method": {
+        "type": "string",
+        "description": "",
+        "sensitivity": "internal"
+      },
+      "bank_account": {
+        "type": "string",
+        "description": "",
+        "sensitivity": "internal"
+      },
+      "request_id": {
+        "type": "string",
+        "description": "idempotency key of this commit",
+        "sensitivity": "internal"
+      }
+    },
+    "outputs": {
+      "payment_ref": {
+        "type": "string",
+        "description": "",
+        "sensitivity": "internal"
+      }
+    },
+    "outcomes": {
+      "access_denied": {
+        "description": "Dolibarr's 'Access denied' page, shown at the URL that was refused.",
+        "returns": []
+      },
+      "invoice_not_found": {
+        "description": "Invoice list whose filter matched nothing: the table body says 'No record found'.",
+        "returns": []
+      },
+      "validation_rejected": {
+        "description": "Payment confirmation carrying Dolibarr's warning that the amount is higher than the outstanding amount (the confirmation defaults to No).",
+        "returns": []
+      }
+    }
+  },
+  "effect": "commit",
+  "steps": [
+    {
+      "id": "s01_navigate",
+      "intent": "Open the customer invoice list filtered by the invoice reference placeholder.",
+      "expect": "home",
+      "do": {
+        "kind": "navigate",
+        "route": "/compta/facture/list.php?mainmenu=billing&leftmenu=customers_bills&search_ref=${invoice_ref}"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s02_click",
+      "intent": "Open the matching invoice card.",
+      "expect": "invoice_list",
+      "do": {
+        "kind": "click",
+        "target": "link_invoice_ref"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s03_click",
+      "intent": "Open the payment entry form for this invoice.",
+      "expect": "invoice_card",
+      "do": {
+        "kind": "click",
+        "target": "link_enter_payment"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s04_select",
+      "intent": "Choose the requested payment method.",
+      "expect": "payment_form",
+      "do": {
+        "kind": "select",
+        "target": "combobox_select_selectpaiementcode",
+        "option": "${method}"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s05_select",
+      "intent": "Choose the requested bank account to credit.",
+      "expect": "payment_form",
+      "do": {
+        "kind": "select",
+        "target": "combobox_select_selectaccountid",
+        "option": "${bank_account}"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s06_assert",
+      "intent": "The screen shows the requested <bank_account>",
+      "expect": "payment_form",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "cell_bank_account",
+          "input": "bank_account",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s07_click",
+      "intent": "Set the payment date to today since the date field is empty.",
+      "expect": "payment_form",
+      "do": {
+        "kind": "click",
+        "target": "button_now"
+      },
+      "effect": "read",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s08_type",
+      "intent": "Enter the payment amount on the target invoice's row only.",
+      "expect": "payment_form",
+      "do": {
+        "kind": "type",
+        "target": "textbox_payment_amount",
+        "text": "${amount}"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "verify": {
+        "kind": "target_equals_input",
+        "target": "textbox_payment_amount",
+        "input": "amount",
+        "normalizer": "exact"
+      },
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s09_click",
+      "intent": "Submit the payment form, which leads to Dolibarr's confirmation step.",
+      "expect": "payment_form",
+      "do": {
+        "kind": "click",
+        "target": "button_pay"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s10_assert",
+      "intent": "The review screen shows the requested <invoice_ref>",
+      "expect": "payment_confirm",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "link_invoice_ref",
+          "input": "invoice_ref",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s11_assert",
+      "intent": "The review screen shows the requested <amount>",
+      "expect": "payment_confirm",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "textbox_payment_amount",
+          "input": "amount",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s12_assert",
+      "intent": "The review screen shows the requested <bank_account>",
+      "expect": "payment_confirm",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "cell_bank_account",
+          "input": "bank_account",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s13_click",
+      "intent": "Confirm the requested payment (Yes is selected); this commits the payment.",
+      "expect": "payment_confirm",
+      "do": {
+        "kind": "click",
+        "target": "button_validate"
+      },
+      "effect": "commit",
+      "navigates": true,
+      "on": [],
+      "verify": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "target_equals_input",
+            "target": "cell_amount",
+            "input": "amount",
+            "normalizer": "text"
+          },
+          {
+            "kind": "target_visible",
+            "target": "cell_payments"
+          }
+        ]
+      },
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s14_assert",
+      "intent": "The screen shows the requested <amount>",
+      "expect": "invoice_card",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "cell_amount",
+          "input": "amount",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s15_extract",
+      "intent": "Record the reference of the newly created payment on this invoice.",
+      "expect": "invoice_card",
+      "do": {
+        "kind": "extract",
+        "target": "cell_payments",
+        "output": "payment_ref"
+      },
+      "effect": "read",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s16_click",
+      "intent": "Open the created payment's card, where the ref sits in a field with a stable label.",
+      "expect": "invoice_card",
+      "do": {
+        "kind": "click",
+        "target": "link_payments"
+      },
+      "effect": "read",
+      "navigates": true,
+      "on": [],
+      "timeout_ms": 10000
+    },
+    {
+      "id": "s17_assert",
+      "intent": "The screen shows the requested <method>",
+      "expect": "payment_card",
+      "do": {
+        "kind": "assert",
+        "that": {
+          "kind": "target_equals_input",
+          "target": "cell_method",
+          "input": "method",
+          "normalizer": "text"
+        },
+        "on_fail": "IDENTITY_MISMATCH"
+      },
+      "effect": "none",
+      "navigates": false,
+      "on": [],
+      "timeout_ms": 10000
+    }
+  ],
+  "success": {
+    "state": "payment_card",
+    "outputs": [
+      "payment_ref"
+    ],
+    "checks": [
+      {
+        "kind": "target_visible",
+        "target": "generic_div_marginbottomonly"
+      },
+      {
+        "kind": "target_visible",
+        "target": "cell_invoice"
+      },
+      {
+        "kind": "target_visible",
+        "target": "cell_method"
+      },
+      {
+        "kind": "target_visible",
+        "target": "cell_amount_2"
+      },
+      {
+        "kind": "target_visible",
+        "target": "cell_bank_account_2"
+      }
+    ]
+  },
+  "targets": {
+    "link_invoice_ref": {
+      "description": "role link \"${invoice_ref}\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "${invoice_ref}",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "[REDACTED:input]",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "link",
+        "tag": "a",
+        "row_label": "[REDACTED:input]"
+      }
+    },
+    "link_enter_payment": {
+      "description": "role link \"Enter payment\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "Enter payment",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "enter payment",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "link",
+        "tag": "a"
+      }
+    },
+    "combobox_select_selectpaiementcode": {
+      "description": "css select#selectpaiementcode",
+      "strategies": [
+        {
+          "kind": "css",
+          "css": "select#selectpaiementcode",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "select.selectpaymenttypes",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "select[name=\"paiementcode\"]",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "combobox",
+        "tag": "select",
+        "row_label": "Payment method"
+      }
+    },
+    "combobox_select_selectaccountid": {
+      "description": "css select#selectaccountid",
+      "strategies": [
+        {
+          "kind": "css",
+          "css": "select#selectaccountid",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "select.selectbankaccount",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "select.widthcentpercentminusx",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "select[name=\"accountid\"]",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "combobox",
+        "tag": "select",
+        "row_label": "Account to credit"
+      }
+    },
+    "cell_bank_account": {
+      "description": "role cell \"${bank_account}\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "cell",
+          "name": "${bank_account}",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "same_row",
+          "label": "Account to credit",
+          "take": "value",
+          "why": "the row's label cell leads to it",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "cell",
+          "name": "[REDACTED:input]",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "row_label": "Account to credit"
+      }
+    },
+    "button_now": {
+      "description": "role button \"Now\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Now",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "now",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "button#reButtonNow",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "button[name=\"_useless\"]",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "button",
+        "tag": "button",
+        "row_label": "Date"
+      }
+    },
+    "textbox_payment_amount": {
+      "description": "textbox in column \"Payment amount\" of the row keyed \"${invoice_ref}\"",
+      "strategies": [
+        {
+          "kind": "table_cell",
+          "role": "textbox",
+          "row_key": "${invoice_ref}",
+          "column": "Payment amount",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "textbox",
+        "tag": "input",
+        "input_type": "text",
+        "column_header": "Payment amount"
+      }
+    },
+    "button_pay": {
+      "description": "role button \"Pay\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Pay",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "pay",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "input.button",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "input.reposition",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "button",
+        "tag": "input",
+        "input_type": "submit"
+      }
+    },
+    "button_validate": {
+      "description": "role button \"Validate\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Validate",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "same_row",
+          "role": "button",
+          "label": "Do you confirm this payment input for 50 Euros? All invoices with no remainder to pay will be automatically closed with status \"Paid\".",
+          "take": "control",
+          "why": "the row's label cell leads to it",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "validate",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "input.button",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "input.confirmvalidatebutton",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "input.small",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "input.valignmiddle",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "button",
+        "tag": "input",
+        "input_type": "submit",
+        "row_label": "Do you confirm this payment input for 50 Euros? All invoices with no remainder to pay will be automatically closed with status \"Paid\".",
+        "column_header": "Payments received from customers"
+      }
+    },
+    "cell_amount": {
+      "description": "cell in column \"Amount\" of the row keyed \"${method}\"",
+      "strategies": [
+        {
+          "kind": "table_cell",
+          "row_key": "${method}",
+          "column": "Amount",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "column_header": "Amount"
+      }
+    },
+    "cell_payments": {
+      "description": "cell in column \"Payments\" of the row keyed \"${method}\"",
+      "strategies": [
+        {
+          "kind": "table_cell",
+          "row_key": "${method}",
+          "column": "Payments",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "column_header": "Payments"
+      }
+    },
+    "link_payments": {
+      "description": "link in column \"Payments\" of the row keyed \"${amount}\"",
+      "strategies": [
+        {
+          "kind": "table_cell",
+          "role": "link",
+          "row_key": "${amount}",
+          "column": "Payments",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "table_cell",
+          "role": "link",
+          "row_key": "${method}",
+          "column": "Payments",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "table_cell",
+          "role": "link",
+          "column": "Payments",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "scoped",
+          "role": "link",
+          "within_role": "columnheader",
+          "within_name": "Payments",
+          "why": "scoped by the container it sits in",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "link",
+        "tag": "a",
+        "column_header": "Payments"
+      }
+    },
+    "cell_method": {
+      "description": "role cell \"${method}\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "cell",
+          "name": "${method}",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "same_row",
+          "label": "Payment method",
+          "take": "value",
+          "why": "the row's label cell leads to it",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "role",
+          "role": "cell",
+          "name": "[REDACTED:input]",
+          "why": "normalized name (low rank)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "row_label": "Payment method"
+      }
+    },
+    "generic_div_marginbottomonly": {
+      "description": "css div.marginbottomonly",
+      "strategies": [
+        {
+          "kind": "css",
+          "css": "div.marginbottomonly",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "div.refid",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "css",
+          "css": "div.refidpadding",
+          "why": "stable attributes (structural fallback)",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "generic",
+        "tag": "div"
+      }
+    },
+    "cell_invoice": {
+      "description": "cell in column \"Invoice\" of the row keyed \"${amount}\"",
+      "strategies": [
+        {
+          "kind": "table_cell",
+          "row_key": "${amount}",
+          "column": "Invoice",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "table_cell",
+          "row_key": "${invoice_ref}",
+          "column": "Invoice",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "table_cell",
+          "column": "Invoice",
+          "why": "its column header, in the row keyed by the input",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "scoped",
+          "role": "cell",
+          "within_role": "columnheader",
+          "within_name": "Invoice",
+          "why": "scoped by the container it sits in",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "row_label": "[REDACTED:input]",
+        "column_header": "Invoice"
+      }
+    },
+    "cell_amount_2": {
+      "description": "role cell \"${amount} €\"",
+      "strategies": [
+        {
+          "kind": "role",
+          "role": "cell",
+          "name": "${amount} €",
+          "why": "role and exact name",
+          "matched_at_record": "1 of 1, same element as ref"
+        },
+        {
+          "kind": "same_row",
+          "label": "Amount",
+          "take": "value",
+          "why": "the row's label cell leads to it",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "row_label": "Amount"
+      }
+    },
+    "cell_bank_account_2": {
+      "description": "value in the row labelled \"Bank account\"",
+      "strategies": [
+        {
+          "kind": "same_row",
+          "label": "Bank account",
+          "take": "value",
+          "why": "the row's label cell leads to it",
+          "matched_at_record": "1 of 1, same element as ref"
+        }
+      ],
+      "fingerprint": {
+        "role": "cell",
+        "tag": "td",
+        "row_label": "Bank account"
+      }
+    }
+  },
+  "provenance": {
+    "trace_run_id": "discovery_record_payment",
+    "trace_sha256": "4e4e626b024416ae6b105a333115d4bcefc1624cb87046eebaad05ee58eecd0e",
+    "discovered_by": "aaron",
+    "compiler": "cua.compiler/v0"
+  }
+}
