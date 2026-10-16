@@ -48,7 +48,8 @@ class Summary(_M):
     cases: list[CaseRun]
 
 
-def compare(case: Case, result: RunResult, truth: dict[str, str], declared_outputs: list[str]) -> list[str]:
+def compare(case: Case, result: RunResult, truth: dict[str, str], declared_outputs: list[str],
+            payments: list[str] | None = None) -> list[str]:
     """Why the run does not match the case (empty = it does). `truth` maps an output name to the oracle's value."""
     e = case.expect
     bad: list[str] = []
@@ -56,7 +57,7 @@ def compare(case: Case, result: RunResult, truth: dict[str, str], declared_outpu
         bad.append(f"status {result.status!r}, expected {e.status!r}")
     if result.outcome != e.outcome:
         bad.append(f"outcome {result.outcome!r}, expected {e.outcome!r}")
-    if result.failure is not None and e.status != "failure":
+    if result.failure is not None and e.status not in ("failure", "indeterminate"):
         bad.append(f"unexpected failure {result.failure.code}")
     expected = dict(e.outputs)
     for name, value in truth.items():
@@ -73,6 +74,8 @@ def compare(case: Case, result: RunResult, truth: dict[str, str], declared_outpu
         bad.append(f"outputs {sorted(result.outputs)}, declared {sorted(declared_outputs)}")
     if sorted(r.handler for r in result.recoveries) != sorted(e.recoveries):
         bad.append(f"recoveries {sorted(r.handler for r in result.recoveries)}, expected {sorted(e.recoveries)}")
+    if e.payments is not None and payments != sorted(e.payments.amounts):
+        bad.append(f"payments on the invoice are {payments}, expected {sorted(e.payments.amounts)}")
     if result.drift and not e.allow_drift:
         bad.append(f"{len(result.drift)} target(s) needed a fallback strategy")
     return bad

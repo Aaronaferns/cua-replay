@@ -15,6 +15,8 @@ from cua.artifact.schema import EFFECT_RANK, ClickAction, Effect, Profile, Step,
 
 COMMIT_WORDS = re.compile(r"\b(validate|confirm|pay|payment|paiement|delete|remove|approve)\b", re.IGNORECASE)
 
+LINK_COMMIT_WORDS = re.compile(r"\b(validate|confirm|delete|remove|approve)\b", re.IGNORECASE)  # "Enter payment" only opens the form
+
 
 def derived_effect(profile: Profile, step: Step, *, url: str | None, target: Target | None, dirty: bool,
                    prompts: bool = False) -> Effect:
@@ -26,7 +28,8 @@ def derived_effect(profile: Profile, step: Step, *, url: str | None, target: Tar
         found = "commit"
     if isinstance(step.do, ClickAction) and target is not None:
         names = [s.name for s in target.strategies if s.name]
-        if any(COMMIT_WORDS.search(n) for n in names) and not (prompts and step.effect != "commit"):
+        words = LINK_COMMIT_WORDS if target.fingerprint.role == "link" else COMMIT_WORDS
+        if any(words.search(n) for n in names) and not (prompts and step.effect != "commit"):
             found = "commit"
         if dirty and not names and target.fingerprint.input_type == "submit":
             found = "commit"
