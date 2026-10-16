@@ -213,7 +213,6 @@ class Escalation:
         self.checkpoint = checkpoint
         self.extract_outputs = extract_outputs
         self.outcome: EscalationOutcome | None = None
-        self.claimed_by: str | None = None
         self.verdict: Verdict | None = None
         self.review = False
         self.busy = False
@@ -563,7 +562,6 @@ class InterventionHub:
             raise self._refuse("claim", item, operator, ConsoleError(409, "not_claimable", str(e))) from e
         except ConsoleError as e:
             raise self._refuse("claim", item, operator, e) from e
-        item.claimed_by = operator
         self._log("claim", item, operator, ok=True, generation=token.generation)
         return token
 

@@ -479,6 +479,3 @@ class Profile(_Strict):
 
     def is_a(self, state: str, other: str) -> bool:
         return state == other or other in self.ancestors(state)
-
-    def specializations(self, state: str) -> list[str]:
-        return sorted(s for s in self.states if state in self.ancestors(s))

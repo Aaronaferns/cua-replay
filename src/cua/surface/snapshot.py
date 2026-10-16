@@ -139,20 +139,9 @@ def refs(text: str) -> list[str]:
     return _REF.findall(text)
 
 
-def node_for_ref(text: str, ref: str) -> Node | None:
-    for node in parse(text):
-        if node.ref == ref:
-            return node
-    return None
-
-
 def first_line_node(text: str) -> Node | None:
     """The element's own node in a `depth=0` element snapshot."""
-    for line in text.splitlines():
-        node = parse_line(line)
-        if node is not None:
-            return node
-    return None
+    return next(filter(None, map(parse_line, text.splitlines())), None)
 
 
 def link_names(text: str) -> list[str]:

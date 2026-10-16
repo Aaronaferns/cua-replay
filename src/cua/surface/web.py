@@ -99,8 +99,7 @@ _JS_PATH = """(el) => {
 }"""
 
 
-def _js_fingerprint() -> str:
-    return """(el) => {
+_JS_FINGERPRINT = """(el) => {
       const tag = el.tagName.toLowerCase();
       const inputType = tag === 'input' ? (el.getAttribute('type') || 'text').toLowerCase() : null;
       const cell = el.closest('td, th');
@@ -284,10 +283,7 @@ class WebSurface:
         text = await target.aria_snapshot(timeout=self._action_timeout)
         dialogs = self._page.locator(self._scope.dialogs).filter(visible=True)
         n = await dialogs.count()
-        parts = [text]
-        for i in range(n):
-            parts.append(await dialogs.nth(i).aria_snapshot(timeout=self._action_timeout))
-        return "\x00".join(parts)
+        return "\x00".join([text, *[await dialogs.nth(i).aria_snapshot(timeout=self._action_timeout) for i in range(n)]])
 
     async def observe(self, *, screenshot: bool = True, settle: bool = False) -> Observation:
         if settle:
@@ -558,7 +554,7 @@ class WebSurface:
 
     async def fingerprint(self, element: WebElement) -> Fingerprint:
         try:
-            info = await element.locator.evaluate(_js_fingerprint(), timeout=self._action_timeout)
+            info = await element.locator.evaluate(_JS_FINGERPRINT, timeout=self._action_timeout)
         except PlaywrightError as e:
             raise _safe_error("fingerprint", e) from None
         return Fingerprint(
