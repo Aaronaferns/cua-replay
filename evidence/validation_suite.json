@@ -1,0 +1,63 @@
+{
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "version": "1.0.0",
+  "n": 3,
+  "cases": [
+    {
+      "id": "alpha_two_unpaid_invoices",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "beta_other_customer",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "not_found",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "nearest_match",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "no_rights_user",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "session_expired",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "interstitial_recovered",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "unknown_dialog",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "app_error",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "slow_within_timeout",
+      "runs": 3,
+      "passed": 3
+    },
+    {
+      "id": "slow_beyond_timeout",
+      "runs": 3,
+      "passed": 3
+    }
+  ],
+  "flakes": []
+}

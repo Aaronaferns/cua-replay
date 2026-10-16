@@ -1,0 +1,35 @@
+{
+  "run_id": "evid-20261015-221609-pay_other_invoice",
+  "capability": "dolibarr.record_invoice_payment",
+  "version": "1.0.0",
+  "lock_hash": "bc3d3a7c49c4e27987254135bc17181a9d8de6435a584bc29974635693c461ac",
+  "status": "failure",
+  "outcome": "POLICY_DENIED",
+  "outputs": {},
+  "failure": {
+    "code": "POLICY_DENIED",
+    "category": "policy",
+    "step_id": null,
+    "step_intent": null,
+    "expected": null,
+    "observed": null,
+    "detail": "path_rules: path matches a deny rule",
+    "evidence": [
+      "failure/run.png",
+      "failure/run.snapshot.json"
+    ],
+    "approvable": false
+  },
+  "recoveries": [],
+  "drift": [],
+  "side_effects": {
+    "commit_state": "none",
+    "by": null,
+    "request_id": "w7d-evid-20261015-221609-pay_other_invoice"
+  },
+  "retry_safe": true,
+  "interventions": [],
+  "timings": {
+    "total_ms": 125
+  }
+}

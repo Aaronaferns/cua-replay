@@ -1,0 +1,47 @@
+{
+  "run_id": "evid-20261015-221609-pay_other_invoice",
+  "status": "closed",
+  "created": "2026-10-16T02:16:18.391253+00:00",
+  "updated": "2026-10-16T02:16:19.668124+00:00",
+  "events": 4,
+  "redaction": {
+    "known_values": 14,
+    "patterns": [
+      "header",
+      "bearer",
+      "session_id",
+      "token_param",
+      "token_field",
+      "token_json",
+      "ssn",
+      "email"
+    ]
+  },
+  "files": [
+    {
+      "path": "events.jsonl",
+      "bytes": 1487,
+      "sha256": "13906b3e096454d06b3bcc7b42b1319200af6a92e139e81f38978fe602203a6e"
+    },
+    {
+      "path": "failure/run.png",
+      "bytes": 5626,
+      "sha256": "a24cca4eaaaa01c2bde82e985e7a5ec84cdd39d82989fd1978b770adcb05a5aa"
+    },
+    {
+      "path": "failure/run.snapshot.json",
+      "bytes": 243,
+      "sha256": "e823948832d3981fb4783b2b18a15eeb214748277e15a19a54b829aaf972c580"
+    },
+    {
+      "path": "ground_truth.json",
+      "bytes": 1105,
+      "sha256": "6822114a963375ff363e2a4be7fb8ebf56e8b85e8b9f439cd7c7c4eab35d18ea"
+    },
+    {
+      "path": "result.json",
+      "bytes": 862,
+      "sha256": "f3bded2e44e67e3be09854b0f87991e4118ba62180b8acf4f0da4a751f82e32f"
+    }
+  ]
+}

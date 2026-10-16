@@ -1,0 +1,14 @@
+{
+  "step_id": null,
+  "epoch": 1,
+  "facts": {
+    "url": "about:blank",
+    "title": "",
+    "dialog": null,
+    "native_dialog": null,
+    "frames_unavailable": false
+  },
+  "snapshot": "",
+  "dialog_snapshot": null,
+  "menu_summary": []
+}

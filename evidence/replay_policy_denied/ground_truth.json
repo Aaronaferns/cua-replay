@@ -1,0 +1,44 @@
+{
+  "schema": "cua.ground_truth/v1",
+  "source": "Dolibarr REST (admin key): a side channel the replay never uses",
+  "capability": "dolibarr.record_invoice_payment",
+  "case": "pay_other_invoice",
+  "inputs": {
+    "invoice_ref": "FA2610-0039",
+    "amount": "25.00",
+    "method": "Cash",
+    "bank_account": "CUA Seed Operating Account (EUR)",
+    "request_id": "w7d-evid-20261015-221609-pay_other_invoice"
+  },
+  "faults": [],
+  "before": {
+    "state_sha256": "0f161ffea190c2c82f1ef2487c771b4b1307fd9b9f1ad6473abe4284b2b65ab4",
+    "oracles": {},
+    "payments": {
+      "invoice_id": "460",
+      "count": 0,
+      "amounts": []
+    }
+  },
+  "after": {
+    "state_sha256": "0f161ffea190c2c82f1ef2487c771b4b1307fd9b9f1ad6473abe4284b2b65ab4",
+    "oracles": {},
+    "payments": {
+      "invoice_id": "460",
+      "count": 0,
+      "amounts": []
+    }
+  },
+  "rest_state_unchanged": true,
+  "new_payments": 0,
+  "expected": {
+    "status": "failure",
+    "outcome": "POLICY_DENIED"
+  },
+  "actual": {
+    "status": "failure",
+    "outcome": "POLICY_DENIED",
+    "outputs": {}
+  },
+  "mismatches": []
+}
