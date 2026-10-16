@@ -203,7 +203,7 @@ async def test_suite_case_faults_run_as_and_session_expiry_are_honoured(tmp_path
     beta.update(faults=[{"kind": "slow:250", "match": "/societe/**"}], run_as="noperm",
                 expire_session_before="s02_open_card")
     suite_path.write_text(json.dumps(doc), encoding="utf-8")
-    monkeypatch.setattr("cua.replay.commands._noperm_login", lambda: "noperm")
+    monkeypatch.setattr("cua.replay.commands.noperm_login", lambda: "noperm")
     expired = []
     monkeypatch.setattr("cua.evidence.commands._expire_session", lambda: expired.append(1))
     world = FakeWorld(tmp_path)

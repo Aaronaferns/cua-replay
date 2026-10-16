@@ -24,6 +24,7 @@ def caps(tmp_path, monkeypatch):
     monkeypatch.setattr(commands, "capabilities_dir", lambda: tmp_path / "capabilities")
     monkeypatch.setattr(commands, "approvals_dir", lambda: tmp_path / "approvals")
     monkeypatch.setattr(commands, "validation_dir", lambda: tmp_path / "validation")
+    monkeypatch.setattr(commands, "evidence_dir", lambda: tmp_path)
     (tmp_path / "capabilities" / "dolibarr").mkdir(parents=True)
     return tmp_path / "capabilities" / "dolibarr"
 

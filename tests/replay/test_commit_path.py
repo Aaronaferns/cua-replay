@@ -217,3 +217,27 @@ async def test_resume_after_human_commit_never_commits(ledger, tmp_path):
     assert ledger.state("req-1") == "DONE"
     again = await run(w, ledger=ledger)  # even the same request_id again must not pay twice
     assert again.status == "success" and w.clicks == 0
+
+
+async def test_static_policy_preflight_denies_the_payment_route_before_any_ui_action(ledger):
+    from fakes import lease as current_lease
+
+    from cua.safety.policy import PolicyGuard, load_policy
+
+    policy = load_policy("dolibarr-sandbox-deny-payment", variables={"DOLIBARR_PORT": "8086"})
+    w = PayWorld(PolicyGuard(policy, current_lease), "ok")
+    r = await run(w, ledger=ledger)
+    assert (r.status, r.outcome) == ("failure", "POLICY_DENIED")
+    assert r.failure.category == "policy" and r.side_effects.commit_state == "none"
+    assert w.log == [] and w.clicks == 0 and w.payments == [] and w.url == BASE + "/"  # nothing was touched
+    assert ledger.state("req-1") is None  # the request was not even registered
+
+
+async def test_the_commit_policy_passes_the_same_preflight(ledger):
+    from fakes import lease as current_lease
+
+    from cua.safety.policy import PolicyGuard, load_policy
+
+    policy = load_policy("dolibarr-sandbox-commit", variables={"DOLIBARR_PORT": "8086"})
+    w = PayWorld(PolicyGuard(policy, current_lease), "ok")
+    assert (await run(w, ledger=ledger)).status == "success" and w.payments == ["50.00"]

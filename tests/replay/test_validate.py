@@ -81,6 +81,36 @@ def test_validate_repeat_runs_the_whole_suite_n_times(caps, harness):
     assert len({c["run_id"] for c in s["cases"]}) == 6
 
 
+def test_repeat_writes_the_suite_report_and_names_flakes(caps, harness, monkeypatch):
+    put_suite(caps, suite_doc())
+    seen = iter(["1234.50", "1.00", "1234.50"])  # the oracle disagrees with itself once: case "second" flakes
+    monkeypatch.setattr(commands, "_oracle", lambda name, value: next(seen))
+    assert main(["validate", "dolibarr.lookup_customer_outstanding", "--repeat", "3", "--run-id", "val-t6"]) == 1
+    report = json.loads((commands.evidence_dir() / "validation_suite.json").read_text(encoding="utf-8"))
+    assert report["n"] == 3 and report["flakes"] == ["second"]
+    assert {c["id"]: c["passed"] for c in report["cases"]} == {"first": 3, "second": 2, "bad_code": 3}
+
+
+def test_a_single_run_does_not_write_the_suite_report(caps, harness):
+    put_suite(caps, suite_doc())
+    assert main(["validate", "dolibarr.lookup_customer_outstanding", "--run-id", "val-t7"]) == 0
+    assert not (commands.evidence_dir() / "validation_suite.json").exists()
+
+
+def test_validate_gives_replay_no_hub(caps, harness, monkeypatch):
+    put_suite(caps, suite_doc())
+    hubs = []
+
+    async def spy(*args, **kw):
+        hubs.append(kw["hub"])
+        return RunResult(run_id="r", capability="dolibarr.lookup_customer_outstanding", version="1.0.0",
+                         lock_hash="x" * 64, status="failure", outcome="INPUT_INVALID", retry_safe=True)
+
+    monkeypatch.setattr(commands, "replay", spy)
+    main(["validate", "dolibarr.lookup_customer_outstanding", "--run-id", "val-t8"])
+    assert hubs and all(h is None for h in hubs)
+
+
 def test_a_mismatch_fails_the_run_and_names_it_without_values(caps, harness, capsys):
     doc = suite_doc()
     doc["cases"][0]["expect"]["outputs"]["outstanding_amount"] = "99.99"
