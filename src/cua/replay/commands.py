@@ -57,7 +57,7 @@ from cua.config import target_tools as _target_tools
 from cua.replay.commit_ledger import CommitLedger
 from cua.replay.interpreter import Credentials, replay
 from cua.replay.result import RunResult
-from cua.surface.login import CaptchaRequired
+from cua.surface.login import CaptchaRequired, LoginFailed
 
 EXIT_SUCCESS, EXIT_FAILURE, EXIT_USAGE, EXIT_BUSINESS_OUTCOME, EXIT_INDETERMINATE = 0, 1, 2, 3, 4
 EXIT_CODES = {
@@ -86,6 +86,10 @@ def _usage_errors(command: Callable[[argparse.Namespace], int]) -> Callable[[arg
             print(f"error: {e}", file=sys.stderr)
         except (OSError, ValueError) as e:
             print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
+        except LoginFailed as e:
+            print(f"error: login failed: {e}. Check that the target on DOLIBARR_PORT was set up from this checkout's "
+                  ".env (run `uv run cua demo up`), and that no other checkout's target uses the same port.",
+                  file=sys.stderr)
         return EXIT_USAGE
 
     return run

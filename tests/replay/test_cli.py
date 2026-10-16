@@ -149,3 +149,14 @@ def test_compile_refuses_a_name_from_another_app(tmp_path, capsys):
     trace.write_text(build_trace().model_dump_json(by_alias=True), encoding="utf-8")
     assert main(["compile", str(trace), "--name", "other.thing", "--out", str(tmp_path / "o.json")]) == 2
     assert not (tmp_path / "o.json").exists()
+
+
+def test_a_failed_login_is_one_line_naming_the_port_not_a_traceback(capsys):
+    from cua.surface.login import LoginFailed
+
+    def boom(args):
+        raise LoginFailed("the login form is still shown after submitting")
+
+    assert commands._usage_errors(boom)(None) == commands.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert err.startswith("error: login failed") and "DOLIBARR_PORT" in err and "Traceback" not in err
