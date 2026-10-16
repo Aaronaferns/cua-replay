@@ -283,3 +283,26 @@ async def test_scope_is_configurable(open_page):
     obs = await surface.observe(screenshot=False)
     assert 'link "Customer"' in obs.snapshot and "Customer Code" not in obs.snapshot
     assert surface.describe()["scope"]["main"] == ".tabs"
+
+
+async def test_an_abandoned_page_operation_does_not_leak_an_unretrieved_exception():
+    # a step timeout cancels the surface call; the operation's late failure must be read, not logged as "never retrieved"
+    import asyncio
+    import gc
+
+    from cua.surface.web import WebSurface
+
+    async def late_failure():
+        await asyncio.sleep(0.05)
+        raise RuntimeError("net::ERR_ABORTED")
+
+    surface = WebSurface.__new__(WebSurface)
+    surface._native, surface._native_event = None, asyncio.Event()
+    leaked = []
+    asyncio.get_running_loop().set_exception_handler(lambda loop, ctx: leaked.append(ctx))
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(surface._race_native(late_failure()), 0.01)
+    await asyncio.sleep(0.1)
+    gc.collect()
+    await asyncio.sleep(0)
+    assert leaked == []

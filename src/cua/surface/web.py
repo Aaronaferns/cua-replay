@@ -237,14 +237,19 @@ class WebSurface:
             raise NativeDialogOpen("a native dialog is blocking the page")
         task = asyncio.ensure_future(aw)
         waiter = asyncio.ensure_future(self._native_event.wait())
+        collect = lambda t: t.cancelled() or t.exception()  # noqa: E731  (read a late outcome so nothing leaks)
         try:
             done, _ = await asyncio.wait({task, waiter}, return_when=asyncio.FIRST_COMPLETED)
+        except BaseException:  # the caller gave up (a step timeout cancels us): abandon the operation quietly
+            task.cancel()
+            task.add_done_callback(collect)
+            raise
         finally:
             waiter.cancel()
         if task in done:
             return task.result()
         # The operation stays blocked behind the dialog; collect its outcome later so nothing leaks.
-        task.add_done_callback(lambda t: t.cancelled() or t.exception())
+        task.add_done_callback(collect)
         raise NativeDialogOpen("a native dialog is blocking the page")
 
     # -- observation -------------------------------------------------------------------------------------------
