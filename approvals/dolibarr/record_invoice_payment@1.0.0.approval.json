@@ -1,0 +1,10 @@
+{
+  "capability": "dolibarr.record_invoice_payment",
+  "version": "1.0.0",
+  "lock_hash": "bc3d3a7c49c4e27987254135bc17181a9d8de6435a584bc29974635693c461ac",
+  "approver": "aaronferns",
+  "at": "2026-10-16T01:54:09.191577Z",
+  "validation_run_ids": [
+    "val-m6-gate"
+  ]
+}

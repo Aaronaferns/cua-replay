@@ -1,0 +1,10 @@
+{
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "version": "1.0.0",
+  "lock_hash": "6b9488eec2466f2c5bcef60c45968d4e75304af7f41963fc202a090100d51341",
+  "approver": "aaronferns",
+  "at": "2026-10-16T01:53:54.571974Z",
+  "validation_run_ids": [
+    "val-m6-lookup"
+  ]
+}
