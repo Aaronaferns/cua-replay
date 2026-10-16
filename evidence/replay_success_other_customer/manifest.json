@@ -1,11 +1,11 @@
 {
-  "run_id": "replay_success_other_customer",
+  "run_id": "evid-20261016-193038-beta_other_customer",
   "status": "closed",
-  "created": "2026-10-12T16:25:38.757313+00:00",
-  "updated": "2026-10-12T16:25:38.780394+00:00",
+  "created": "2026-10-16T23:30:51.692118+00:00",
+  "updated": "2026-10-16T23:31:04.983230+00:00",
   "events": 31,
   "redaction": {
-    "known_values": 8,
+    "known_values": 14,
     "patterns": [
       "header",
       "bearer",
@@ -19,19 +19,19 @@
   },
   "files": [
     {
-      "path": "capability.json",
-      "bytes": 5828,
-      "sha256": "bb580f0f080181648fc0cb63b03d275d34aedb5d8cb6118f258e2bc2c34e2e34"
+      "path": "events.jsonl",
+      "bytes": 14559,
+      "sha256": "c6982e5560daa03538f5843f3cb575ce85636095e6f5b6e598f811e884f4c182"
     },
     {
-      "path": "events.jsonl",
-      "bytes": 14218,
-      "sha256": "327feac1554d62b4e6b37a884212bae50360a7e4844af1590486f70ef24eaa1c"
+      "path": "ground_truth.json",
+      "bytes": 863,
+      "sha256": "2fa2712bbafe9acb493a5852be5ffb9d9d166f39bd9ed4413a8c301e1d628fe6"
     },
     {
       "path": "result.json",
-      "bytes": 912,
-      "sha256": "0e0c6d62f966dda5ba4c8a560d537a4f9c8d97c7396465fe3b3fb2ab1b0f76e8"
+      "bytes": 650,
+      "sha256": "39f2b0d289abcb1df16341fd81e54b5219f2a4b4509d99fda1ecb9adc2c34f34"
     }
   ]
 }

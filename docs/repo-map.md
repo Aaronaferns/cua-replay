@@ -203,7 +203,7 @@ Files inside a bundle:
 | `ground_truth.json` | REST API state before and after (replay bundles), and the declared faults |
 | `trace.json` | The recorded discovery trace (discovery bundles) |
 | `transcript.json` | The full model conversation (discovery bundles) |
-| `capability.draft.json` / `capability.json` | The capability compiled from, or replayed in, this run |
+| `capability.draft.json` | The capability compiled from this run (discovery bundles) |
 | `screenshots/NN-*.png` | A screenshot per discovery step |
 | `failure/*.png`, `failure/*.snapshot.json` | Masked screenshot and snapshot where the run stopped |
 | `interventions/*.json` | Requests for a person (CAPTCHA, unknown commit, commit approval) |
