@@ -7,12 +7,20 @@ Secrets are `SecretStr`: they print as '**********' and are only unwrapped at th
 from __future__ import annotations
 
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def target_tools() -> None:
+    """Make the fixtures helpers (`target/dolibarr`) importable. Imported lazily, inside the commands that need them."""
+    path = str(REPO_ROOT / "target" / "dolibarr")
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 
 def _read_dotenv(path: Path) -> dict[str, str]:

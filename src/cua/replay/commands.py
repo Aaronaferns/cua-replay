@@ -26,10 +26,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import functools
 import json
 import re
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -51,6 +53,7 @@ from cua.artifact.suite import Case, Suite, suite_problems
 from cua.artifact.validate import validate_capability
 from cua.replay.suite import CaseRun, Summary, check_validation_runs, compare
 from cua.config import REPO_ROOT
+from cua.config import target_tools as _target_tools
 from cua.replay.commit_ledger import CommitLedger
 from cua.replay.interpreter import Credentials, replay
 from cua.replay.result import RunResult
@@ -70,6 +73,22 @@ _VERSIONED = re.compile(r"(?P<cap>.+)@(?P<ver>\d+\.\d+\.\d+)(?P<draft>\.draft)?\
 
 class CommandError(Exception):
     """The command could not run; the message is for the person at the terminal."""
+
+
+def _usage_errors(command: Callable[[argparse.Namespace], int]) -> Callable[[argparse.Namespace], int]:
+    """A command that could not run (bad arguments, unreadable or invalid files) exits EXIT_USAGE with one line."""
+
+    @functools.wraps(command)
+    def run(args: argparse.Namespace) -> int:
+        try:
+            return command(args)
+        except CommandError as e:
+            print(f"error: {e}", file=sys.stderr)
+        except (OSError, ValueError) as e:
+            print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
+        return EXIT_USAGE
+
+    return run
 
 
 def capabilities_dir() -> Path:
@@ -180,6 +199,15 @@ def noperm_login() -> str:
     return seed.load_fixtures().noperm_login
 
 
+def credentials_for(cfg: Any, run_as: str | None) -> Credentials | None:
+    """The scripted login's credentials: the no-rights user for `run_as="noperm"`, else the run user (if configured)."""
+    if run_as == "noperm":
+        return Credentials(noperm_login(), cfg.cua_noperm_password.get_secret_value())
+    if cfg.cua_run_password is None:
+        return None
+    return Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
+
+
 async def _execute(
     capability: Capability, inputs: dict[str, str], *, run_id: str, headed: bool = False, case: Case | None = None,
     handoff: bool = False, draft: bool = False,
@@ -202,12 +230,7 @@ async def _execute(
         problems = validate_capability(capability, session.profile)
         if problems:
             raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
-        cfg = session.settings
-        if run_as == "noperm":
-            credentials = Credentials(noperm_login(), cfg.cua_noperm_password.get_secret_value())
-        else:
-            credentials = (Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
-                           if cfg.cua_run_password is not None else None)
+        credentials = credentials_for(session.settings, run_as)
         installation = None
         if case and case.faults:
             from cua.evidence.commands import build_faults
@@ -273,66 +296,49 @@ async def run_replay(args: argparse.Namespace) -> tuple[RunResult | None, int]:
     return result, EXIT_CODES[result.status]
 
 
+@_usage_errors
 def cmd_replay(args: argparse.Namespace) -> int:
-    try:
-        result, code = asyncio.run(run_replay(args))
-    except CommandError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return EXIT_USAGE
-    except (OSError, ValueError) as e:  # unreadable or invalid artifact files, a session that would not open
-        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
-        return EXIT_USAGE
+    result, code = asyncio.run(run_replay(args))  # OSError / ValueError: invalid artifacts, a session that won't open
     assert result is not None
     print(result.model_dump_json(indent=2) if args.json else render(result))
     return code
 
 
+@_usage_errors
 def cmd_review(args: argparse.Namespace) -> int:
     from cua.compiler.review_card import render_review_card  # lazy: replay itself never needs the compiler
 
-    try:
-        path, _ = find_capability_file(args.capability, args.version)
-        capability = load_capability(path)
-        text = render_review_card(capability, load_profile(profile_path_of(capability.app)))
-        out = Path(args.out) if args.out else path.with_name(f"{capability.name}@{capability.version}.review.md")
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_bytes(text.encode("utf-8"))  # bytes: LF on every platform
-    except CommandError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return EXIT_USAGE
-    except (OSError, ValueError) as e:
-        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
-        return EXIT_USAGE
+    path, _ = find_capability_file(args.capability, args.version)
+    capability = load_capability(path)
+    text = render_review_card(capability, load_profile(profile_path_of(capability.app)))
+    out = Path(args.out) if args.out else path.with_name(f"{capability.name}@{capability.version}.review.md")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(text.encode("utf-8"))  # bytes: LF on every platform
     print(f"wrote {out}")
     return EXIT_SUCCESS
 
 
+@_usage_errors
 def cmd_compile(args: argparse.Namespace) -> int:
     from cua.compiler.compile import CompileError, compile_to_json  # lazy: replay itself never needs the compiler
     from cua.compiler.trace import RecordedTrace
 
+    app, cap_name = _split_name(args.name)
+    profile_path = Path(args.profile)
+    if not profile_path.is_absolute() and not profile_path.exists():
+        profile_path = REPO_ROOT / profile_path
+    trace = RecordedTrace.model_validate_json(Path(args.trace).read_bytes())
+    if trace.app != app:
+        raise CommandError(f"--name is for app {app!r} but the trace is from app {trace.app!r}")
     try:
-        app, cap_name = _split_name(args.name)
-        profile_path = Path(args.profile)
-        if not profile_path.is_absolute() and not profile_path.exists():
-            profile_path = REPO_ROOT / profile_path
-        trace = RecordedTrace.model_validate_json(Path(args.trace).read_bytes())
-        if trace.app != app:
-            raise CommandError(f"--name is for app {app!r} but the trace is from app {trace.app!r}")
         text = compile_to_json(trace, load_profile(profile_path), name=cap_name,
                                discovered_by=args.discovered_by or trace.model, version=args.version,
                                title=args.title, description=args.description)
-    except CommandError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return EXIT_USAGE
     except CompileError as e:
         print("error: the trace does not compile:", file=sys.stderr)
         for problem in e.problems:
             print(f"  - {problem}", file=sys.stderr)
         return EXIT_FAILURE
-    except (OSError, ValueError) as e:
-        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
-        return EXIT_USAGE
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text.encode("utf-8"))  # bytes: LF on every platform, the file the lock hash is computed from
@@ -340,39 +346,33 @@ def cmd_compile(args: argparse.Namespace) -> int:
     return EXIT_SUCCESS
 
 
+@_usage_errors
 def cmd_approve(args: argparse.Namespace) -> int:
+    path, draft = find_capability_file(args.capability, args.version)
+    if draft:
+        raise CommandError(f"{path.name} is a draft: review it and promote it to a final "
+                           f"{path.name.replace('.draft', '')} before approving")
+    capability = load_capability(path)
+    profile = load_profile(profile_path_of(capability.app))
+    if problems := validate_capability(capability, profile):
+        raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
+    run_ids = list(dict.fromkeys(args.run))
     try:
-        path, draft = find_capability_file(args.capability, args.version)
-        if draft:
-            raise CommandError(f"{path.name} is a draft: review it and promote it to a final "
-                               f"{path.name.replace('.draft', '')} before approving")
-        capability = load_capability(path)
-        profile = load_profile(profile_path_of(capability.app))
-        if problems := validate_capability(capability, profile):
-            raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
-        run_ids = list(dict.fromkeys(args.run))
-        try:
-            approval = approve(capability, profile, approver=args.approver, at=datetime.now(UTC),
-                               validation_run_ids=run_ids)
-        except SelfApprovalError as e:
-            print(f"refused: {e}", file=sys.stderr)
-            return EXIT_FAILURE
-        problems = check_validation_runs(validation_dir(), run_ids, capability=capability.id,
-                                         version=capability.version, lock_hash=approval.lock_hash)
-        if problems:
-            print("refused: the cited validation runs do not support this approval:", file=sys.stderr)
-            for problem in problems:
-                print(f"  - {problem}", file=sys.stderr)
-            return EXIT_FAILURE
-        out = sidecar_path(approvals_dir(), capability)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_bytes(dumps_approval(approval).encode("utf-8"))
-    except CommandError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return EXIT_USAGE
-    except (OSError, ValueError) as e:
-        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
-        return EXIT_USAGE
+        approval = approve(capability, profile, approver=args.approver, at=datetime.now(UTC),
+                           validation_run_ids=run_ids)
+    except SelfApprovalError as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return EXIT_FAILURE
+    problems = check_validation_runs(validation_dir(), run_ids, capability=capability.id,
+                                     version=capability.version, lock_hash=approval.lock_hash)
+    if problems:
+        print("refused: the cited validation runs do not support this approval:", file=sys.stderr)
+        for problem in problems:
+            print(f"  - {problem}", file=sys.stderr)
+        return EXIT_FAILURE
+    out = sidecar_path(approvals_dir(), capability)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(dumps_approval(approval).encode("utf-8"))
     print(f"approved {capability.id}@{capability.version} (lock {approval.lock_hash[:12]}) -> {out}")
     return EXIT_SUCCESS
 
@@ -414,13 +414,6 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
 
 
 # --- validate: fixtures path only (reset the target, consult an oracle), never replay itself -----------------------
-
-
-def _target_tools() -> None:
-    """Make the fixtures helpers (`target/dolibarr`) importable. Imported lazily, inside the commands that need them."""
-    path = str(REPO_ROOT / "target" / "dolibarr")
-    if path not in sys.path:
-        sys.path.insert(0, path)
 
 
 def _reset_target() -> None:
@@ -532,15 +525,9 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
     return summary, EXIT_SUCCESS if summary.passed else EXIT_FAILURE
 
 
+@_usage_errors
 def cmd_validate(args: argparse.Namespace) -> int:
-    try:
-        summary, code = asyncio.run(run_validate(args))
-    except CommandError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return EXIT_USAGE
-    except (OSError, ValueError) as e:
-        print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
-        return EXIT_USAGE
+    summary, code = asyncio.run(run_validate(args))
     if args.json:
         print(summary.model_dump_json(by_alias=True, indent=2))
     else:

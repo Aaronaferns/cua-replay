@@ -61,17 +61,14 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from cua.config import target_tools as _target_tools
 from cua.safety.redact import safe_error_message
 
 EXIT_OK, EXIT_MISMATCH, EXIT_USAGE = 0, 1, 2
 FAULTS_SCHEMA = "cua.faults/v1"
 
 
-class _Strict(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
-
-
-class FaultsFile(_Strict):
+class FaultsFile(BaseModel):
     model_config = ConfigDict(
         extra="forbid", frozen=True, hide_input_in_errors=True, validate_by_name=True, validate_by_alias=True
     )
@@ -158,14 +155,6 @@ def _captcha(on: bool) -> None:
     import dolictl
 
     dolictl.run_script("captcha.sh", "on" if on else "off")
-
-
-def _target_tools() -> None:
-    from cua.config import REPO_ROOT
-
-    path = str(REPO_ROOT / "target" / "dolibarr")
-    if path not in sys.path:
-        sys.path.insert(0, path)
 
 
 def _expire_session() -> None:
@@ -266,7 +255,7 @@ async def make_case_evidence(
     policy: str | None = None,
 ) -> CaseOutcome:
     from cua.artifact.validate import validate_capability
-    from cua.replay.interpreter import Credentials
+    from cua.replay.commands import credentials_for
     from cua.replay.suite import compare
 
     run_id = f"evid-{stamp}-{case.id}"[:100]
@@ -313,17 +302,8 @@ async def make_case_evidence(
 
                 context = session.surface.page.context
                 installation = await install_faults(context, session.policy, faults, on_fault=on_fault)
-            cfg = session.settings
-            credentials = (
-                Credentials(cfg.cua_run_login, cfg.cua_run_password.get_secret_value())
-                if cfg.cua_run_password is not None
-                else None
-            )
+            credentials = credentials_for(session.settings, case.run_as)
             extra: dict[str, Any] = {}
-            if case.run_as == "noperm":
-                from cua.replay.commands import noperm_login
-
-                credentials = Credentials(noperm_login(), cfg.cua_noperm_password.get_secret_value())
             if case.expire_session_before:
                 expired = False
 
@@ -368,7 +348,7 @@ async def make_case_evidence(
                 "capability": capability.id,
                 "case": case.id,
                 "inputs": inputs,
-                "faults": [{k: v for k, v in s.items()} for s in fault_specs],
+                "faults": [dict(s) for s in fault_specs],
                 "before": before,
                 "after": after,
                 "rest_state_unchanged": before["state_sha256"] == after["state_sha256"],
