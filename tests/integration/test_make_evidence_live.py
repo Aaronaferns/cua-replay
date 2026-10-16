@@ -33,6 +33,7 @@ async def test_make_evidence_regenerates_bundles_with_rest_ground_truth_and_decl
     args = argparse.Namespace(
         capability="dolibarr.lookup_customer_outstanding", version=None, cases="alpha,unknown_customer",
         out=str(tmp_path / "evidence"), runs_root=str(tmp_path / "runs"), capabilities_dir=str(caps),
+        handoff=False, console=False, name=None,
     )
     outcomes, code = await run_make_evidence(args)
     assert code == 0, [(o.case_id, o.mismatches, o.error) for o in outcomes]

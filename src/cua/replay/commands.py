@@ -54,6 +54,7 @@ from cua.config import REPO_ROOT
 from cua.replay.commit_ledger import CommitLedger
 from cua.replay.interpreter import Credentials, replay
 from cua.replay.result import RunResult
+from cua.surface.login import CaptchaRequired
 
 EXIT_SUCCESS, EXIT_FAILURE, EXIT_USAGE, EXIT_BUSINESS_OUTCOME, EXIT_INDETERMINATE = 0, 1, 2, 3, 4
 EXIT_CODES = {
@@ -185,8 +186,15 @@ async def _execute(
     profile_path = profile_path_of(capability.app)
     run_as = case.run_as if case else None
     policy = f"{capability.app}-sandbox-commit" if capability.effect == "commit" else f"{capability.app}-sandbox"
-    async with _open_session(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay", policy=policy,
-                             login=run_as is None and not handoff) as session:  # handoff: replay logs in, so a CAPTCHA escalates
+    open_kw = dict(run_id=run_id, profile=str(profile_path), headed=headed, actor="replay", policy=policy)
+    async with contextlib.AsyncExitStack() as opened:
+        try:
+            session = await opened.enter_async_context(_open_session(**open_kw, login=run_as is None))
+        except CaptchaRequired:  # only the login at session open: nothing has run yet
+            if not handoff or run_as is not None:
+                raise
+            # interactive: replay logs in itself, so the CAPTCHA escalates to the live console
+            session = await opened.enter_async_context(_open_session(**open_kw, login=False))
         problems = validate_capability(capability, session.profile)
         if problems:
             raise CommandError("capability does not validate against the app profile: " + "; ".join(problems))
