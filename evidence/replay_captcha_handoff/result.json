@@ -1,8 +1,8 @@
 {
-  "run_id": "evid-20261015-180133-alpha_two_unpaid_invoices",
+  "run_id": "evid-20261017-011650-alpha_two_unpaid_invoices",
   "capability": "dolibarr.lookup_customer_outstanding",
   "version": "1.0.0",
-  "lock_hash": "33f26bf44b1f818c9957c7070255560aed10c105388ed7c07b45063f5b7ed65c",
+  "lock_hash": "6b9488eec2466f2c5bcef60c45968d4e75304af7f41963fc202a090100d51341",
   "status": "success",
   "outcome": "success",
   "outputs": {
@@ -17,12 +17,14 @@
     "request_id": null
   },
   "retry_safe": true,
-  "interventions": [],
+  "interventions": [
+    "c8cb9d7a6df2"
+  ],
   "timings": {
-    "s01_navigate": 1594,
-    "s02_click": 3594,
-    "s03_assert": 375,
+    "s01_navigate": 2078,
+    "s02_click": 3813,
+    "s03_assert": 437,
     "s04_extract": 297,
-    "total_ms": 72360
+    "total_ms": 65390
   }
 }
