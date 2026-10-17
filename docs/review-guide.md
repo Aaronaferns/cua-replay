@@ -107,6 +107,8 @@ Then the learning side, more briefly:
 
 For each claim, find the line that enforces it and the test that pins it. If you can't find both, that is a finding.
 
+Code paths in this table are under `src/cua/`; test paths start with `tests/`.
+
 | Claim | Start reading at | Pinned by |
 |---|---|---|
 | Replay contains no model code | `src/cua/replay/` imports | `tests/replay/test_replay_imports.py` |

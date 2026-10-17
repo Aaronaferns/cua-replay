@@ -1,0 +1,62 @@
+{
+  "schema": "cua.validation/v1",
+  "run_id": "val-m6-gate",
+  "capability": "dolibarr.record_invoice_payment",
+  "version": "1.0.0",
+  "lock_hash": "bc3d3a7c49c4e27987254135bc17181a9d8de6435a584bc29974635693c461ac",
+  "repeat": 1,
+  "started_at": "2026-10-16T01:22:49.579428Z",
+  "passed": true,
+  "cases": [
+    {
+      "case_id": "pay_other_invoice",
+      "repeat": 1,
+      "run_id": "val-m6-gate-pay_other_invoice-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 20750
+    },
+    {
+      "case_id": "overpayment",
+      "repeat": 1,
+      "run_id": "val-m6-gate-overpayment-1",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "validation_rejected",
+      "mismatches": [],
+      "duration_ms": 16437
+    },
+    {
+      "case_id": "invoice_not_found",
+      "repeat": 1,
+      "run_id": "val-m6-gate-invoice_not_found-1",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "invoice_not_found",
+      "mismatches": [],
+      "duration_ms": 12281
+    },
+    {
+      "case_id": "lost_response_after_commit",
+      "repeat": 1,
+      "run_id": "val-m6-gate-lost_response_after_commit-1",
+      "passed": true,
+      "status": "indeterminate",
+      "outcome": "COMMIT_UNKNOWN",
+      "mismatches": [],
+      "duration_ms": 30827
+    },
+    {
+      "case_id": "same_request_id_replayed",
+      "repeat": 1,
+      "run_id": "val-m6-gate-same_request_id_replayed-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 24172
+    }
+  ]
+}

@@ -1,0 +1,342 @@
+{
+  "schema": "cua.validation/v1",
+  "run_id": "val-m6-lookup",
+  "capability": "dolibarr.lookup_customer_outstanding",
+  "version": "1.0.0",
+  "lock_hash": "6b9488eec2466f2c5bcef60c45968d4e75304af7f41963fc202a090100d51341",
+  "repeat": 3,
+  "started_at": "2026-10-16T01:38:09.109169Z",
+  "passed": true,
+  "cases": [
+    {
+      "case_id": "alpha_two_unpaid_invoices",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-alpha_two_unpaid_invoices-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 14077
+    },
+    {
+      "case_id": "beta_other_customer",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-beta_other_customer-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13938
+    },
+    {
+      "case_id": "not_found",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-not_found-1",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "customer_not_found",
+      "mismatches": [],
+      "duration_ms": 11530
+    },
+    {
+      "case_id": "nearest_match",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-nearest_match-1",
+      "passed": true,
+      "status": "failure",
+      "outcome": "IDENTITY_MISMATCH",
+      "mismatches": [],
+      "duration_ms": 13641
+    },
+    {
+      "case_id": "no_rights_user",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-no_rights_user-1",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "access_denied",
+      "mismatches": [],
+      "duration_ms": 13125
+    },
+    {
+      "case_id": "session_expired",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-session_expired-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 18796
+    },
+    {
+      "case_id": "interstitial_recovered",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-interstitial_recovered-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13437
+    },
+    {
+      "case_id": "unknown_dialog",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-unknown_dialog-1",
+      "passed": true,
+      "status": "failure",
+      "outcome": "UNKNOWN_DIALOG",
+      "mismatches": [],
+      "duration_ms": 21094
+    },
+    {
+      "case_id": "app_error",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-app_error-1",
+      "passed": true,
+      "status": "failure",
+      "outcome": "APP_ERROR",
+      "mismatches": [],
+      "duration_ms": 12422
+    },
+    {
+      "case_id": "slow_within_timeout",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-slow_within_timeout-1",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 17077
+    },
+    {
+      "case_id": "slow_beyond_timeout",
+      "repeat": 1,
+      "run_id": "val-m6-lookup-slow_beyond_timeout-1",
+      "passed": true,
+      "status": "failure",
+      "outcome": "TRANSIENT_EXHAUSTED",
+      "mismatches": [],
+      "duration_ms": 33375
+    },
+    {
+      "case_id": "alpha_two_unpaid_invoices",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-alpha_two_unpaid_invoices-2",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13061
+    },
+    {
+      "case_id": "beta_other_customer",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-beta_other_customer-2",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13485
+    },
+    {
+      "case_id": "not_found",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-not_found-2",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "customer_not_found",
+      "mismatches": [],
+      "duration_ms": 14421
+    },
+    {
+      "case_id": "nearest_match",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-nearest_match-2",
+      "passed": true,
+      "status": "failure",
+      "outcome": "IDENTITY_MISMATCH",
+      "mismatches": [],
+      "duration_ms": 14031
+    },
+    {
+      "case_id": "no_rights_user",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-no_rights_user-2",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "access_denied",
+      "mismatches": [],
+      "duration_ms": 11405
+    },
+    {
+      "case_id": "session_expired",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-session_expired-2",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 20702
+    },
+    {
+      "case_id": "interstitial_recovered",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-interstitial_recovered-2",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13969
+    },
+    {
+      "case_id": "unknown_dialog",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-unknown_dialog-2",
+      "passed": true,
+      "status": "failure",
+      "outcome": "UNKNOWN_DIALOG",
+      "mismatches": [],
+      "duration_ms": 22969
+    },
+    {
+      "case_id": "app_error",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-app_error-2",
+      "passed": true,
+      "status": "failure",
+      "outcome": "APP_ERROR",
+      "mismatches": [],
+      "duration_ms": 12389
+    },
+    {
+      "case_id": "slow_within_timeout",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-slow_within_timeout-2",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 16453
+    },
+    {
+      "case_id": "slow_beyond_timeout",
+      "repeat": 2,
+      "run_id": "val-m6-lookup-slow_beyond_timeout-2",
+      "passed": true,
+      "status": "failure",
+      "outcome": "TRANSIENT_EXHAUSTED",
+      "mismatches": [],
+      "duration_ms": 34234
+    },
+    {
+      "case_id": "alpha_two_unpaid_invoices",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-alpha_two_unpaid_invoices-3",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13233
+    },
+    {
+      "case_id": "beta_other_customer",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-beta_other_customer-3",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 12594
+    },
+    {
+      "case_id": "not_found",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-not_found-3",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "customer_not_found",
+      "mismatches": [],
+      "duration_ms": 11547
+    },
+    {
+      "case_id": "nearest_match",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-nearest_match-3",
+      "passed": true,
+      "status": "failure",
+      "outcome": "IDENTITY_MISMATCH",
+      "mismatches": [],
+      "duration_ms": 13186
+    },
+    {
+      "case_id": "no_rights_user",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-no_rights_user-3",
+      "passed": true,
+      "status": "business_outcome",
+      "outcome": "access_denied",
+      "mismatches": [],
+      "duration_ms": 11922
+    },
+    {
+      "case_id": "session_expired",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-session_expired-3",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 17469
+    },
+    {
+      "case_id": "interstitial_recovered",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-interstitial_recovered-3",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 13858
+    },
+    {
+      "case_id": "unknown_dialog",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-unknown_dialog-3",
+      "passed": true,
+      "status": "failure",
+      "outcome": "UNKNOWN_DIALOG",
+      "mismatches": [],
+      "duration_ms": 20953
+    },
+    {
+      "case_id": "app_error",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-app_error-3",
+      "passed": true,
+      "status": "failure",
+      "outcome": "APP_ERROR",
+      "mismatches": [],
+      "duration_ms": 12593
+    },
+    {
+      "case_id": "slow_within_timeout",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-slow_within_timeout-3",
+      "passed": true,
+      "status": "success",
+      "outcome": "success",
+      "mismatches": [],
+      "duration_ms": 16063
+    },
+    {
+      "case_id": "slow_beyond_timeout",
+      "repeat": 3,
+      "run_id": "val-m6-lookup-slow_beyond_timeout-3",
+      "passed": true,
+      "status": "failure",
+      "outcome": "TRANSIENT_EXHAUSTED",
+      "mismatches": [],
+      "duration_ms": 33421
+    }
+  ]
+}

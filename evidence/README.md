@@ -15,6 +15,7 @@ Common files: `manifest.json` (hash of every file in the bundle), `events.jsonl`
 | `replay_commit_unknown/` | Response lost after the single payment click: the run reports `COMMIT_UNKNOWN`, never re-clicks, a human gives a verdict | `result.json` (`status: indeterminate`, `side_effects`), `events.jsonl` (`commit_attempted` once), `verdicts/`, `ground_truth.json` (REST payments 0 to 1) |
 | `replay_policy_denied/` | A policy that denies the payment route: replay refuses before touching the UI | `result.json` (policy denial), `events.jsonl` (no browser action) |
 | `validation_suite.json` | Repeated runs of a capability's test suite: `n`, `cases`, `flakes` | the file itself; regenerate with `uv run cua validate <capability> --repeat N` |
+| `validations/` | The validation runs the approvals cite (`val-m6-lookup`: 33/33, `val-m6-gate`: 5/5), each at the approved lock hash | `lock_hash` and `passed` in each file; compare with `approvals/dolibarr/*.approval.json` |
 | `evidence_lint.txt` | Output of `uv run cua lint` | the file itself: `clean` or file:line:rule per finding, never the value |
 
 ## ground_truth.json

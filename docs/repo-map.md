@@ -191,6 +191,7 @@ Capabilities: `lookup_customer_outstanding` (read: a customer's outstanding bala
 | `replay_commit_unknown/` | Lost response after the payment click: one click, `COMMIT_UNKNOWN`, operator verdict |
 | `replay_policy_denied/` | A denying policy stops replay before any UI action |
 | `validation_suite.json` | The lookup suite run 3 times: cases and flakes |
+| `validations/` | The validation runs each approval cites, at the approved lock hash |
 | `evidence_lint.txt` | Output of `cua lint` over this folder |
 
 Files inside a bundle:
