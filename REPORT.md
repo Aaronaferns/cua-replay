@@ -25,8 +25,11 @@ capability for another customer gives the same fields with no model (`evidence/r
 
 A capability file holds inputs, outputs, steps and a lock hash over everything that affects behaviour. Locators are
 semantic (role and name, text, then structure), not generated ids. Inputs reach the page only as typed tokens, never
-raw values (`tests/agent/test_executor_tokens.py::test_tokens_reject_raw_values_all_args`). The draft is reproducible
-from its trace (`tests/compiler/test_committed_artifact.py::test_compile_from_trace_reproduces_draft`), the schema is
+raw values (`tests/agent/test_executor_tokens.py::test_tokens_reject_raw_values_all_args`). The lookup draft is
+reproducible from its trace byte for byte (`tests/compiler/test_committed_artifact.py::test_compile_from_trace_reproduces_draft`);
+the payment draft is the compiled trace plus two reviewed edits, an explicit not-found branch and bank-account checks
+that read the dropdown rather than its wrapping cell, and a test fails on any other difference
+(`::test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits`). The schema is
 frozen (`tests/artifact/test_schema_freeze.py`), and a change to the file changes the lock hash and voids the approval
 (`tests/artifact/test_artifact_lock_approval.py`). Example: `capabilities/dolibarr/lookup_customer_outstanding@1.0.0.json`
 with its review card `...review.md`. Suites are strict and name their cases, expected statuses and ground-truth

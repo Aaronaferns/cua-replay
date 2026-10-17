@@ -59,3 +59,30 @@ def test_review_card_is_current():
 
     text = render_review_card(load_capability(FINAL), load_profile(PROFILE))
     assert CARD.read_bytes() == text.encode("utf-8")
+
+
+PAY_TRACE = ROOT / "evidence" / "discovery_record_payment" / "trace.json"
+PAY_DRAFT = DRAFT.with_name("record_invoice_payment@1.0.0.draft.json")
+# The approved payment draft is the compiler's output plus two reviewed edits (W7d, before approval), and nothing else:
+#  1. s01 maps invoice_not_found to its outcome explicitly (the profile's default meaning already does the same);
+#  2. the bank-account checks (s06, s12) read the dropdown, not the table cell that wraps it, whose text also holds
+#     every hidden option.
+REVIEWED_EDITS = [
+    (("steps", 0, "on"), [{"state": "invoice_not_found", "outcome": "invoice_not_found"}]),
+    (("steps", 5, "do", "that", "target"), "combobox_select_selectaccountid"),
+    (("steps", 11, "do", "that", "target"), "combobox_select_selectaccountid"),
+]
+
+
+def test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits():
+    import json
+
+    compiled = json.loads(compile_file(PAY_TRACE, PROFILE, name="record_invoice_payment", discovered_by="aaron"))
+    for path, value in REVIEWED_EDITS:
+        *parents, last = path
+        node = compiled
+        for key in parents:
+            node = node[key]
+        assert node[last] != value, f"{path} is no longer an edit: the compiler produces it now"
+        node[last] = value
+    assert json.loads(PAY_DRAFT.read_text(encoding="utf-8")) == compiled
