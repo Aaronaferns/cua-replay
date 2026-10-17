@@ -40,6 +40,6 @@ def cmd_lint(args) -> int:
     root = Path(args.root)
     findings = lint_tree(root, settings().secret_values())
     report = "\n".join(findings + [f"{len(findings)} finding(s)" if findings else "clean"]) + "\n"
-    (root / "evidence_lint.txt").write_text(report, encoding="utf-8")
+    (root / "evidence_lint.txt").write_text(report, encoding="utf-8", newline="\n")
     print(report, end="")
     return 1 if findings else 0

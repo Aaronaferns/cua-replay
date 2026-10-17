@@ -551,7 +551,8 @@ async def run_validate(args: argparse.Namespace) -> tuple[Summary, int]:
                   "cases": [{"id": c.id, "runs": args.repeat, "passed": sum(r.passed for r in runs if r.case_id == c.id)}
                             for c in suite.cases],
                   "flakes": [c.id for c in suite.cases if len(outcomes[c.id]) > 1]}
-        (evidence_dir() / "validation_suite.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        (evidence_dir() / "validation_suite.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8",
+                                                              newline="\n")
     return summary, EXIT_SUCCESS if summary.passed else EXIT_FAILURE
 
 
