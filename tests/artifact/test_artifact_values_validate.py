@@ -163,6 +163,10 @@ def test_volatile_text_is_amounts_emails_and_phones_only():
 
     assert all(volatile_text(t) for t in ("Invoices 199.75 €", "1,234.50", "a@b.example", "+33 1 23 45 67 89"))
     assert not any(volatile_text(t) for t in ("Customer Code", "Nature of Third party", "Q1 2026", "Invoices (30)"))
+    # a whole number is an amount only next to its currency
+    assert all(volatile_text(t) for t in ("Do you confirm this payment input for 50 Euros?", "€50", "50 EUR", "USD 50",
+                                          "$ 1,200"))
+    assert not any(volatile_text(t) for t in ("Bank account (EUR)", "Europe", "Currency", "Step 2 of 3"))
 
 
 def test_effect_ceiling_must_match_the_steps():

@@ -72,10 +72,17 @@ REVIEWED_EDITS = [
     (("steps", 5, "do", "that", "target"), "combobox_select_selectaccountid"),
     (("steps", 11, "do", "that", "target"), "combobox_select_selectaccountid"),
 ]
+# Known issue in the approved 1.0.0 (REPORT §7): it was compiled before whole-number amounts with a currency counted
+# as volatile, so button_validate keeps the recorded amount ("... for 50 Euros? ...") in one fallback finder and in its
+# fingerprint's row label. Today's compiler leaves both out; 1.0.0 stays as approved until a re-approval. Nothing else
+# may differ.
+STALE_FINDERS = {"button_validate": 1}
 
 
 def test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits():
     import json
+
+    from cua.artifact.validate import volatile_text
 
     compiled = json.loads(compile_file(PAY_TRACE, PROFILE, name="record_invoice_payment", discovered_by="aaron"))
     for path, value in REVIEWED_EDITS:
@@ -85,4 +92,13 @@ def test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_
             node = node[key]
         assert node[last] != value, f"{path} is no longer an edit: the compiler produces it now"
         node[last] = value
-    assert json.loads(PAY_DRAFT.read_text(encoding="utf-8")) == compiled
+    committed = json.loads(PAY_DRAFT.read_text(encoding="utf-8"))
+    for target, count in STALE_FINDERS.items():
+        strategies = committed["targets"][target]["strategies"]
+        kept = [s for s in strategies
+                if not any(volatile_text(v) for k, v in s.items() if k not in ("kind", "why", "matched_at_record") and v)]
+        assert len(strategies) - len(kept) == count, f"{target}: the known stale finder is gone; drop this exception"
+        committed["targets"][target]["strategies"] = kept
+        fingerprint = committed["targets"][target]["fingerprint"]
+        assert volatile_text(fingerprint.pop("row_label")), f"{target}: the known stale row label is gone"
+    assert committed == compiled
