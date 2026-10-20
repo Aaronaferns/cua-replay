@@ -171,5 +171,16 @@ Disclosed: the API credits ran out during the payment discovery, which was finis
 choices (`evidence/discovery_record_payment/result.json`: `model: scripted`), and model tests were not re-run at the
 end. The clean-clone run was verified on Windows; Linux was not.
 
+Known issue: in the approved `record_invoice_payment@1.0.0`, the commit button `button_validate` carries the recorded
+amount in one fallback finder and in its fingerprint's row label (`"Do you confirm this payment input for 50 Euros?
+..."`). The compiler counted an amount as data only with two decimals, so "50 Euros" passed. Replay is unaffected
+while the primary finder (`role button "Validate"`) matches. If it ever did not, every fallback would be rejected for
+any other amount, because a fallback's hit must match the fingerprint: the commit button fails closed, which is safe
+but was not designed. The compiler now also treats a whole number next to a currency as data, so new compiles leave
+both out; 1.0.0 stays as approved until a re-approval, and
+`test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits` names it as the one allowed
+difference. Two gaps remain: discovery drops finders that contain an extracted value but not a typed input value in
+another format (typed "50.00", shown "50"), and static validation does not check amounts in finders.
+
 Next, in order: the tenant overlay with a second tenant, differential read-back for unknown commits, capturing or
 blocking input before a claim, a desktop surface, then console authentication.

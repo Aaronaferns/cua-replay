@@ -86,12 +86,20 @@ def _strategy_problems(where: str, strategies: list[Strategy], inputs: set[str])
 _EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}")
 _PHONE = re.compile(r"(?<!\d)\+?\d[\d ().-]{7,}\d(?!\d)")
 _AMOUNT = re.compile(r"(?<!\d)\d[\d.,]*[.,]\d{2}(?!\d)")  # 199.75, 1,234.50, 12,50: a figure, not a label
+# a whole-number amount is only recognisable by its currency: "50 Euros", "€50", "50 EUR", "USD 50"
+_CURRENCY_AMOUNT = re.compile(
+    r"(?i)[€$£]\s?\d"
+    r"|(?<![\w.,])\d[\d.,]*\s?(?:[€$£]|(?:eur|usd|gbp|chf|euros?|dollars?|pounds?)\b)"
+    r"|\b(?:eur|usd|gbp|chf)\s?\d"
+)
 
 
 def volatile_text(text: str) -> bool:
-    """Text that is data rather than a label: an amount, an email address or a phone number. The compiler drops it
-    from fingerprints and static validation refuses it in finders and fingerprints."""
-    return bool(_AMOUNT.search(text) or _EMAIL.search(text) or _PHONE.search(text))
+    """Text that is data rather than a label: an amount (with decimals, or a whole number with its currency), an
+    email address or a phone number. The compiler drops it from headings and fingerprints, and drops a finder that
+    carries it when the target has another one. Static validation does not use it: there, values are caught by input
+    patterns and the email and phone shapes (`_value_problems`)."""
+    return bool(_AMOUNT.search(text) or _CURRENCY_AMOUNT.search(text) or _EMAIL.search(text) or _PHONE.search(text))
 
 
 def _value_problems(where: str, texts: list[str], cap: Capability) -> list[str]:
