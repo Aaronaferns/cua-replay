@@ -135,8 +135,12 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `events.py` | The `events.jsonl` schema shared by agent, replay, human and system |
 | `writer.py` | The single path that writes a run bundle (redacting as it goes) |
 | `failure.py` | What a failed step leaves behind: masked screenshot and snapshot |
-| `commands.py` | `cua make-evidence` (regenerate bundles from a suite) and registration of `lint` and `demo` |
+| `commands.py` | `cua make-evidence` (regenerate bundles from a suite) and registration of `lint`, `demo`, `view` and `export-otel` |
 | `demo.py` | `cua demo up`: start the target, wait for health, reset, print the URL |
+| `timeline.py` | A closed bundle read back as steps, handoffs and request-policy checks: the model behind `view` and `export-otel` |
+| `lineage.py` | Which compiled step came from which discovery turn, read back from `trace.json` and `capability.draft.json` (mirrors the compiler's rules; a test pins them) |
+| `view.py` | `cua view`: one self-contained HTML trace per bundle (waterfall, step and handoff cards, screenshots) |
+| `otel.py` | `cua export-otel`: the same timeline as OTLP/HTTP JSON; lints bundle and payload first, sends no page content |
 
 ### `src/cua/faults/` — test-only fault injection
 
@@ -275,7 +279,7 @@ Offline run: `uv run pytest -m "not live and not model and not human"`.
 | `replay/` | Interpreter, failure taxonomy (`test_replay_m4.py`), commit path and ledger, handoff, settling, CLI, validation, import rules, live replays; `fakes.py`, `pay_world.py`, `livehelp.py` are test doubles and helpers |
 | `control/` | Lease, interventions, resume rules, console, approver, capture, runtime |
 | `safety/` | Policy, network containment, redaction, error-message hygiene, import rules |
-| `evidence/` | Bundle writer, failure evidence, make-evidence, evidence lint and README smoke check, demo |
+| `evidence/` | Bundle writer, failure evidence, make-evidence, evidence lint and README smoke check, demo, view and OTLP export |
 | `faults/` | Fault harness and the live lost-response case |
 | `surface/` | Web surface, snapshots, login, tables, payment form, settling; `fixtures/*.html` and `fakesite.py` are an offline stand-in site |
 | `target/` | Seed, reset, session expiry, per-port isolation; `fake_dolibarr.py` is an offline stand-in |

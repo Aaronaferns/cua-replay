@@ -475,3 +475,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     from cua.evidence.demo import cmd_demo_up
 
     up.set_defaults(func=cmd_demo_up)
+
+    from cua.evidence import otel, view
+
+    view.register(subparsers)
+    otel.register(subparsers)

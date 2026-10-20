@@ -62,6 +62,33 @@ offline tests: `uv run pytest -q -m "not live and not model and not human"`.
 - Without an API key: everything except `uv run cua discover` (replay, validate, make-evidence, console).
 Discovery can be replayed from a recorded transcript with `--transcript`.
 
+## Looking at a run
+
+Every run writes a bundle (`runs/<run_id>/`, curated copies in `evidence/`): `events.jsonl` with one event per model
+action, replay step, policy check, lease change and human action, plus screenshots, the model transcript and
+`result.json`. Two commands read a closed bundle; neither touches the live run or changes the bundle.
+
+```bash
+uv run cua view evidence/ --open                              # one HTML trace per bundle + an index, in runs/views/
+uv run cua view evidence/replay_commit_unknown --out t.html   # one self-contained page (screenshots embedded)
+uv run cua export-otel evidence/ --endpoint http://localhost:4318   # OTLP/HTTP JSON to Jaeger or any collector
+uv run cua export-otel runs/<run_id> --out trace.otlp.json    # write the payload, send nothing
+```
+
+`cua view` draws the steps and handoffs on one clock (who acted, how long a human was waited for, which step
+committed, what was denied), then one card per step with the action, the model's stated rationale, target, policy,
+lease, screenshot and what the model saw. On a discovery run it also shows what each turn compiled into: the
+replay steps (with the identity checks the compiler added and the locators replay will try, in order), the
+turns that were dropped and why, and `done` becoming the success checkpoint.
+
+`cua export-otel` is off unless run with `--out` or `--endpoint`. It is a second way out for run data, so it runs
+the evidence lint over the bundle and over the exact payload and refuses on any finding, and it never sends
+screenshots, DOM snapshots or page text. One trace per run; spans for steps and handoffs (with the wait as a child
+span), the GenAI token-usage attributes on discovery runs, ERROR status on failed, denied or escalated steps. Headers
+come from `--header K=V` or `OTEL_EXPORTER_OTLP_HEADERS` (for example a Langfuse `Authorization`), and are never
+printed. To try it: `docker run --rm -p 16686:16686 -p 4318:4318 jaegertracing/jaeger:2.11.0`, export, then open
+`http://localhost:16686`.
+
 
 
 ## Demo (target running)

@@ -6,7 +6,7 @@ so agents add commands without editing a shared file:
     cua.agent.commands     discover                                    (Agent A)
     cua.replay.commands    compile, replay, validate, capabilities, approve (Agent B)
     cua.control.commands   console                                     (Agent C)
-    cua.evidence.commands  make-evidence, lint, demo                   (Agent C)
+    cua.evidence.commands  make-evidence, lint, demo, view, export-otel (Agent C)
 """
 
 from __future__ import annotations
