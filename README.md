@@ -1,51 +1,41 @@
 # cua
 
-A model explores a web application once (discovery); the run is compiled into a reviewed, hash-locked capability;
-every later run replays that capability in a browser with no model. Failures are classified, a human can take over
-the same session, and a write (commit) is performed at most once. The target is a local Dolibarr in Docker.
+A model works through a task in a web application once (discovery). That run is compiled into a capability, which a
+person reviews and which is locked by a hash. Every later run replays the capability in a browser with no model. When
+replay fails it says which kind of failure it hit, and a human can take over the same browser session. A write (a
+commit) happens at most once. The target is a local Dolibarr running in Docker.
 
-- `REPORT.md`: design, taxonomy, safety table, cuts.
-- `evidence/README.md`: each committed evidence bundle and where to look.
-- `docs/repo-map.md`: every folder and file and what it is for.
-- `docs/review-guide.md`: where to start and in what order, if you are reviewing.
-- `docs/implementation-status.md`: what is built.
+The lock hash is a hash of a capability together with its app profile. An approval ties a second person's sign-off
+and a passing validation run to that hash, so editing either file makes the approval stale. A commit is the one
+irreversible click (here, Validate on a payment). If its response is lost, the run reports `COMMIT_UNKNOWN` and never
+clicks again.
 
+## What to look at
 
+| The brief asks for                    | Where                                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Design write-up                       | `REPORT.md` (architecture, artifact schema, error handling, tenants, handoff, safety, cuts)      |
+| A real model discovery run            | `evidence/discovery_lookup_customer_outstanding/` (model `claude-opus-5-5`, 5 steps, then a draft) |
+| The saved artifact                    | `capabilities/dolibarr/lookup_customer_outstanding@1.0.0.json` and its `.review.md`              |
+| Replay, no model, a different input   | `evidence/replay_success_other_customer/`                                                        |
+| Replay hitting an exceptional state   | `evidence/replay_commit_unknown/` (lost response, `indeterminate`), `evidence/replay_policy_denied/` |
+| A human takes over the live session   | `evidence/replay_captcha_handoff/`                                                               |
+| Logs and traces of a run              | `events.jsonl` in each bundle; `uv run cua view evidence/ --open` renders them (see "Evidence and observability") |
+| Every bundle, explained               | `evidence/README.md`                                                                             |
 
-## Reviewer quickstart
-
-Needs Docker, bash and [uv](https://docs.astral.sh/uv/); no API key. On macOS and Linux the target scripts run
-directly. On Windows the CLI runs natively and starts the target through WSL: you need a WSL distribution named
-`Ubuntu` in which `docker` works (with Docker Desktop, turn on WSL integration for it; another name: set the
-environment variable `CUA_WSL_DISTRO`), and a short clone path such as `C:\src\cua`.
-
-
-| Step | Command                                                                                     | Expect                                                                                          | Time                           |
-| ---- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------ |
-| 1    | `uv sync` then `uv run playwright install chromium`                                         | Dependencies and a browser installed                                                            | 1–3 min                        |
-| 2    | `cp .env.example .env` (PowerShell: `Copy-Item .env.example .env`)                          | The example values work as-is for the local sandbox                                             | —                              |
-| 3    | `uv run cua demo up`                                                                        | `target ready: http://localhost:8085/index.php` (first run pulls the images and seeds the data) | ~3 min first time, ~20 s after |
-| 4    | `uv run cua capabilities`                                                                   | Two capabilities, both `approved`                                                               | seconds                        |
-| 5    | `uv run cua replay dolibarr.lookup_customer_outstanding --input customer_code=CU2601-00902` | `success`, `outstanding_amount = 355.20`                                                        | ~30 s                          |
-| 6    | `uv run cua validate dolibarr.record_invoice_payment`                                       | `5/5 passed`, including the lost-response case ending `COMMIT_UNKNOWN`                          | ~5 min                         |
-| 7    | `uv run cua lint`                                                                           | `clean`                                                                                         | seconds                        |
-
-
-Add `--headed` to step 5 to watch the browser. Port 8085 is taken? Set `DOLIBARR_PORT` in `.env` before step 3.
-Then read `docs/review-guide.md`. Without Docker, steps 4 and 7 and the offline tests still run (below).
-
-## Prerequisites
-
-- Python 3.12 and [uv](https://docs.astral.sh/uv/).
-- Docker (on Windows: Docker inside WSL2) for the live target.
-- An LLM API key, for discovery only. Replay and validation never call a model.
-- Windows: clone to a short path (for example `C:\src\cua`); a deep path can exceed the path-length limit while
-`uv sync` unpacks dependencies. On Windows the `cua` CLI runs natively and reaches Docker through `wsl -d Ubuntu`;
-to run the CLI inside WSL instead, install uv there first.
-
-
+More: `docs/review-guide.md` (reading order for reviewers), `docs/repo-map.md` (every folder and file),
+`docs/implementation-status.md` (what is built).
 
 ## Setup
+
+Needs Python 3.12, [uv](https://docs.astral.sh/uv/), and for the live target Docker and bash. On macOS and Linux the
+target scripts run directly.
+
+On Windows the CLI runs natively and starts the target through `wsl -d Ubuntu`, so you need a WSL distribution named
+`Ubuntu` in which `docker` works (with Docker Desktop, turn on WSL integration for it; for another name set the
+environment variable `CUA_WSL_DISTRO`). Clone to a short path such as `C:\src\cua`, because a deep path can exceed the
+path-length limit while `uv sync` unpacks dependencies. WSL stops an idle distribution and the containers with it, so
+keep a WSL terminal open, or run `wsl -d Ubuntu -- sleep infinity` in a spare window, while you work.
 
 ```bash
 uv sync
@@ -53,163 +43,178 @@ uv run playwright install chromium
 cp .env.example .env     # PowerShell: Copy-Item .env.example .env
 ```
 
-Fill in `.env` (ports and passwords for the local target; the API key only if you will run discovery).
+The example values work as-is for the local target:
 
-## What runs without Docker, and without a key
+| Variable                                                                           | What it is for                                                                                       | Default works?                    |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `ANTHROPIC_API_KEY`                                                                | Live discovery only (Anthropic is the only model provider). Replay and validation never call a model | Empty is fine; see `--transcript` |
+| `DOLIBARR_PORT`                                                                    | Port of the local target                                                                             | Yes (8085)                        |
+| `DOLIBARR_DB_ROOT_PASSWORD`, `DOLIBARR_DB_PASSWORD`, `DOLIBARR_ADMIN_PASSWORD`     | Creating and seeding the local target                                                                | Yes                               |
+| `DOLIBARR_API_KEY`                                                                 | Admin REST key for fixtures, tests and evidence ground truth; never used by discovery or replay      | Yes                               |
+| `CUA_RUN_LOGIN`, `CUA_RUN_PASSWORD`                                                | The account automation logs in as (a scripted login; the model never sees it)                        | Yes                               |
+| `CUA_NOPERM_PASSWORD`                                                              | A user without invoice or customer rights, for the access-denied case                               | Yes                               |
 
-- Without Docker: read the committed `evidence/` (start at `evidence/README.md`), run `uv run cua lint`, and run the
-offline tests: `uv run pytest -q -m "not live and not model and not human"`.
-- Without an API key: everything except `uv run cua discover` (replay, validate, make-evidence, console).
-Discovery can be replayed from a recorded transcript with `--transcript`.
+If you change a password, do it before the first `uv run cua demo up`, because the seeded database keeps the
+password hashes it was created with.
 
-## Looking at a run
+## Quickstart (no API key)
 
-Every run writes a bundle (`runs/<run_id>/`, curated copies in `evidence/`): `events.jsonl` with one event per model
-action, replay step, policy check, lease change and human action, plus screenshots, the model transcript and
-`result.json`. Two commands read a closed bundle; neither touches the live run or changes the bundle.
+This replays the approved capability. To run the agent on a goal and replay what it produced, see the next section.
 
-```bash
-uv run cua view evidence/ --open                              # one HTML trace per bundle + an index, in runs/views/
-uv run cua view evidence/replay_commit_unknown --out t.html   # one self-contained page (screenshots embedded)
-uv run cua export-otel evidence/ --endpoint http://localhost:4318   # OTLP/HTTP JSON to Jaeger or any collector
-uv run cua export-otel runs/<run_id> --out trace.otlp.json    # write the payload, send nothing
-```
+| Step | Command                                                                                     | Expect                                                                                                   | Time                           |
+| ---- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| 1    | `uv run cua demo up`                                                                        | `target ready: http://localhost:8085/index.php` (first run pulls the images and seeds the data)          | ~3 min first time, ~20 s after |
+| 2    | `uv run cua capabilities`                                                                   | Four rows: the two capabilities `approved` with lock hashes, and their `(draft)` files `unapproved`      | seconds                        |
+| 3    | `uv run cua replay dolibarr.lookup_customer_outstanding --input customer_code=CU2601-00902` | `success`, `outstanding_amount = 355.20`                                                                 | ~30 s                          |
+| 4    | `uv run cua validate dolibarr.record_invoice_payment`                                       | `5/5 passed; run <id>` (resets the target per case), including the lost-response case ending `COMMIT_UNKNOWN` | ~5 min                    |
+| 5    | `uv run cua lint`                                                                           | `clean`                                                                                                  | seconds                        |
 
-`cua view` draws the steps and handoffs on one clock (who acted, how long a human was waited for, which step
-committed, what was denied), then one card per step with the action, the model's stated rationale, target, policy,
-lease, screenshot and what the model saw. On a discovery run it also shows what each turn compiled into: the
-replay steps (with the identity checks the compiler added and the locators replay will try, in order), the
-turns that were dropped and why, and `done` becoming the success checkpoint.
+Add `--headed` to step 3 to watch the browser. Port 8085 taken? Set `DOLIBARR_PORT` in `.env` before step 1 (but see
+the transcript note below). Then read `docs/review-guide.md`.
 
-`cua export-otel` is off unless run with `--out` or `--endpoint`. It is a second way out for run data, so it runs
-the evidence lint over the bundle and over the exact payload and refuses on any finding, and it never sends
-screenshots, DOM snapshots or page text. One trace per run; spans for steps and handoffs (with the wait as a child
-span), the GenAI token-usage attributes on discovery runs, ERROR status on failed, denied or escalated steps. Headers
-come from `--header K=V` or `OTEL_EXPORTER_OTLP_HEADERS` (for example a Langfuse `Authorization`), and are never
-printed. To try it: `docker run --rm -p 16686:16686 -p 4318:4318 jaegertracing/jaeger:2.11.0`, export, then open
-`http://localhost:16686`.
+## Run the agent, then replay its result
 
+Run the agent on a goal, then replay the artifact that run produced. With no API key, step 2 feeds the recorded
+transcript back in place of the model. Nothing calls the API, but the browser, the live target and the compiler all
+run for real. With `ANTHROPIC_API_KEY` set, drop the `--transcript` argument and the model works live. The recorded
+transcripts navigate to `localhost:8085`, so a transcript run needs `DOLIBARR_PORT=8085`. If something else holds
+8085, free it for the demo or run discovery live with a key.
 
+1. Start the target and reset it to the seeded baseline.
 
-## Demo (target running)
+   ```bash
+   uv run cua demo up
+   ```
 
-Start the target, wait for health, reset it to the seeded baseline:
+2. Discover. Expect `outcome: done`, `steps: 5`, `output: outstanding_amount = ...199.75...`, and the run folder on
+   the `run:` line (`runs/<run_id>/`, with `trace.json`, `transcript.json`, `events.jsonl`, `screenshots/` and the
+   compiled `capability.draft.json`).
 
-```bash
-uv run cua demo up
-```
+   ```bash
+   uv run cua discover lookup_customer_outstanding --goal "Find the current outstanding bill amount of the customer with customer code {{customer_code}}." --input customer_code=CU2601-00901 --transcript evidence/discovery_lookup_customer_outstanding/transcript.json
+   ```
 
-Windows: Docker lives in WSL2, which stops an idle distribution and the containers with it. Keep a WSL terminal open
-(or run `wsl -- sleep infinity` in a spare window) while you work.
+3. Put that run's artifact where replay looks (`capabilities/<app>/`), under a new name so it cannot collide with the
+   approved `lookup_customer_outstanding`. Compilation is deterministic, so this gives the same flow as the run's
+   `capability.draft.json`. Only the id, the title and the `discovered_by` label differ.
 
-Replay a read capability (no model), then the suite, then the lint:
+   ```bash
+   uv run cua compile runs/<run_id>/trace.json --name dolibarr.lookup_outstanding_demo --out capabilities/dolibarr/lookup_outstanding_demo@1.0.0.draft.json
+   uv run cua review dolibarr.lookup_outstanding_demo     # the review card, beside the draft
+   ```
 
-PowerShell:
+4. Replay it, no model, for a customer discovery never saw, then for a code that does not exist. A draft is not
+   approved, so replay refuses it unless `--allow-draft`, which runs it with a warning.
 
-```powershell
-uv run cua capabilities
-uv run cua replay dolibarr.lookup_customer_outstanding --input customer_code=CU2601-00902
-uv run cua validate dolibarr.lookup_customer_outstanding --repeat 3
-uv run cua lint
-```
+   ```bash
+   uv run cua replay dolibarr.lookup_outstanding_demo --allow-draft --input customer_code=CU2601-00902   # success, outstanding_amount = 355.20
+   uv run cua replay dolibarr.lookup_outstanding_demo --allow-draft --input customer_code=CU0000-0000    # business_outcome (customer_not_found)
+   ```
 
-bash:
+5. Look at the evidence of both runs. The replay prints its run id as `run replay-...`.
 
-```bash
-uv run cua capabilities
-uv run cua replay dolibarr.lookup_customer_outstanding --input customer_code=CU2601-00902
-uv run cua validate dolibarr.lookup_customer_outstanding --repeat 3
-uv run cua lint
-```
+   ```bash
+   uv run cua view runs/<run_id> --open
+   uv run cua view runs/<replay run id> --open
+   ```
 
-Regenerate evidence bundles from a suite (resets the target per case):
+6. Remove the demo artifact by deleting `capabilities/dolibarr/lookup_outstanding_demo@1.0.0.draft.json` and
+   `capabilities/dolibarr/lookup_outstanding_demo@1.0.0.review.md`.
 
-```bash
-uv run cua make-evidence dolibarr.lookup_customer_outstanding --cases beta_other_customer
-```
-
-
-
-## Discovery
-
-Discovery needs the target running. With no API key, replay the recorded model run from its transcript: the same
-model choices, no API calls.
+### Human handoff, live
 
 ```bash
-uv run cua discover lookup_customer_outstanding --goal "Find the current outstanding bill amount of the customer with customer code {{customer_code}}." --input customer_code=CU2601-00901 --transcript evidence/discovery_lookup_customer_outstanding/transcript.json --headed
+uv run cua make-evidence dolibarr.lookup_customer_outstanding --cases alpha_two_unpaid_invoices --handoff --out runs/evidence/
 ```
 
-Expect `outcome: done`, 5 steps, 199.75, and a run under `runs/` with `trace.json`, `transcript.json`,
-`events.jsonl`, `screenshots/` and the compiled `capability.draft.json`.
+This turns the login CAPTCHA on and opens a headed browser. Replay meets the CAPTCHA, stops, and prints
+`console: <url>  (claim, then resume / give the verdict)`. Open the console, claim control, solve the CAPTCHA in that
+same browser window, then resume. Replay continues to `success`. The bundle lands in
+`runs/evidence/replay_captcha_handoff/` (compare `evidence/replay_captcha_handoff/`). For a human verdict on
+`COMMIT_UNKNOWN`, use `--console --cases lost_response_after_commit` on `dolibarr.record_invoice_payment`, again with
+`--out runs/evidence/`. After a run, `uv run cua console <bundle>` serves the console in review mode for a closed
+bundle that has `interventions/`, for example to record a `COMMIT_UNKNOWN` verdict (loopback only).
 
-The payment discovery clicks Validate, so it needs `--approve-commits`: approve each commit in the console URL it
-prints. It records a real payment; run `uv run cua demo up` afterwards to reset the target. A transcript repeats the
-clicks it recorded, so give it the invoice it was recorded on, the seed's `CUA-SEED-ALPHA-2`:
+## Without Docker or an API key
+
+- Without Docker, read the committed `evidence/` (start at `evidence/README.md`) or render it with `cua view` (see
+  "What to look at"). `uv run cua capabilities`, `uv run cua lint`, `uv run cua compile` on a committed trace and the
+  offline tests (`uv run pytest -q -m "not live and not model and not human"`) all run.
+- Without an API key, everything runs except live discovery and the `model` tests. Discovery takes
+  `--transcript <transcript.json>` to replay recorded model turns.
+
+## Payment discovery (a commit)
+
+The payment discovery clicks Validate, so it needs `--policy dolibarr-sandbox-commit` (the default policy only allows
+reads, and its effect ceiling would deny the click) and `--approve-commits`, which prints a console URL where you
+approve each commit. It records a real payment, so run `uv run cua demo up` afterwards to reset the target.
+
+A transcript repeats the clicks it recorded, so give it the invoice it was recorded on, the seed's
+`CUA-SEED-ALPHA-2`. Dolibarr numbers invoices by month when the seed validates them, so the reference differs per
+target. The first command below prints the one your target gave it.
 
 ```bash
 uv run python -c "from cua.replay.commands import _seed_invoice_ref as r; print(r('CUA-SEED-ALPHA-2'))"
-uv run cua discover record_invoice_payment --goal "Record a payment of {{amount}} on customer invoice {{invoice_ref}} using payment method {{method}} into bank account {{bank_account}}, confirm it, and read the reference of the payment that was created." --input invoice_ref=<the ref printed above> --input amount=10.00 --input method=Cash --input "bank_account=CUA Seed Operating Account (EUR)" --output payment_ref:string --transcript evidence/discovery_record_payment/transcript.json --approve-commits --headed
+uv run cua discover record_invoice_payment --goal "Record a payment of {{amount}} on customer invoice {{invoice_ref}} using payment method {{method}} into bank account {{bank_account}}, confirm it, and read the reference of the payment that was created." --input invoice_ref=<the ref printed above> --input amount=10.00 --input method=Cash --input "bank_account=CUA Seed Operating Account (EUR)" --output payment_ref:string --transcript evidence/discovery_record_payment/transcript.json --policy dolibarr-sandbox-commit --approve-commits --headed
 ```
 
-With `ANTHROPIC_API_KEY` in `.env`, drop `--transcript` to let the model work live. Options: `--effort`,
-`--screenshots` (send images as well as text), `--max-steps`, `--wall-clock`. A new goal declares its outputs:
-`--output name:decimal`.
+A capability the CLI does not know declares its outputs with `--output name:decimal`. `--help` on any command lists
+the rest of its options (for live discovery: `--effort`, `--screenshots`, `--max-steps`, `--wall-clock`).
 
-From a run to an approved capability:
+## From draft to approved capability
 
-```bash
-uv run cua compile runs/<run_id>/trace.json --name dolibarr.<capability> --out runs/<run_id>/recompiled.draft.json
-uv run cua review dolibarr.lookup_customer_outstanding
-uv run cua validate dolibarr.<capability>
-uv run cua approve dolibarr.<capability> --version 1.0.0 --approver <not the discoverer> --run <validation run id>
-```
-
-To approve a new capability, copy its draft into `capabilities/dolibarr/` as `<name>@<version>.json` and add a
-`<name>@<version>.tests.json` suite. Use a new name or version: changing the two approved capabilities makes their
+`review`, `validate` and `approve` find a capability by name under `capabilities/<app>/` only, and `approve` refuses
+a `.draft.json`. Use a new name. A new version of an existing capability would become the default for `replay`
+without `--version`, and replay refuses it until it is approved. Changing the two approved capabilities makes their
 approvals stale.
 
-Compilation is reproducible: compiling the committed trace gives `capabilities/dolibarr/lookup_customer_outstanding@1.0.0.draft.json`
-byte for byte (`test_compile_from_trace_reproduces_draft`):
-
 ```bash
-uv run cua compile evidence/discovery_lookup_customer_outstanding/trace.json --name dolibarr.lookup_customer_outstanding --out recompiled.json
+uv run cua compile runs/<run_id>/trace.json --name dolibarr.<capability> --version <version> --out capabilities/dolibarr/<capability>@<version>.draft.json
+uv run cua review dolibarr.<capability>
+# after review: rename the file to <capability>@<version>.json and write <capability>@<version>.tests.json (the suite)
+uv run cua validate dolibarr.<capability>          # prints "N/M passed; run <run id>; lock ..."
+uv run cua approve dolibarr.<capability> --version <version> --approver <not the discoverer> --run <run id printed by validate>
 ```
 
-It does not match `evidence/discovery_lookup_customer_outstanding/capability.draft.json`, which is what the compiler
-produced on the day of the run; the compiler has improved since (it now adds the not-found and access-denied
-outcomes).
+## Evidence and observability
 
-Other commands: `uv run cua discover` (needs the key), `uv run cua compile`, `uv run cua review`,
-`uv run cua approve`, `uv run cua console` (operator console for a run bundle, loopback only). Use
-`uv run cua <command> --help` for the arguments.
+Every run writes a bundle to `runs/<run_id>/`, and curated copies live in `evidence/`. A bundle holds `events.jsonl`
+(one event per model action, replay step, policy check, change of who holds control and human action), the
+screenshots, the model transcript and `result.json`. The two commands below read a closed bundle and do not change
+it.
+
+`cua view` puts the steps and any human handoffs on one timeline, coloured by who acted, with the time spent waiting
+for a person shown apart from the time they held control. Each step gets a card with the action, the model's stated
+reason, the element it acted on, the policy decision and the screenshot. On a discovery run the page also shows what
+each model turn compiled into: the replay steps, the identity checks the compiler added, the locators replay will try
+in order, and which turns were dropped and why.
+
+```bash
+uv run cua view evidence/ --open                              # one HTML trace per bundle + an index, in runs/views/
+uv run cua view evidence/replay_commit_unknown --out runs/t.html   # one self-contained page (screenshots embedded)
+uv run cua export-otel runs/<run_id> --out runs/trace.otlp.json    # write the OTLP/HTTP JSON payload, send nothing
+uv run cua export-otel evidence/ --endpoint http://localhost:4318  # send it to Jaeger or any OTLP collector
+```
+
+`cua export-otel` takes exactly one of `--out` (write the payload, send nothing) or `--endpoint` (send it). It runs
+the evidence lint over the bundle and the payload first and refuses on any finding, and it never sends screenshots,
+DOM snapshots or page text. Headers come from `--header K=V` or `OTEL_EXPORTER_OTLP_HEADERS` and are never printed.
 
 ## Tests
 
-Run from the repository root. Tests marked `live` are skipped when the target is not running; `model` tests call the
-API; `human` tests need a person at the browser.
+Run from the repository root. Three markers gate tests:
+
+- `live`: skipped when the target is not running.
+- `model`: calls the API, skipped without `ANTHROPIC_API_KEY`.
+- `human`: needs a person at the browser, runs only with `CUA_HUMAN=1`.
 
 ```bash
 uv run pytest -q -m "not live and not model and not human"   # offline, ~1 min
 uv run pytest -q -m "not model"                              # with the target running, ~10-12 min
 ```
 
-One component at a time (add `-m "not live and not model and not human"` to stay offline):
-
-
-| Component                                             | Command                              |
-| ----------------------------------------------------- | ------------------------------------ |
-| Discovery agent: loop, executor, commit gate, adapter | `uv run pytest -q tests/agent`       |
-| Artifact: schema, lock hash, approvals, classifier    | `uv run pytest -q tests/artifact`    |
-| Compiler: trace to capability, review card            | `uv run pytest -q tests/compiler`    |
-| Replay: interpreter, ledger, failure cases, CLI       | `uv run pytest -q tests/replay`      |
-| Human handoff: lease, console, resume, capture        | `uv run pytest -q tests/control`     |
-| Safety: policy, network, redaction                    | `uv run pytest -q tests/safety`      |
-| Evidence: writer, make-evidence, lint, demo           | `uv run pytest -q tests/evidence`    |
-| Browser surface                                       | `uv run pytest -q tests/surface`     |
-| Fault injection                                       | `uv run pytest -q tests/faults`      |
-| Target scripts: seed, reset, ports                    | `uv run pytest -q tests/target`      |
-| End to end                                            | `uv run pytest -q tests/integration` |
-
+There is one folder per component under `tests/` (`docs/repo-map.md` lists them). Run one with
+`uv run pytest -q tests/<folder>`, adding `-m "not live and not model and not human"` to stay offline.
 
 The files worth running on their own:
 
@@ -217,16 +222,19 @@ The files worth running on their own:
 uv run pytest -q tests/replay/test_replay_m4.py          # one test per failure case
 uv run pytest -q tests/replay/test_commit_path.py        # payment path: single click, ledger, COMMIT_UNKNOWN
 uv run pytest -q tests/replay/test_replay_imports.py     # replay never imports model or fault code
-uv run pytest -q tests/artifact/test_artifact_lock_approval.py
-uv run pytest -q tests/control/test_lease.py tests/control/test_resume.py
-uv run pytest -q -k "lost_response or session_expiry"    # by name
 ```
 
 Validation suites (not pytest; they reset the target before each case):
 
 ```bash
 uv run cua validate dolibarr.lookup_customer_outstanding             # 11 cases, ~4 min
-uv run cua validate dolibarr.lookup_customer_outstanding --repeat 3  # flake check; rewrites evidence/validation_suite.json
+uv run cua validate dolibarr.lookup_customer_outstanding --repeat 3  # 33 runs, ~12 min; rewrites evidence/validation_suite.json
 uv run cua validate dolibarr.record_invoice_payment                  # 5 cases, ~5 min
 ```
 
+Replay evidence bundles are regenerated from a suite, which resets the target per case. Always pass `--out`. The
+default is `evidence/`, and writing there overwrites the committed bundles.
+
+```bash
+uv run cua make-evidence dolibarr.lookup_customer_outstanding --cases beta_other_customer --out runs/evidence/
+```

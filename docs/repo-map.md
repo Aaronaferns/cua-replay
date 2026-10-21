@@ -6,9 +6,12 @@ Every tracked folder and file, with one line on what it is for. Start with `READ
 ## How the parts connect
 
 ```
-goal ──► src/cua/agent (discovery, model) ──► src/cua/compiler ──► capabilities/<app>/*.draft.json
+goal ──► src/cua/agent (discovery, model) ──► src/cua/compiler ──► runs/<id>/capability.draft.json
+                                                                        │ cua compile --out (or a copy),
                                                                         │ review card, test suite
                                                                         ▼
+                                                              capabilities/<app>/
+                                                                        │
                          approvals/<app>/*.approval.json ◄── cua approve (lock hash)
                                                                         │
 inputs ──► src/cua/replay (no model) ──► RunResult + run bundle (runs/, promoted to evidence/)
@@ -27,13 +30,13 @@ inputs ──► src/cua/replay (no model) ──► RunResult + run bundle (run
 | `pyproject.toml` | Package metadata, the five runtime dependencies, the `cua` entry point, pytest markers |
 | `uv.lock` | Exact dependency versions for `uv sync` |
 | `.env.example` | Template for `.env` (ports, target passwords, API key); `.env` itself is git-ignored |
-| `.gitignore` | Keeps `.env`, `runs/`, database dumps, caches and agent worktrees out of git |
+| `.gitignore` | Keeps `.env`, `runs/`, database dumps, browser state and raw traces, local ledgers and caches out of git |
 | `.gitattributes` | LF line endings for all text files; images and PDFs marked binary |
 
 Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bundle; the curated ones are copied to
 `evidence/`), `target/dolibarr/dumps/` (the post-seed database dump), `.venv/`, `.claude/` (agent working state).
 
-## `src/cua/` — the system
+## `src/cua/`: the system
 
 | File | What it is |
 |---|---|
@@ -41,11 +44,11 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `cli.py` | The `cua` command: wires up each package's `commands.py` |
 | `config.py` | Settings from the environment and `.env`; secrets are held as `SecretStr` |
 
-### `src/cua/agent/` — discovery (the only place a model is used)
+### `src/cua/agent/`: discovery (the only place a model is used)
 
 | File | What it is |
 |---|---|
-| `actions.py` | The closed set of actions the model may choose (navigate, click, fill, select, extract, done, request_help) |
+| `actions.py` | The closed set of actions the model may choose (navigate, click, type, select, press, extract, request_approval, request_help, done) |
 | `model.py` | The model interface the loop depends on, independent of provider; renders observations to text |
 | `anthropic_adapter.py` | The Claude adapter: system prompt, tool definitions, caching, refusal and error handling |
 | `scripted_adapter.py` | A stand-in model that replays a fixed action list or a recorded `transcript.json` (tests, no-credit reruns) |
@@ -55,17 +58,17 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `discovery.py` | One discovery run end to end: loop → run bundle → compiled draft |
 | `commands.py` | `cua discover` |
 
-### `src/cua/compiler/` — from recorded run to capability draft
+### `src/cua/compiler/`: from recorded run to capability draft
 
 | File | What it is |
 |---|---|
 | `trace.py` | `RecordedTrace`, the contract between discovery and the compiler |
 | `recorder.py` | Builds the trace during discovery: actions, page states, where inputs appear |
-| `locators.py` | Ranked locator candidates for an element (role and name, text, structure) with match counts |
+| `locators.py` | Ranked locator candidates for an element (role and name, table row or column, dialog scope, name, CSS), each with its match count |
 | `compile.py` | Trace → capability draft: keeps performed actions, lifts inputs to parameters, picks locators, adds checks |
 | `review_card.py` | Renders the Markdown review card a second person reads before approving |
 
-### `src/cua/artifact/` — the capability format and its rules
+### `src/cua/artifact/`: the capability format and its rules
 
 | File | What it is |
 |---|---|
@@ -82,21 +85,21 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `names.py` | The one normalisation rule for accessible names and display text |
 | `values.py` | Typed inputs and outputs: checking inputs, parsing displayed text into decimals, dates, strings |
 
-### `src/cua/replay/` — model-free execution
+### `src/cua/replay/`: model-free execution
 
 | File | What it is |
 |---|---|
 | `interpreter.py` | Runs a capability step by step: preflight, classify, resolve, guard, act, verify, wait |
-| `resolver.py` | Finds exactly one element per step; fallbacks only when the fingerprint matches |
+| `resolver.py` | Finds exactly one element per step; a fallback counts only when it matches the recorded fingerprint, and output extracts use the primary locator only |
 | `classifier.py` | Waits for the page to settle, then classifies it |
 | `checks.py` | Evaluates predicates against the live page |
 | `effects.py` | The effect class (none, read, commit) replay assigns each step |
 | `commit_ledger.py` | SQLite `request_id` ledger: PREPARED → ATTEMPTED → DONE / UNKNOWN; at most one commit per request |
 | `result.py` | `RunResult`: status, outcome, outputs, recoveries, drift, failure details |
 | `suite.py` | Compares a run's result with a test-suite case |
-| `commands.py` | `cua replay`, `compile`, `approve`, `capabilities`, `validate` (incl. `--repeat`) |
+| `commands.py` | `cua replay`, `compile`, `review`, `approve`, `capabilities`, `validate` (incl. `--repeat`) |
 
-### `src/cua/surface/` — perceiving and acting on the browser
+### `src/cua/surface/`: perceiving and acting on the browser
 
 | File | What it is |
 |---|---|
@@ -106,7 +109,7 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `login.py` | Scripted login from the profile; credentials never reach the model |
 | `names.py` | Surface-side name matching, delegating to `artifact/names.py` |
 
-### `src/cua/control/` — human handoff
+### `src/cua/control/`: human handoff
 
 | File | What it is |
 |---|---|
@@ -119,7 +122,7 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `runtime.py` | Opens a browser session with every guard wired in |
 | `commands.py` | `cua console`, and the helper that attaches a live console to a run |
 
-### `src/cua/safety/` — guard rails
+### `src/cua/safety/`: guard rails
 
 | File | What it is |
 |---|---|
@@ -128,7 +131,7 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `redact.py` | Removes secrets and personal data from anything written to disk or sent to a model |
 | `lint.py` | `cua lint`: scans `evidence/` for secrets, SSNs, cookies, unmasked e-mails |
 
-### `src/cua/evidence/` — run bundles
+### `src/cua/evidence/`: run bundles
 
 | File | What it is |
 |---|---|
@@ -142,13 +145,13 @@ Not tracked but present when you work: `.env` (secrets), `runs/` (every run's bu
 | `view.py` | `cua view`: one self-contained HTML trace per bundle (waterfall, step and handoff cards, screenshots) |
 | `otel.py` | `cua export-otel`: the same timeline as OTLP/HTTP JSON; lints bundle and payload first, sends no page content |
 
-### `src/cua/faults/` — test-only fault injection
+### `src/cua/faults/`: test-only fault injection
 
 | File | What it is |
 |---|---|
 | `harness.py` | Network-level faults (slow, error page, interstitial, unknown dialog, lost response); sandbox only, never imported by replay |
 
-## `capabilities/dolibarr/` — the learned procedures
+## `capabilities/dolibarr/`: the learned procedures
 
 Each capability has four files. Changing the `.json` (or the app profile) changes the lock hash and voids its approval.
 
@@ -183,13 +186,13 @@ Capabilities: `lookup_customer_outstanding` (read: a customer's outstanding bala
 | `dolibarr-sandbox-commit.json` | The same with commits allowed (used for the payment capability) |
 | `dolibarr-sandbox-deny-payment.json` | Denies the payment route; used to show the policy preflight (`evidence/replay_policy_denied/`) |
 
-## `evidence/` — committed proof
+## `evidence/`: committed proof
 
 | Path | What it is |
 |---|---|
-| `README.md` | Index: bundle → requirement → which file to open |
+| `README.md` | Index: what each bundle shows and which file to open |
 | `discovery_lookup_customer_outstanding/` | A real model discovery run of the lookup task |
-| `discovery_record_payment/` | Discovery of the payment task, finished from the recorded transcript |
+| `discovery_record_payment/` | Discovery of the payment task, replayed from the model's recorded choices after API credits ran out (`model: scripted`) |
 | `replay_success_other_customer/` | Replay for another customer, no model |
 | `replay_captcha_handoff/` | CAPTCHA stops replay; a person solves it in the same session; replay finishes |
 | `replay_commit_unknown/` | Lost response after the payment click: one click, `COMMIT_UNKNOWN`, operator verdict |
@@ -202,8 +205,8 @@ Files inside a bundle:
 
 | File | What it is |
 |---|---|
-| `manifest.json` | Run id, capability, version, lock hash, timestamps |
-| `events.jsonl` | Every action and decision, one JSON line each, with rationale |
+| `manifest.json` | Run id, open/closed status, timestamps, event count, redaction settings (known-value count, pattern names), and the size and SHA-256 of every file |
+| `events.jsonl` | Every action and decision, one JSON line each; discovery actions carry the model's stated reason |
 | `result.json` | The run's result (status, outcome, outputs, recoveries, drift; for discovery, token usage) |
 | `ground_truth.json` | REST API state before and after (replay bundles), and the declared faults |
 | `trace.json` | The recorded discovery trace (discovery bundles) |
@@ -214,7 +217,7 @@ Files inside a bundle:
 | `interventions/*.json` | Requests for a person (CAPTCHA, unknown commit, commit approval) |
 | `verdicts/*.json` | The operator's verdict on an unknown commit |
 
-## `target/dolibarr/` — the application under automation
+## `target/dolibarr/`: the application under automation
 
 | File | What it is |
 |---|---|
@@ -222,7 +225,7 @@ Files inside a bundle:
 | `docker-compose.yml` | Dolibarr and MariaDB containers |
 | `_env.sh` | Shared shell setup: loads `.env`, names the compose project after the port |
 | `up.sh` | Start the containers and wait until healthy |
-| `reset.sh` | Restore the post-seed database dump (about 9 s); `reset.sh dump` saves it |
+| `reset.sh` | Restore the post-seed database dump (about 12 s in spike S10; over 15 s prints a warning); `reset.sh dump` saves it |
 | `captcha.sh` | Turn the login CAPTCHA on or off |
 | `session.sh` | Expire a browser session server-side (session-expiry tests) |
 | `seed.py` | Create the known users, customers and invoices through the REST API |
@@ -239,12 +242,12 @@ Files inside a bundle:
 | `review-guide.md` | A step-by-step plan for reviewing the repository |
 | `architecture-review-v2.md` | The design review: requirements coverage, options considered, chosen architecture |
 | `build-plan-v2.md` | The milestone plan (M0–M8), gates and cut list the build followed |
-| `contracts.md` | Interfaces between subsystems |
+| `contracts.md` | The build's working agreement: ownership, shared types and where they live, import rules |
 | `implementation-status.md` | Per-milestone status, tests, evidence and commits |
 | `architecture.svg` | The architecture diagram |
 | `archive/architecture-design-v2.svg` | An earlier version of the diagram |
 
-## `spikes/` — early experiments (M0)
+## `spikes/`: early experiments (M0)
 
 Throwaway scripts that answered design questions before the build. Kept as the record behind early decisions; nothing
 in `src/` imports them.
@@ -264,9 +267,9 @@ in `src/` imports them.
 | `dolibarr/s3_search_payment.py` | Near-miss search rows and the payment endpoints |
 | `dolibarr/s4_captcha.py` | The login CAPTCHA as the human-only trigger |
 
-## `tests/` — automated tests
+## `tests/`: automated tests
 
-Folders mirror `src/cua/`. Markers: `live` needs the Docker target, `model` calls the API, `human` needs a person.
+Folders mirror `src/cua/`, plus `target/` and `integration/`. Markers: `live` needs the Docker target, `model` calls the API, `human` needs a person.
 Offline run: `uv run pytest -m "not live and not model and not human"`.
 
 | Path | What it tests |

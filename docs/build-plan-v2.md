@@ -1,5 +1,8 @@
 # Build Plan v2 (Option B: Balanced, target = Dolibarr)
 
+> **Status (2026-10-21):** the plan as it stood before the build, kept as written. What was actually built, measured
+> and cut is in `docs/implementation-status.md`; the system as built is described in `REPORT.md`.
+
 This is the plan Claude Code executes. The reasoning behind it is in `architecture-review-v2.md`. The target-app
 evidence is in `spikes/dolibarr/README.md`. `DESIGN.md` is superseded wherever these documents disagree.
 

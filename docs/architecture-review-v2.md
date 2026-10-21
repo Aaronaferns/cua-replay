@@ -1,5 +1,9 @@
 # Architecture Review v2: Computer-Use Automation System (interface.ai Assignment A)
 
+> **Status (2026-10-21):** a record of the review held before any code was written, kept as written. Where it differs
+> from the code, the code wins; `REPORT.md` describes the system as built and `docs/implementation-status.md` lists what
+> was built, measured and cut.
+
 Pre-implementation review of `docs/DESIGN.md` (v2) against the assignment brief. No code exists yet; nothing in this
 review was implemented. `DESIGN.md` is unchanged.
 

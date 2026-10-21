@@ -1,15 +1,16 @@
 # Shared contracts and ownership
 
-How three implementation agents work on one codebase without silently changing each other's interfaces.
-`docs/build-plan-v2.md` is the plan; this file is the working agreement for building it.
+The working agreement three implementation agents (A, B, C) and a lead used to build this in parallel without
+silently changing each other's interfaces; `docs/build-plan-v2.md` was the plan. Ownership, the live-target ports and
+the git rules are a record of how the build ran. The shared-type table and the import rules still describe the code.
 
 ## Ownership
 
 | Area | Owner | Paths |
 |---|---|---|
-| Target + runtime + discovery | **A** | `target/dolibarr/`, `src/cua/surface/`, `src/cua/agent/`, `src/cua/compiler/recorder.py`, `src/cua/compiler/locators.py`, `src/cua/compiler/trace.py` (B reviews every change) |
-| Artifact + replay + correctness | **B** | `src/cua/artifact/`, `src/cua/compiler/compile.py`, `src/cua/compiler/review_card.py`, `src/cua/replay/`, `capabilities/`, `apps/dolibarr/profile.json`, `approvals/` |
-| Safety + control + integration | **C** | `src/cua/safety/`, `src/cua/control/`, `src/cua/evidence/`, `src/cua/faults/`, `src/cua/config.py`, `policies/`, `tests/integration/`, `evidence/`, `README.md`, `REPORT.md` |
+| Target + runtime + discovery | A | `target/dolibarr/`, `src/cua/surface/`, `src/cua/agent/`, `src/cua/compiler/recorder.py`, `src/cua/compiler/locators.py`, `src/cua/compiler/trace.py` (B reviews every change) |
+| Artifact + replay + correctness | B | `src/cua/artifact/`, `src/cua/compiler/compile.py`, `src/cua/compiler/review_card.py`, `src/cua/replay/`, `capabilities/`, `apps/dolibarr/profile.json`, `approvals/` |
+| Safety + control + integration | C | `src/cua/safety/`, `src/cua/control/`, `src/cua/evidence/`, `src/cua/faults/`, `src/cua/config.py`, `policies/`, `tests/integration/`, `evidence/`, `README.md`, `REPORT.md` |
 | Integration + status | Lead | `docs/implementation-status.md`, `docs/contracts.md`, `src/cua/cli.py`, `tests/conftest.py`, `pyproject.toml`, `uv.lock` |
 
 Tests live next to their owner: `tests/<area>/test_*.py` (`tests/surface`, `tests/agent`, `tests/artifact`, `tests/replay`,
@@ -26,7 +27,7 @@ Adding a dependency to `pyproject.toml` is a request to the lead, not an edit.
 | `RecordedTrace` and parts | `compiler/trace.py` | A, B reviews | B (compiler) |
 | `ActionRequest`, `PolicyDecision`, `PolicyDenied`, `Guard` | `safety/policy.py` | C | A (surface), B (interpreter) |
 | `ControlLease`, `LeaseToken` | `control/lease.py` | C | A, B |
-| `EvidenceEvent`, `EvidenceWriter` | `evidence/events.py` | C | A, B |
+| `EvidenceEvent`, `EvidenceWriter` (protocol); `RunBundleWriter` | `evidence/events.py`, `evidence/writer.py` | C | A, B |
 | `RunResult`, `Failure`, `Recovery`, `DriftWarning`, `SideEffects` | `replay/result.py` | B | C (console, evidence), CLI |
 | `Settings` | `config.py` | C | everyone |
 | `Session`, `open_session` | `control/runtime.py` | C | A (discover), B (replay/validate CLI) |
@@ -41,14 +42,14 @@ Changing a shared type someone else consumes: describe the change and why to the
 (or mock the boundary) until the lead integrates the owner's commit, then consumers move. Never redefine another
 owner's type locally.
 
-## Import rules (enforced by tests)
+## Import rules
 
 ```
 artifact   leaf: pydantic only, no Playwright vocabulary
-surface    → artifact, safety.policy, control.lease
-safety     → artifact, control.lease
-control    → artifact, surface, safety, evidence        (never replay; replay registers callbacks)
-evidence   → safety, control.lease
+surface    → artifact, safety.policy, control.lease, config
+safety     → artifact, control.lease, config
+control    → artifact, surface, safety, evidence, config  (never replay; replay registers callbacks)
+evidence   → safety, control.lease, config
 agent      → surface, safety, control, evidence, compiler, artifact
 compiler   → artifact, agent.actions, surface, safety.policy
 replay     → artifact, surface, safety, control, evidence      NEVER agent, compiler.recorder, faults, anthropic,
@@ -58,7 +59,15 @@ cli        → anything; each package's `commands.py` is CLI wiring and may impo
              beyond its package's rule, e.g. `validate`/`make-evidence` reach target REST helpers and faults
 ```
 
-`cua.agent/__init__.py` stays empty so importing `cua.agent.actions` never loads the model SDK.
+Tests check these rules unevenly. `artifact`, `safety`, `evidence`, `replay` and `faults` are held to their full
+allow-lists (`tests/artifact/test_artifact_schema.py::test_artifact_imports_only_pydantic_and_the_standard_library`,
+`tests/safety/test_import_rules.py`, `tests/replay/test_replay_imports.py`,
+`tests/faults/test_harness.py::test_faults_import_only_playwright_pydantic_and_the_policy_type`). For `compiler` and
+`agent` only the forbidden imports are checked: the compiler never loads replay, faults, the recorder, Playwright or
+the model SDK (`tests/compiler/test_compile_v0.py`), and only `agent/anthropic_adapter.py` loads the SDK
+(`tests/agent/test_agent_imports.py`). No test checks `surface` or `control`.
+
+`src/cua/agent/__init__.py` stays empty so importing `cua.agent.actions` never loads the model SDK.
 
 Seams: production browser contexts come only from `cua.safety.network.new_guarded_context` (the surface takes a Page
 and a Guard by injection). There is one name normalizer, `cua.artifact.names`; `surface` delegates to it.
@@ -66,8 +75,8 @@ and a Guard by injection). There is one name normalizer, `cua.artifact.names`; `
 ## Live target
 
 There is one Dolibarr target per agent while agents work in parallel, so resets don't collide:
-`DOLIBARR_PORT` 8085 (A), 8086 (B), 8087 (C), each its own compose project (`cua-8085`, `cua-8086`, `cua-8087`). Until
-`target/dolibarr/` exists (A, M1), live tests skip. Tests marked `live` must reset the state they depend on.
+`DOLIBARR_PORT` 8085 (A), 8086 (B), 8087 (C), each its own compose project (`cua-8085`, `cua-8086`, `cua-8087`). Live
+tests skip when the target is not reachable. Tests marked `live` must reset the state they depend on.
 
 ## Git
 
@@ -87,7 +96,8 @@ RunHandle/daemon; desktop, pixel or coordinate actions; policy hierarchy or thre
 replay recovery; WebArena; model comparison; UI-TARS/vLLM; Anthropic browser-toolset adapter; OCR masking;
 Selenium/IE; CDP screencast console; distributed workers; quarantine/canaries; scoped re-discovery;
 coverage-gated approval; waivers; generalized auto-repair; frameset support beyond Playwright's defaults.
-Tenant B, differential read-back and settle-jitter experiments wait until M7 is green and the owner approves.
+Tenant B and differential read-back were cut (REPORT §7); the settle-jitter experiment was never run.
 
-Evidence event kinds in use: `observe`, `action`, `policy`, `state`, `recovery`, `commit_attempt`, `lease`,
-`intervention`, `fault` (declared, sandbox only).
+Evidence event kinds in use: `observe`, `action`, `policy`, `state`, `recovery`, `drift`, `commit_attempted`
+(automation, written before the click; a human's commit click during a handoff is `commit_attempt`), `escalated`,
+`handoff_ended`, `lease`, `intervention`, `result`, `fault` (declared, sandbox only).

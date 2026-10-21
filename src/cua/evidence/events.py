@@ -27,7 +27,8 @@ class EvidenceEvent(BaseModel):
     seq: int
     run_id: str
     actor: EventActor
-    kind: str  # e.g. "observe", "action", "policy", "state", "recovery", "commit_attempt", "lease", "intervention"
+    kind: str  # e.g. "observe", "action", "policy", "state", "recovery", "drift", "commit_attempted" (replay),
+    # "commit_attempt" (human capture), "escalated", "handoff_ended", "lease", "intervention", "result", "fault"
     step_id: str | None = None
     state: str | None = None
     action: dict[str, Any] | None = None  # tokens, never raw input values
