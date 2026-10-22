@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay · evid-20261017-011650-alpha_two_unpaid_invoices</title><style>
+:root{--bg:#f7f7f5;--panel:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e4e3de;--track:#efeee9;
+--agent:#7c5cd6;--replay:#2f6fd0;--human:#d98a00;--system:#9a9a93;--good:#1f8a4c;--warn:#b86e00;--bad:#c63b32;
+--good-bg:#e5f4ea;--warn-bg:#fbf0dc;--bad-bg:#fbe6e4;--neutral-bg:#efeee9;--code:#f1f0ec}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--ink:#ecebe6;--muted:#9c9b94;--line:#33332f;--track:#2a2a27;
+--agent:#a48af0;--replay:#6aa0f0;--human:#f0a830;--system:#77776f;--good:#5cc489;--warn:#f0a830;--bad:#f07a70;
+--good-bg:#1d3326;--warn-bg:#3a2c12;--bad-bg:#3d1f1c;--neutral-bg:#2a2a27;--code:#2a2a27}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header,main,footer{max-width:1200px;margin:0 auto;padding:16px}header{padding-top:28px}
+h1{font-size:22px;margin:6px 0 10px;font-weight:600}h2{font-size:15px;margin:22px 0 10px;display:inline-flex;gap:10px;align-items:center}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}code{background:var(--code);padding:1px 5px;border-radius:4px;word-break:break-all}
+pre{background:var(--code);padding:10px;border-radius:6px;overflow:auto;max-height:420px;white-space:pre-wrap;word-break:break-word}
+.sub{color:var(--muted);font-size:12.5px}.eyebrow{color:var(--muted);font-size:12.5px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--neutral-bg)}
+.pill.big{font-size:13px;padding:3px 10px}.good{background:var(--good-bg);color:var(--good)}.warn{background:var(--warn-bg);color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad)}.neutral{background:var(--neutral-bg)}.pill.agent{background:var(--agent);color:#fff}.pill.replay{background:var(--replay);color:#fff}
+.outcome{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.outputs{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:14px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.stat .k{color:var(--muted);font-size:12px}.stat .v{font-weight:600}
+.callout{border-radius:8px;padding:10px 12px;margin:8px 0;border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-bottom:8px}.legend span{display:inline-flex;gap:5px;align-items:center}
+.sw{display:inline-block;width:14px;height:10px;border-radius:3px}
+.wf{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 0}
+.wf-row{display:grid;grid-template-columns:minmax(150px,32%) 1fr;align-items:center;padding:3px 12px;color:inherit;text-decoration:none;min-height:30px}
+a.wf-row:hover{background:var(--track)}.wf-label{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-right:10px}
+.wf-label .sub{margin-left:8px}.wf-track{position:relative;height:18px;background:var(--track);border-radius:4px}
+.wf-axis .wf-track{background:none;height:16px}.tick{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
+.tick:first-child{transform:none}.tick:last-child{transform:translateX(-100%)}
+.bar{position:absolute;top:2px;bottom:2px;border-radius:3px;min-width:3px}.dur{position:absolute;top:0;font-size:11px;color:var(--muted);white-space:nowrap}
+.actor-agent{background:var(--agent)}.actor-replay{background:var(--replay)}.actor-human{background:var(--human)}.actor-system{background:var(--system)}
+.handoff{background:var(--human)}.handoff-wait{background:repeating-linear-gradient(45deg,var(--human) 0 3px,transparent 3px 7px);box-shadow:inset 0 0 0 1px var(--human)}
+.bar.st-error,.bar.st-denied,.sw.st-error{outline:2px solid var(--bad);outline-offset:1px}.bar.st-escalated,.sw.st-escalated{outline:2px solid var(--warn);outline-offset:1px}
+.sw.st-error,.sw.st-escalated{background:transparent}
+.mark{font-size:11px;padding:0 6px;border-radius:4px;margin-left:6px}.mark.commit{background:var(--warn-bg);color:var(--warn)}.mark.human{background:var(--warn-bg);color:var(--warn)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:8px 0}.card>summary{cursor:pointer;padding:10px 12px;display:flex;gap:8px;align-items:center;list-style:none}
+.card>summary::-webkit-details-marker{display:none}.card.st-error,.card.st-denied{border-left:3px solid var(--bad)}.card.st-escalated,.handoff-card{border-left:3px solid var(--warn)}
+.card>summary .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.right{margin-left:auto;display:flex;gap:8px;align-items:center;white-space:nowrap;color:var(--muted);font-size:12.5px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.card-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,46%);gap:16px;padding:0 12px 12px}
+.facts{border-collapse:collapse;width:100%}.facts th{text-align:left;color:var(--muted);font-weight:500;padding:3px 10px 3px 0;vertical-align:top;white-space:nowrap;width:1%}
+.facts td{padding:3px 0;word-break:break-word}.facts ul{margin:0;padding-left:18px}
+.shots figure{margin:0 0 10px}.shot{width:100%;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;display:block}figcaption{font-size:11.5px;color:var(--muted)}
+details>summary{cursor:pointer}details details{margin-top:8px}details details>summary{color:var(--muted);font-size:12.5px}
+.section>summary{list-style:none}.section>summary::-webkit-details-marker{display:none}.section>summary h2::before{content:"▸ ";color:var(--muted)}.section[open]>summary h2::before{content:"▾ "}
+.list{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--panel)}.list th,.list td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.list td code{word-break:break-all}.list tr.bad td{background:none;color:inherit}.list tr.bad td:nth-child(5){color:var(--bad)}
+.scroll{overflow-x:auto}button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+.compiled{border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-top:10px;background:var(--bg)}
+.compiled>summary{color:var(--ink);font-weight:600;font-size:13px}.compiled .facts{margin:4px 0 2px}
+.cstep{padding:6px 0;border-top:1px dashed var(--line)}.compiled .cstep:first-of-type{border-top:0}
+.cstep .sid{background:var(--replay);color:#fff;white-space:nowrap}.cstep.check_before .sid,.cstep.check_after .sid{background:var(--system);color:#fff}
+.lineage .cstep{padding:1px 0;border:0}.lineage td.arrow{color:var(--muted)}.lineage tr.dropped td{color:var(--muted)}
+.target{margin-top:4px}.strategies{margin:2px 0 0;padding-left:22px;font-size:12.5px}.strategies li.primary code{outline:1px solid var(--replay)}
+.compiled-note{margin-top:10px;font-size:13px;padding:6px 10px;border-radius:6px;background:var(--neutral-bg)}.compiled-note.dropped{color:var(--muted)}
+footer{color:var(--muted);font-size:12px;padding-bottom:40px}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9;cursor:zoom-out;padding:16px}
+#zoom[hidden]{display:none}#zoom img{max-width:100%;max-height:100%;border-radius:6px}
+@media (max-width:760px){.lineage tr:first-child,.lineage td.arrow{display:none}.lineage tr{display:block;padding:6px 0;border-bottom:1px solid var(--line)}
+.lineage td{display:block;border:0;padding:2px 8px}.card-body{grid-template-columns:1fr}.wf-row{grid-template-columns:1fr}.wf-label{padding-bottom:2px}.dur{display:none}}
+</style></head><body>
+<header>
+  <div class="eyebrow"><span class="pill replay">replay</span>
+    <code>evid-20261017-011650-alpha_two_unpaid_invoices</code> · dolibarr.lookup_customer_outstanding
+    · 2026-10-17 05:17:10 UTC</div>
+  <h1>dolibarr.lookup_customer_outstanding</h1>
+  <div class="outcome"><span class="pill big good">success</span>
+    
+    <span class="outputs">outstanding_amount = 199.75</span></div>
+  <div class="stats"><div class="stat"><div class="k">duration</div><div class="v">1 min 8 s</div></div><div class="stat"><div class="k">steps</div><div class="v">4</div></div><div class="stat"><div class="k">handoffs</div><div class="v">1</div></div><div class="stat"><div class="k">human wait</div><div class="v">16.5 s</div></div><div class="stat"><div class="k">model tokens</div><div class="v">none (replay)</div></div><div class="stat"><div class="k">commit</div><div class="v">none</div></div><div class="stat"><div class="k">blocked requests</div><div class="v">15</div></div></div>
+  <div class="callout neutral"><b>Ground truth</b> (REST side channel the replay never uses): expected <code>success/success</code>, REST state unchanged, no mismatches.</div>
+</header>
+<main>
+<section><h2>Timeline</h2><div class="legend"><span><i class="sw actor-agent"></i>model (discovery)</span><span><i class="sw actor-replay"></i>replay (no model)</span><span><i class="sw actor-human"></i>human</span><span><i class="sw actor-system"></i>system</span><span><i class="sw handoff-wait"></i>waiting for a human</span><span><i class="sw handoff"></i>human holds the lease</span><span><i class="sw st-error"></i>error / denied</span><span><i class="sw st-escalated"></i>escalated</span></div><div class="wf"><div class="wf-row wf-axis"><div class="wf-label"></div><div class="wf-track"><span class="tick" style="left:0%">0 ms</span><span class="tick" style="left:25%">17.0 s</span><span class="tick" style="left:50%">34.0 s</span><span class="tick" style="left:75%">51.0 s</span><span class="tick" style="left:100%">1 min 8 s</span></div></div><a class="wf-row" href="#s-run-1"><div class="wf-label"><b>session open, entry</b><span class="sub">navigate (entry)</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:0.000%;width:89.579%" title="session open, entry: 1 min 1 s"></span><span class="dur" style="right:calc(100.000% + 4px)">1 min 1 s</span></div></a><a class="wf-row handoff-row" href="#s-handoff-c8cb9d7a6df2"><div class="wf-label"><b>handoff</b> <span class="mark human">HUMAN_ONLY_LOGIN</span><span class="sub">aaronferns · resume</span></div><div class="wf-track"><span class="bar handoff-wait" style="left:6.841%;width:24.329%" title="waiting for a human: 16.5 s"></span><span class="bar handoff" style="left:31.170%;width:54.614%" title="human holds the lease"></span><span class="dur" style="right:calc(93.159% + 4px)">53.6 s</span></div></a><a class="wf-row" href="#s-s01_navigate"><div class="wf-label"><b>s01_navigate</b><span class="sub">navigate /societe/list.php?search_customer_code=${customer_code}</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:89.582%;width:3.053%" title="s01_navigate: 2.1 s"></span><span class="dur" style="right:calc(10.418% + 4px)">2.1 s</span></div></a><a class="wf-row" href="#s-s02_click"><div class="wf-label"><b>s02_click</b><span class="sub">click link_c</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:92.639%;width:5.591%" title="s02_click: 3.8 s"></span><span class="dur" style="right:calc(7.361% + 4px)">3.8 s</span></div></a><a class="wf-row" href="#s-s03_assert"><div class="wf-label"><b>s03_assert</b><span class="sub">assert target_equals_input(cell_customer_code, customer_code) else IDENTITY_MISMATCH</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:98.236%;width:0.655%" title="s03_assert: 444 ms"></span><span class="dur" style="right:calc(1.764% + 4px)">444 ms</span></div></a><a class="wf-row" href="#s-s04_extract"><div class="wf-label"><b>s04_extract</b><span class="sub">extract generic_current_outstanding_bill -&gt; outstanding_amount</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:98.897%;width:0.414%" title="s04_extract: 281 ms"></span><span class="dur" style="right:calc(1.103% + 4px)">281 ms</span></div></a></div></section>
+
+<section><h2>Steps and handoffs <button type="button" id="toggle">expand all</button></h2><details class="card st-ok" id="s-run-1"><summary><span class="dot actor-replay"></span><b>session open, entry</b> <span class="sub">navigate (entry)</span><span class="right"><span class="pill good">ok</span> 1 min 1 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>navigate (entry)</code></td></tr><tr><th>states</th><td>login_captcha → home</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 3)</td></tr><tr><th>duration</th><td>1 min 1 s</td></tr></table><details><summary>Raw events (5)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:17:10.089066Z&quot;,
+    &quot;seq&quot;: 0,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: null,
+    &quot;detail&quot;: {
+      &quot;session&quot;: &quot;open&quot;,
+      &quot;policy&quot;: &quot;dolibarr-sandbox&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:17:13.644122Z&quot;,
+    &quot;seq&quot;: 2,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;entry&quot;: true
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:17:14.294900Z&quot;,
+    &quot;seq&quot;: 3,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: &quot;login_captcha&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;login_captcha&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:09.446836Z&quot;,
+    &quot;seq&quot;: 27,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: &quot;login_captcha&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;entry&quot;: true
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:10.958895Z&quot;,
+    &quot;seq&quot;: 28,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;home&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card handoff-card" open id="s-handoff-c8cb9d7a6df2"><summary><span class="dot actor-human"></span><b>handoff</b> <span class="sub">HUMAN_ONLY_LOGIN · aaronferns</span><span class="right">53.6 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>reason</th><td><span class="pill warn">HUMAN_ONLY_LOGIN</span></td></tr><tr><th>intervention</th><td><code>c8cb9d7a6df2</code></td></tr><tr><th>detail</th><td>the login asks for a security code that automation never fills</td></tr><tr><th>page state</th><td>login_captcha (expected home)</td></tr><tr><th>commit attempted</th><td>False</td></tr><tr><th>SLA deadline</th><td>2026-10-17T05:32:14.737723+00:00</td></tr><tr><th>operator</th><td>aaronferns</td></tr><tr><th>waited for a human</th><td>16.5 s</td></tr><tr><th>total</th><td>53.6 s</td></tr><tr><th>lease generations</th><td>1 → 2 → 3</td></tr><tr><th>ended</th><td><span class="pill good">resume</span></td></tr><tr><th>decisions</th><td><ul><li><code>resume</code> by aaronferns <span class="sub">+53.6 s</span></li></ul></td></tr></table><details open><summary>Captured human actions (7, values redacted)</summary><table class="list"><tr><th>at</th><th>action</th><th>page</th></tr><tr><td>+38.7 s</td><td><code>change Login &lt;- [REDACTED]</code></td><td>/index.php</td></tr><tr><td>+38.8 s</td><td><code>click Password</code></td><td>/index.php</td></tr><tr><td>+40.3 s</td><td><code>change Password &lt;- [REDACTED]</code></td><td>/index.php</td></tr><tr><td>+40.4 s</td><td><code>click Security code</code></td><td>/index.php</td></tr><tr><td>+46.4 s</td><td><code>change Security code &lt;- [REDACTED]</code></td><td>/index.php</td></tr><tr><td>+46.5 s</td><td><code>click</code></td><td>/index.php</td></tr><tr><td>+46.5 s</td><td><code>submit form login</code></td><td>/index.php</td></tr></table></details></div><div class="shots"><figure><img class="shot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABVYAAAOECAIAAADFff1bAAAQAElEQVR4nOzdCZwcZZ038GeSSQjk5ApJIAkTwpFI1IQbBQVc0LCAgLJrIniA7rqweBBYRRRQvDCoL4K6rqwKJOLBqQmrcglyqSQigXBmgHCEI2Em9zHJvNVdk6bT093Tk8zRk+f7/eTTqa5+uqq6Z5Lu/+956qleAQAAAIhArwAAAABEQAQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAF3pzJvqlxR44PttPuvyB1qa5RbC5Q8uWfLg5aHjZXbRYpPtv7m+5AF/P9ek/qZPhTb3UsELBwA6kggAALpa/R9OedPP5+06dcnc/2n7WduMeM++Q88+eId9zrg5WXhzVehISWX+4V3u+dbhmSO7et6IDy+87b8K12cOeOEfz2311E/dVD91l7u/kX3qncsP/9rDP+1fejcPfnivzjh8AKAsEQAAdINF/7itxWcPH/nL+tEnP3LNxmL4zJtz4wQeaNXLn5Tij//khNvmvZre3fu7dz9e2Ov+qfxxBhvXJyvrb7rpwZa+/WQX9Tff9EDrLv3vH7hXWPDn7z808Jn7b7vtM4ff9HT/vY+9tK7/Jus/+8uHlvbf57jM6k2O7KOHD37mrm/NzT715B/dvXTk/leXKPC//8CHw5MLQqgNAECXEgEAQHf71L1PhsGjv5ApmJPi/KuHvXLdfsdme+F3/XCx8QFvdp6P2jXMPvzwll73hb//dLbU/9rhr/wy+/xkAysGH37+nV9Ka/XBh++38rv7Ja2/eMue/WsGH7bfqssy9y64Oa8r/j8P3mGfj/48LHqmfkVy78xRO4f1a/ruMrR//vpP/dPbBi197L4/DBuanwGcOWpoWNrY2L/lqVc+/0rYdc+LhhbJAC5/YGq49rintgmhKQAAXUoEAADd7olFjQMGjhrYv//lpx42+OlbPnvDHsv+kemF/+a9y0a/9+6vlhws//wdn/3ZsPCPtNe9//iTL627+v11I/f77PXZ59/2mV/OWRpC7x0npB32y57++/3DViR99Lc9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uZLb2traZKF37961Wb169UpvE8nKXhsl/wmktzkh+z9DbiF/+5H/jwFsOScCAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABAFEQAAAABEQQQAAAAAURABAAAAQBREAAAAABCF2gAAdJ8LL7xwyZIljz/++Lp160I0+vTps88+++ywww4BAOhCIgAA6E4XXXRRAADoEk4EAAAAgCiIAAAAACAKIgAAAACIgggAAAAAoiACAAAAgCiIAAAAACAKIgAAAACIgggAAAAAoiACAAAAgCiIAAAAACAKIgAAAACIgggAAAAAoiACAAAAgCiIAAAAACAKIgAAAACIgggAAAAAoiACAAAAgCiIAAAAACAKIgAAAACIgggAAAAAoiACAAAAgCiIAAAAACAKIgAAAACIgggAAAAAoiACAAAAgCiIAAAAACAKIgAAAACIQm0AqEo1NTUBAHogH2FA1RIBAFXNtyiq1vLlq3927T2NS1flrzzlpAP3HDssVJ/0aI95z4SCw8u9itGjdjrl5IP69ukdOs7adet/df2DB+0/Jtlp/nJov/sffPqOPz2WLlftmwzBxxZQ9UQAQLXIfW3y/Ymeol+/vie//4Dhw4akd19e1HDNL+498bj9elCBmhzzkCH9P3n6kR1b/HespP5/aG79p//j6AED+vXEN5lo+VwDqpAIAOh+viSxdUiygH32HvH64uV7jm3pAH/u+dfTh4581/hDDhob8nqz+/TpfeqH3pHGBwUrd9xxYPLcPeqGpk+5ZfbcpUtXpV30Saf9Tb+b8/5/ntR3mz657U/Yd+TxkyeGbD1/7/1PJQtPPPVyujK35aSTv/UB5x799ndnJV3ro0fvXMk2k+N5ZN7CZM3+k+qeenpRbmRBbmuDB2370Q8f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7KazCST1XrYz9thwWub8g2LbOeexzPQE2RMKJs7KdMMW2WnSszprYmb4fc2Y8ybOeqT8xQ4yjdM+2NyL3Th6v2bGhOkt5xFsfPnZ4ejZF/LrMKWSTV09K7SMbJ87/cZzwo1XhXRYe1uHtOnxZ+ZZCOkhbdxtZnR6dl8zCg9k8oynWhq3PH3sObNOu2pMTcubtsmPLHk586ZlHvr1pOn7FkxGX+TlvPnYubOmh/SJm+6+9b6K72JK+HW2TZg+682+9CJ7LLmjymSK4dx0gMUk2z/96uzx7jlt4i35r7HIe17ul7+11r+rxdoUvl2537Q8rX8hC19XJfvaGEgBELOa5maXkgEAAICtn1EAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFHVsxbQAAAFLSURBVEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFEQAAAAAEAURAAAAAERBBAAAAABREAEAAABAFP4/AAAA//94XQkLAAAABklEQVQDAP7SyJHa/RUwAAAAAElFTkSuQmCC" alt="handoff screenshot"><figcaption>failure/run.png: what the operator was shown</figcaption></figure></div></div></details><details class="card st-ok" id="s-s01_navigate"><summary><span class="dot actor-replay"></span><b>s01_navigate</b> <span class="sub">navigate /societe/list.php?search_customer_code=${customer_code}</span><span class="right"><span class="pill good">ok</span> 2.1 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>navigate /societe/list.php?search_customer_code=${customer_code}</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>customer_list</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 3)</td></tr><tr><th>duration</th><td>2.1 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:10.960899Z&quot;,
+    &quot;seq&quot;: 29,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;route&quot;: &quot;/societe/list.php?search_customer_code=${customer_code}&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:11.807403Z&quot;,
+    &quot;seq&quot;: 33,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:13.035181Z&quot;,
+    &quot;seq&quot;: 34,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;customer_list&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_list&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s02_click"><summary><span class="dot actor-replay"></span><b>s02_click</b> <span class="sub">click link_c</span><span class="right"><span class="pill good">ok</span> 3.8 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click link_c</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>customer_tab</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 3)</td></tr><tr><th>duration</th><td>3.8 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:13.038086Z&quot;,
+    &quot;seq&quot;: 35,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;customer_list&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;link_c&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:15.151955Z&quot;,
+    &quot;seq&quot;: 36,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;customer_list&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:16.837350Z&quot;,
+    &quot;seq&quot;: 40,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_tab&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s03_assert"><summary><span class="dot actor-replay"></span><b>s03_assert</b> <span class="sub">assert target_equals_input(cell_customer_code, customer_code) else IDENTITY_MISMATCH</span><span class="right"><span class="pill good">ok</span> 444 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>assert target_equals_input(cell_customer_code, customer_code) else IDENTITY_MISMATCH</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>customer_tab</td></tr><tr><th>lease</th><td>automation (generation 3)</td></tr><tr><th>duration</th><td>444 ms</td></tr></table><details><summary>Raw events (2)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:16.841709Z&quot;,
+    &quot;seq&quot;: 41,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s03_assert&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;assert&quot;,
+      &quot;that&quot;: {
+        &quot;kind&quot;: &quot;target_equals_input&quot;,
+        &quot;target&quot;: &quot;cell_customer_code&quot;,
+        &quot;input&quot;: &quot;customer_code&quot;,
+        &quot;normalizer&quot;: &quot;text&quot;
+      },
+      &quot;on_fail&quot;: &quot;IDENTITY_MISMATCH&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:17.286535Z&quot;,
+    &quot;seq&quot;: 42,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s03_assert&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_tab&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s04_extract"><summary><span class="dot actor-replay"></span><b>s04_extract</b> <span class="sub">extract generic_current_outstanding_bill -&gt; outstanding_amount</span><span class="right"><span class="pill good">ok</span> 281 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>extract generic_current_outstanding_bill -&gt; outstanding_amount</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>customer_tab</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 3)</td></tr><tr><th>duration</th><td>281 ms</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:17.290412Z&quot;,
+    &quot;seq&quot;: 43,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s04_extract&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;extract&quot;,
+      &quot;target&quot;: &quot;generic_current_outstanding_bill&quot;,
+      &quot;output&quot;: &quot;outstanding_amount&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:17.351540Z&quot;,
+    &quot;seq&quot;: 44,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s04_extract&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-17T05:18:17.571751Z&quot;,
+    &quot;seq&quot;: 45,
+    &quot;run_id&quot;: &quot;evid-20261017-011650-alpha_two_unpaid_invoices&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s04_extract&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 3
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_tab&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details></section>
+<details class="section"><summary><h2>Request policy (15 checks, 15 blocked)</h2></summary><p class="sub">Every request the page made goes through the policy guard. Blocked sub-resources (stylesheets, trackers) are the allowlist working, not failures of the run.</p><table class="list"><tr><th>at</th><th>method</th><th>type</th><th>url</th><th></th><th>reason</th></tr><tr class="bad"><td>+2.9 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+51.6 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+51.7 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+52.1 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+52.2 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+58.6 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+58.6 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+59.0 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+59.3 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+1 min 1 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+1 min 1 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+1 min 2 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+1 min 5 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+1 min 5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+1 min 5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr></table></details>
+<details class="section"><summary><h2>Bundle</h2></summary><table class="facts"><tr><th>status</th><td>closed</td></tr><tr><th>events</th><td>47</td></tr><tr><th>created</th><td>2026-10-17T05:17:07.582052+00:00</td></tr><tr><th>closed</th><td>2026-10-17T05:18:21.941751+00:00</td></tr><tr><th>redaction</th><td>14 known values; patterns: header, bearer, session_id, token_param, token_field, token_json, ssn, email</td></tr></table><table class="list"><tr><th>file</th><th>bytes</th><th>sha256</th></tr><tr><td><code>events.jsonl</code></td><td>22898</td><td><code>57bfecb18f4a9959</code></td></tr><tr><td><code>failure/run.png</code></td><td>20946</td><td><code>a31c8662b61b63b8</code></td></tr><tr><td><code>failure/run.snapshot.json</code></td><td>1391</td><td><code>fd1723cfce278118</code></td></tr><tr><td><code>ground_truth.json</code></td><td>869</td><td><code>07992d0b22a13a25</code></td></tr><tr><td><code>interventions/c8cb9d7a6df2.json</code></td><td>693</td><td><code>f2efd825ed2ec6aa</code></td></tr><tr><td><code>result.json</code></td><td>679</td><td><code>6cd47d145d1d6fa4</code></td></tr></table></details>
+</main>
+<footer>Rendered by <code>cua view</code> from the redacted evidence bundle <code>replay_captcha_handoff</code>; nothing on this page came from the live run.</footer>
+<div id="zoom" hidden><img alt=""></div>
+<script>
+const zoom=document.getElementById('zoom'),zimg=zoom.querySelector('img');
+document.addEventListener('click',ev=>{const t=ev.target;if(t.classList&&t.classList.contains('shot')){zimg.src=t.src;zoom.hidden=false}});
+zoom.addEventListener('click',()=>{zoom.hidden=true;zimg.removeAttribute('src')});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')zoom.hidden=true});
+const tg=document.getElementById('toggle');
+if(tg)tg.addEventListener('click',()=>{const cards=[...document.querySelectorAll('.card')];const open=cards.some(c=>!c.open);cards.forEach(c=>c.open=open);tg.textContent=open?'collapse all':'expand all'});
+document.querySelectorAll('a.wf-row').forEach(a=>a.addEventListener('click',()=>{const d=document.querySelector(a.getAttribute('href'));if(d&&d.tagName==='DETAILS')d.open=true}));
+</script>
+</body></html>

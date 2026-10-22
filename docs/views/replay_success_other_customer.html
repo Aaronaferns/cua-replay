@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay · evid-20261016-193038-beta_other_customer</title><style>
+:root{--bg:#f7f7f5;--panel:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e4e3de;--track:#efeee9;
+--agent:#7c5cd6;--replay:#2f6fd0;--human:#d98a00;--system:#9a9a93;--good:#1f8a4c;--warn:#b86e00;--bad:#c63b32;
+--good-bg:#e5f4ea;--warn-bg:#fbf0dc;--bad-bg:#fbe6e4;--neutral-bg:#efeee9;--code:#f1f0ec}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--ink:#ecebe6;--muted:#9c9b94;--line:#33332f;--track:#2a2a27;
+--agent:#a48af0;--replay:#6aa0f0;--human:#f0a830;--system:#77776f;--good:#5cc489;--warn:#f0a830;--bad:#f07a70;
+--good-bg:#1d3326;--warn-bg:#3a2c12;--bad-bg:#3d1f1c;--neutral-bg:#2a2a27;--code:#2a2a27}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header,main,footer{max-width:1200px;margin:0 auto;padding:16px}header{padding-top:28px}
+h1{font-size:22px;margin:6px 0 10px;font-weight:600}h2{font-size:15px;margin:22px 0 10px;display:inline-flex;gap:10px;align-items:center}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}code{background:var(--code);padding:1px 5px;border-radius:4px;word-break:break-all}
+pre{background:var(--code);padding:10px;border-radius:6px;overflow:auto;max-height:420px;white-space:pre-wrap;word-break:break-word}
+.sub{color:var(--muted);font-size:12.5px}.eyebrow{color:var(--muted);font-size:12.5px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--neutral-bg)}
+.pill.big{font-size:13px;padding:3px 10px}.good{background:var(--good-bg);color:var(--good)}.warn{background:var(--warn-bg);color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad)}.neutral{background:var(--neutral-bg)}.pill.agent{background:var(--agent);color:#fff}.pill.replay{background:var(--replay);color:#fff}
+.outcome{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.outputs{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:14px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.stat .k{color:var(--muted);font-size:12px}.stat .v{font-weight:600}
+.callout{border-radius:8px;padding:10px 12px;margin:8px 0;border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-bottom:8px}.legend span{display:inline-flex;gap:5px;align-items:center}
+.sw{display:inline-block;width:14px;height:10px;border-radius:3px}
+.wf{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 0}
+.wf-row{display:grid;grid-template-columns:minmax(150px,32%) 1fr;align-items:center;padding:3px 12px;color:inherit;text-decoration:none;min-height:30px}
+a.wf-row:hover{background:var(--track)}.wf-label{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-right:10px}
+.wf-label .sub{margin-left:8px}.wf-track{position:relative;height:18px;background:var(--track);border-radius:4px}
+.wf-axis .wf-track{background:none;height:16px}.tick{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
+.tick:first-child{transform:none}.tick:last-child{transform:translateX(-100%)}
+.bar{position:absolute;top:2px;bottom:2px;border-radius:3px;min-width:3px}.dur{position:absolute;top:0;font-size:11px;color:var(--muted);white-space:nowrap}
+.actor-agent{background:var(--agent)}.actor-replay{background:var(--replay)}.actor-human{background:var(--human)}.actor-system{background:var(--system)}
+.handoff{background:var(--human)}.handoff-wait{background:repeating-linear-gradient(45deg,var(--human) 0 3px,transparent 3px 7px);box-shadow:inset 0 0 0 1px var(--human)}
+.bar.st-error,.bar.st-denied,.sw.st-error{outline:2px solid var(--bad);outline-offset:1px}.bar.st-escalated,.sw.st-escalated{outline:2px solid var(--warn);outline-offset:1px}
+.sw.st-error,.sw.st-escalated{background:transparent}
+.mark{font-size:11px;padding:0 6px;border-radius:4px;margin-left:6px}.mark.commit{background:var(--warn-bg);color:var(--warn)}.mark.human{background:var(--warn-bg);color:var(--warn)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:8px 0}.card>summary{cursor:pointer;padding:10px 12px;display:flex;gap:8px;align-items:center;list-style:none}
+.card>summary::-webkit-details-marker{display:none}.card.st-error,.card.st-denied{border-left:3px solid var(--bad)}.card.st-escalated,.handoff-card{border-left:3px solid var(--warn)}
+.card>summary .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.right{margin-left:auto;display:flex;gap:8px;align-items:center;white-space:nowrap;color:var(--muted);font-size:12.5px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.card-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,46%);gap:16px;padding:0 12px 12px}
+.facts{border-collapse:collapse;width:100%}.facts th{text-align:left;color:var(--muted);font-weight:500;padding:3px 10px 3px 0;vertical-align:top;white-space:nowrap;width:1%}
+.facts td{padding:3px 0;word-break:break-word}.facts ul{margin:0;padding-left:18px}
+.shots figure{margin:0 0 10px}.shot{width:100%;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;display:block}figcaption{font-size:11.5px;color:var(--muted)}
+details>summary{cursor:pointer}details details{margin-top:8px}details details>summary{color:var(--muted);font-size:12.5px}
+.section>summary{list-style:none}.section>summary::-webkit-details-marker{display:none}.section>summary h2::before{content:"▸ ";color:var(--muted)}.section[open]>summary h2::before{content:"▾ "}
+.list{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--panel)}.list th,.list td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.list td code{word-break:break-all}.list tr.bad td{background:none;color:inherit}.list tr.bad td:nth-child(5){color:var(--bad)}
+.scroll{overflow-x:auto}button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+.compiled{border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-top:10px;background:var(--bg)}
+.compiled>summary{color:var(--ink);font-weight:600;font-size:13px}.compiled .facts{margin:4px 0 2px}
+.cstep{padding:6px 0;border-top:1px dashed var(--line)}.compiled .cstep:first-of-type{border-top:0}
+.cstep .sid{background:var(--replay);color:#fff;white-space:nowrap}.cstep.check_before .sid,.cstep.check_after .sid{background:var(--system);color:#fff}
+.lineage .cstep{padding:1px 0;border:0}.lineage td.arrow{color:var(--muted)}.lineage tr.dropped td{color:var(--muted)}
+.target{margin-top:4px}.strategies{margin:2px 0 0;padding-left:22px;font-size:12.5px}.strategies li.primary code{outline:1px solid var(--replay)}
+.compiled-note{margin-top:10px;font-size:13px;padding:6px 10px;border-radius:6px;background:var(--neutral-bg)}.compiled-note.dropped{color:var(--muted)}
+footer{color:var(--muted);font-size:12px;padding-bottom:40px}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9;cursor:zoom-out;padding:16px}
+#zoom[hidden]{display:none}#zoom img{max-width:100%;max-height:100%;border-radius:6px}
+@media (max-width:760px){.lineage tr:first-child,.lineage td.arrow{display:none}.lineage tr{display:block;padding:6px 0;border-bottom:1px solid var(--line)}
+.lineage td{display:block;border:0;padding:2px 8px}.card-body{grid-template-columns:1fr}.wf-row{grid-template-columns:1fr}.wf-label{padding-bottom:2px}.dur{display:none}}
+</style></head><body>
+<header>
+  <div class="eyebrow"><span class="pill replay">replay</span>
+    <code>evid-20261016-193038-beta_other_customer</code> · dolibarr.lookup_customer_outstanding
+    · 2026-10-16 23:30:52 UTC</div>
+  <h1>dolibarr.lookup_customer_outstanding</h1>
+  <div class="outcome"><span class="pill big good">success</span>
+    
+    <span class="outputs">outstanding_amount = 355.20</span></div>
+  <div class="stats"><div class="stat"><div class="k">duration</div><div class="v">10.9 s</div></div><div class="stat"><div class="k">steps</div><div class="v">4</div></div><div class="stat"><div class="k">handoffs</div><div class="v">0</div></div><div class="stat"><div class="k">model tokens</div><div class="v">none (replay)</div></div><div class="stat"><div class="k">commit</div><div class="v">none</div></div><div class="stat"><div class="k">blocked requests</div><div class="v">15</div></div></div>
+  <div class="callout neutral"><b>Ground truth</b> (REST side channel the replay never uses): expected <code>success/success</code>, REST state unchanged, no mismatches.</div>
+</header>
+<main>
+<section><h2>Timeline</h2><div class="legend"><span><i class="sw actor-agent"></i>model (discovery)</span><span><i class="sw actor-replay"></i>replay (no model)</span><span><i class="sw actor-human"></i>human</span><span><i class="sw actor-system"></i>system</span><span><i class="sw handoff-wait"></i>waiting for a human</span><span><i class="sw handoff"></i>human holds the lease</span><span><i class="sw st-error"></i>error / denied</span><span><i class="sw st-escalated"></i>escalated</span></div><div class="wf"><div class="wf-row wf-axis"><div class="wf-label"></div><div class="wf-track"><span class="tick" style="left:0%">0 ms</span><span class="tick" style="left:25%">2.7 s</span><span class="tick" style="left:50%">5.4 s</span><span class="tick" style="left:75%">8.2 s</span><span class="tick" style="left:100%">10.9 s</span></div></div><a class="wf-row" href="#s-run-1"><div class="wf-label"><b>session open, session logged_in, entry</b><span class="sub">navigate (entry)</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:0.000%;width:64.012%" title="session open, session logged_in, entry: 7.0 s"></span><span class="dur" style="left:calc(64.012% + 4px)">7.0 s</span></div></a><a class="wf-row" href="#s-s01_navigate"><div class="wf-label"><b>s01_navigate</b><span class="sub">navigate /societe/list.php?search_customer_code=${customer_code}</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:64.072%;width:12.430%" title="s01_navigate: 1.4 s"></span><span class="dur" style="left:calc(76.502% + 4px)">1.4 s</span></div></a><a class="wf-row" href="#s-s02_click"><div class="wf-label"><b>s02_click</b><span class="sub">click link_c</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:76.534%;width:15.075%" title="s02_click: 1.6 s"></span><span class="dur" style="right:calc(23.466% + 4px)">1.6 s</span></div></a><a class="wf-row" href="#s-s03_assert"><div class="wf-label"><b>s03_assert</b><span class="sub">assert target_equals_input(cell_customer_code, customer_code) else IDENTITY_MISMATCH</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:91.647%;width:3.092%" title="s03_assert: 336 ms"></span><span class="dur" style="right:calc(8.353% + 4px)">336 ms</span></div></a><a class="wf-row" href="#s-s04_extract"><div class="wf-label"><b>s04_extract</b><span class="sub">extract generic_current_outstanding_bill -&gt; outstanding_amount</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:94.795%;width:2.375%" title="s04_extract: 258 ms"></span><span class="dur" style="right:calc(5.205% + 4px)">258 ms</span></div></a></div></section>
+
+<section><h2>Steps and handoffs <button type="button" id="toggle">expand all</button></h2><details class="card st-ok" id="s-run-1"><summary><span class="dot actor-replay"></span><b>session open, session logged_in, entry</b> <span class="sub">navigate (entry)</span><span class="right"><span class="pill good">ok</span> 7.0 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>navigate (entry)</code></td></tr><tr><th>states</th><td>home</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>7.0 s</td></tr></table><details><summary>Raw events (4)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:30:52.905207Z&quot;,
+    &quot;seq&quot;: 0,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: null,
+    &quot;detail&quot;: {
+      &quot;session&quot;: &quot;open&quot;,
+      &quot;policy&quot;: &quot;dolibarr-sandbox&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:30:58.040487Z&quot;,
+    &quot;seq&quot;: 6,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: null,
+    &quot;detail&quot;: {
+      &quot;session&quot;: &quot;logged_in&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:30:58.608738Z&quot;,
+    &quot;seq&quot;: 11,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;entry&quot;: true
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:30:59.878641Z&quot;,
+    &quot;seq&quot;: 12,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;home&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s01_navigate"><summary><span class="dot actor-replay"></span><b>s01_navigate</b> <span class="sub">navigate /societe/list.php?search_customer_code=${customer_code}</span><span class="right"><span class="pill good">ok</span> 1.4 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>navigate /societe/list.php?search_customer_code=${customer_code}</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>customer_list</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>1.4 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:30:59.885197Z&quot;,
+    &quot;seq&quot;: 13,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;route&quot;: &quot;/societe/list.php?search_customer_code=${customer_code}&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:00.453831Z&quot;,
+    &quot;seq&quot;: 17,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:01.239353Z&quot;,
+    &quot;seq&quot;: 18,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;customer_list&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_list&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s02_click"><summary><span class="dot actor-replay"></span><b>s02_click</b> <span class="sub">click link_c</span><span class="right"><span class="pill good">ok</span> 1.6 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click link_c</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>customer_tab</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>1.6 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:01.242869Z&quot;,
+    &quot;seq&quot;: 19,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;customer_list&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;link_c&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:01.755506Z&quot;,
+    &quot;seq&quot;: 22,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;customer_list&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:02.885185Z&quot;,
+    &quot;seq&quot;: 24,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_tab&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s03_assert"><summary><span class="dot actor-replay"></span><b>s03_assert</b> <span class="sub">assert target_equals_input(cell_customer_code, customer_code) else IDENTITY_MISMATCH</span><span class="right"><span class="pill good">ok</span> 336 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>assert target_equals_input(cell_customer_code, customer_code) else IDENTITY_MISMATCH</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>customer_tab</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>336 ms</td></tr></table><details><summary>Raw events (2)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:02.889219Z&quot;,
+    &quot;seq&quot;: 25,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s03_assert&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;assert&quot;,
+      &quot;that&quot;: {
+        &quot;kind&quot;: &quot;target_equals_input&quot;,
+        &quot;target&quot;: &quot;cell_customer_code&quot;,
+        &quot;input&quot;: &quot;customer_code&quot;,
+        &quot;normalizer&quot;: &quot;text&quot;
+      },
+      &quot;on_fail&quot;: &quot;IDENTITY_MISMATCH&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:03.226027Z&quot;,
+    &quot;seq&quot;: 26,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s03_assert&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_tab&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s04_extract"><summary><span class="dot actor-replay"></span><b>s04_extract</b> <span class="sub">extract generic_current_outstanding_bill -&gt; outstanding_amount</span><span class="right"><span class="pill good">ok</span> 258 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>extract generic_current_outstanding_bill -&gt; outstanding_amount</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>customer_tab</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>258 ms</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:03.232224Z&quot;,
+    &quot;seq&quot;: 27,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s04_extract&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;extract&quot;,
+      &quot;target&quot;: &quot;generic_current_outstanding_bill&quot;,
+      &quot;output&quot;: &quot;outstanding_amount&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:03.310242Z&quot;,
+    &quot;seq&quot;: 28,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s04_extract&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T23:31:03.490936Z&quot;,
+    &quot;seq&quot;: 29,
+    &quot;run_id&quot;: &quot;evid-20261016-193038-beta_other_customer&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s04_extract&quot;,
+    &quot;state&quot;: &quot;customer_tab&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;customer_tab&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details></section>
+<details class="section"><summary><h2>Request policy (15 checks, 15 blocked)</h2></summary><p class="sub">Every request the page made goes through the policy guard. Blocked sub-resources (stylesheets, trackers) are the allowlist working, not failures of the run.</p><table class="list"><tr><th>at</th><th>method</th><th>type</th><th>url</th><th></th><th>reason</th></tr><tr class="bad"><td>+124 ms</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+3.9 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+3.9 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+4.2 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+4.5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.3 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.3 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.6 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.7 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+7.2 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+7.2 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+7.5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+8.8 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+8.8 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+9.0 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr></table></details>
+<details class="section"><summary><h2>Bundle</h2></summary><table class="facts"><tr><th>status</th><td>closed</td></tr><tr><th>events</th><td>31</td></tr><tr><th>created</th><td>2026-10-16T23:30:51.692118+00:00</td></tr><tr><th>closed</th><td>2026-10-16T23:31:04.983230+00:00</td></tr><tr><th>redaction</th><td>14 known values; patterns: header, bearer, session_id, token_param, token_field, token_json, ssn, email</td></tr></table><table class="list"><tr><th>file</th><th>bytes</th><th>sha256</th></tr><tr><td><code>events.jsonl</code></td><td>14559</td><td><code>c6982e5560daa035</code></td></tr><tr><td><code>ground_truth.json</code></td><td>863</td><td><code>2fa2712bbafe9acb</code></td></tr><tr><td><code>result.json</code></td><td>650</td><td><code>39f2b0d289abcb1d</code></td></tr></table></details>
+</main>
+<footer>Rendered by <code>cua view</code> from the redacted evidence bundle <code>replay_success_other_customer</code>; nothing on this page came from the live run.</footer>
+<div id="zoom" hidden><img alt=""></div>
+<script>
+const zoom=document.getElementById('zoom'),zimg=zoom.querySelector('img');
+document.addEventListener('click',ev=>{const t=ev.target;if(t.classList&&t.classList.contains('shot')){zimg.src=t.src;zoom.hidden=false}});
+zoom.addEventListener('click',()=>{zoom.hidden=true;zimg.removeAttribute('src')});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')zoom.hidden=true});
+const tg=document.getElementById('toggle');
+if(tg)tg.addEventListener('click',()=>{const cards=[...document.querySelectorAll('.card')];const open=cards.some(c=>!c.open);cards.forEach(c=>c.open=open);tg.textContent=open?'collapse all':'expand all'});
+document.querySelectorAll('a.wf-row').forEach(a=>a.addEventListener('click',()=>{const d=document.querySelector(a.getAttribute('href'));if(d&&d.tagName==='DETAILS')d.open=true}));
+</script>
+</body></html>

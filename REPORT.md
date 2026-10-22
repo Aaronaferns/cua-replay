@@ -14,13 +14,13 @@ It's one python process, Playwright drives Chromium and a FastAPI operator conso
 These are some of the architecture decisions made
 
 
-| Decision                                        | Why                                                                                                                                                                                                                                         | Rejected                                                                                                                       |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| No model in replay                              | Cost, latency, determinism and that prevents production data from being sent to an LLM                                                                                                                                                      | One-step model fallback during replay. Even one LLM-generated action breaks the data boundary                                  |
-| Perceive via the accessibility snapshot         | The same representation can be used to observe, act, record, replay. Desktops have the same tree                                                                                                                                            | Screenshot + coordinates because that causes brittle replay. Moving a button might break everything. The tree remains the same |
-| Own closed action vocabulary, one model adapter | It is the artifact's vocab and belongs to my system and so banks choose their model vendor                                                                                                                                                  | Vendor toolset lock-in                                                                                                         |
-| No agent framework                              | A workflow checkpoint can't hold the live browser a handoff needs                                                                                                                                                                           | LangGraph, BrowserGym                                                                                                          |
-| Python + Playwright                             | Playwright uses both but desktop and vision tooling is Python-native                                                                                                                                                                        | TypeScript                                                                                                                     |
+| Decision                                        | Why                                                                                                                                                                                                                                        | Rejected                                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| No model in replay                              | Cost, latency, determinism and that prevents production data from being sent to an LLM                                                                                                                                                     | One-step model fallback during replay. Even one LLM-generated action breaks the data boundary                                  |
+| Perceive via the accessibility snapshot         | The same representation can be used to observe, act, record, replay. Desktops have the same tree                                                                                                                                           | Screenshot + coordinates because that causes brittle replay. Moving a button might break everything. The tree remains the same |
+| Own closed action vocabulary, one model adapter | It is the artifact's vocab and belongs to my system and so banks choose their model vendor                                                                                                                                                 | Vendor toolset lock-in                                                                                                         |
+| No agent framework                              | A workflow checkpoint can't hold the live browser a handoff needs                                                                                                                                                                          | LangGraph, BrowserGym                                                                                                          |
+| Python + Playwright                             | Playwright uses both but desktop and vision tooling is Python-native                                                                                                                                                                       | TypeScript                                                                                                                     |
 | Dolibarr ERP as the bank proxy                  | Invoice payment is shaped like a posting (search, record, confirm, irreversible write). It's also a legacy markup I didn't write and is enough to demonstrate high-risk actions and approvals. Its REST API acts as an independent oracle. | Self-built app (because that would be like grading my own exam) and public demo can't be reset easily                          |
 
 
@@ -80,21 +80,21 @@ Every run’s outcome maps to one of the classes defined in the brief. A busines
 indeterminate is handled separately. It means we can’t tell whether the payment went through. In that case the agent doesn’t retry, it hands the run off to reconciliation.
 
 
-| Situation                    | Status / outcome                        | Behaviour                                                            | Where                                                                      |
-| ---------------------------- | --------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Normal read                  | success                                 | The outputs are equal to what the REST API returns                   | evidence/replay_success_other_customer/                                  |
-| Unknown customer             | business_outcome customer_not_found   | It's an expected business answer, not a failure                      | not_found                                                                |
-| User without rights          | business_outcome access_denied        | The login recovery is recorded                                       | no_rights_user                                                           |
-| Nearest match only           | failure IDENTITY_MISMATCH             | It never accepts a near miss                                         | nearest_match                                                            |
-| Known interstitial           | success, recovery recorded              | The interstitial is dismissed and the step is retried                | interstitial_recovered                                                   |
-| Unknown dialog               | failure UNKNOWN_DIALOG                | It fails closed                                                      | unknown_dialog                                                           |
-| Application error page       | failure APP_ERROR                     | It isn't retried                                                     | app_error                                                                |
-| Slow within / beyond timeout | success / failure TRANSIENT_EXHAUSTED | Retries are bounded                                                  | slow_within_timeout, slow_beyond_timeout                               |
-| Session expired              | success, recovery login               | It logs back in and restarts, but only if no commit was attempted    | session_expired; test_session_expiry_after_a_commit_is_never_restarted |
-| Login CAPTCHA                | escalation, then success                | Only a human can solve it                                            | evidence/replay_captcha_handoff/                                         |
-| Overpayment                  | business_outcome validation_rejected  | The automation never answers Yes                                     | overpayment                                                              |
-| Response lost after commit   | indeterminate COMMIT_UNKNOWN          | The button is clicked once and never retried                         | evidence/replay_commit_unknown/                                          |
-| Policy denies the route      | failure POLICY_DENIED                 | The run is refused before any UI action                              | evidence/replay_policy_denied/                                           |
+| Situation                    | Status / outcome                      | Behaviour                                                         | Where                                                                  |
+| ---------------------------- | ------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Normal read                  | success                               | The outputs are equal to what the REST API returns                | evidence/replay_success_other_customer/                                |
+| Unknown customer             | business_outcome customer_not_found   | It's an expected business answer, not a failure                   | not_found                                                              |
+| User without rights          | business_outcome access_denied        | The login recovery is recorded                                    | no_rights_user                                                         |
+| Nearest match only           | failure IDENTITY_MISMATCH             | It never accepts a near miss                                      | nearest_match                                                          |
+| Known interstitial           | success, recovery recorded            | The interstitial is dismissed and the step is retried             | interstitial_recovered                                                 |
+| Unknown dialog               | failure UNKNOWN_DIALOG                | It fails closed                                                   | unknown_dialog                                                         |
+| Application error page       | failure APP_ERROR                     | It isn't retried                                                  | app_error                                                              |
+| Slow within / beyond timeout | success / failure TRANSIENT_EXHAUSTED | Retries are bounded                                               | slow_within_timeout, slow_beyond_timeout                               |
+| Session expired              | success, recovery login               | It logs back in and restarts, but only if no commit was attempted | session_expired; test_session_expiry_after_a_commit_is_never_restarted |
+| Login CAPTCHA                | escalation, then success              | Only a human can solve it                                         | evidence/replay_captcha_handoff/                                       |
+| Overpayment                  | business_outcome validation_rejected  | The automation never answers Yes                                  | overpayment                                                            |
+| Response lost after commit   | indeterminate COMMIT_UNKNOWN          | The button is clicked once and never retried                      | evidence/replay_commit_unknown/                                        |
+| Policy denies the route      | failure POLICY_DENIED                 | The run is refused before any UI action                           | evidence/replay_policy_denied/                                         |
 
 
 The bare names in the Where column are live suite cases (capabilities/dolibarr/*.tests.json), and each one is also
@@ -108,7 +108,9 @@ Output extracts only use the primary locator, so drift can't change where a numb
 
 - Replay refuses to run a capability that hasn't been approved, unless you pass --allow-draft.
 - cua validate --repeat scores stability. The lookup passed 33 of 33 runs with no flakes
-  (evidence/validation_suite.json) and the payment passed 5 of 5.
+(evidence/validation_suite.json) and the payment passed 5 of 5.
+
+
 
 ## 4. Heterogeneity & multi-tenant
 
@@ -118,12 +120,12 @@ protocol (src/cua/surface/base.py), and what it observes is an outline of role, 
 different surface plug in without changing anything above it.
 
 
-| Surface               | Perception                                                                    | Acting                           | Status                                                     |
-| --------------------- | ----------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
-| Web (Dolibarr)        | Playwright accessibility snapshot                                             | Role-and-name locators           | Built                                                      |
+| Surface               | Perception                                                                      | Acting                           | Status                                                     |
+| --------------------- | ------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
+| Web (Dolibarr)        | Playwright accessibility snapshot                                               | Role-and-name locators           | Built                                                      |
 | Legacy web, framesets | The same snapshot per frame, with the frame stored in each target's fingerprint | Frame-scoped locators            | Designed. Today a target in an empty frame isn't found     |
-| Windows desktop       | UI Automation tree, turned into the same outline                              | UIA patterns (invoke, set value) | Designed as a second Surface, and nothing above it changes |
-| No accessibility      | Screenshot, grounded by the model at record time                              | Coordinates                      | Last resort, and it needs visual verification              |
+| Windows desktop       | UI Automation tree, turned into the same outline                                | UIA patterns (invoke, set value) | Designed as a second Surface, and nothing above it changes |
+| No accessibility      | Screenshot, grounded by the model at record time                                | Coordinates                      | Last resort, and it needs visual verification              |
 
 
 **Reuse across tenants:** Tenants on the same vendor product differ in labels, modules and policy, but not in flow. So
@@ -138,6 +140,8 @@ tenant. I rejected re-recording every capability for each tenant.
 - Canary replays per tenant
 - A fingerprint of the login page's version, to pick which version overlay applies
 - Quarantining a target after it drifts repeatedly
+
+
 
 ## 5. Escalation & handoff
 
@@ -170,15 +174,15 @@ is defined by the profile's commit routes (method, path, query, form body), and 
 as a ceiling (tests/replay/test_commit_path.py).
 
 
-| Control                      | Enforced by                                                                                             | Shown in                                                              | Limit                                                                                                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Network allow-list           | browser routing blocks other origins, redirects, websockets, downloads, service workers                 | tests/safety/test_network.py                                        | one host and port per sandbox policy                                                                               |
-| Action policy                | policy file (policies/*.json): effect ceiling checked on every action and in a static preflight       | tests/safety/test_policy.py, evidence/replay_policy_denied/       | per policy, not per user                                                                                           |
-| Second-person approval       | lock hash over capability and profile; approver name must differ from discovered_by                   | tests/artifact/test_artifact_lock_approval.py                       | Names are self-declared labels, and here the author approved both, so there's no dual control                      |
-| Commit at most once          | request-ID ledger; intent logged before the click; no retry after an unknown outcome                    | tests/replay/test_commit_path.py, evidence/replay_commit_unknown/ | a lost response needs a human verdict                                                                              |
-| Commit approval in discovery | single-use console approval bound to action and lease generation                                        | tests/control/test_approver.py, tests/agent/test_commit_gate.py   | console only                                                                                                       |
-| Secrets and personal data    | scripted login (the model never sees credentials); one redacting writer; masked screenshots; cua lint | tests/safety/test_redact.py, evidence/evidence_lint.txt           | lint reads text; screenshots are masked, not scanned                                                               |
-| Human control                | lease holder and generation (§5)                                                                        | tests/control/test_lease.py                                         | The console is loopback-only and unauthenticated, so only use it on a single-user machine. Input made before a claim is accepted but not captured |
+| Control                      | Enforced by                                                                                           | Shown in                                                          | Limit                                                                                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network allow-list           | browser routing blocks other origins, redirects, websockets, downloads, service workers               | tests/safety/test_network.py                                      | one host and port per sandbox policy                                                                                                              |
+| Action policy                | policy file (policies/*.json): effect ceiling checked on every action and in a static preflight       | tests/safety/test_policy.py, evidence/replay_policy_denied/       | per policy, not per user                                                                                                                          |
+| Second-person approval       | lock hash over capability and profile; approver name must differ from discovered_by                   | tests/artifact/test_artifact_lock_approval.py                     | Names are self-declared labels, and here the author approved both, so there's no dual control                                                     |
+| Commit at most once          | request-ID ledger; intent logged before the click; no retry after an unknown outcome                  | tests/replay/test_commit_path.py, evidence/replay_commit_unknown/ | a lost response needs a human verdict                                                                                                             |
+| Commit approval in discovery | single-use console approval bound to action and lease generation                                      | tests/control/test_approver.py, tests/agent/test_commit_gate.py   | console only                                                                                                                                      |
+| Secrets and personal data    | scripted login (the model never sees credentials); one redacting writer; masked screenshots; cua lint | tests/safety/test_redact.py, evidence/evidence_lint.txt           | lint reads text; screenshots are masked, not scanned                                                                                              |
+| Human control                | lease holder and generation (§5)                                                                      | tests/control/test_lease.py                                       | The console is loopback-only and unauthenticated, so only use it on a single-user machine. Input made before a claim is accepted but not captured |
 
 
 Discovery sends page text to a model, so it only runs on sandbox data.
@@ -195,11 +199,6 @@ Cut, in the order I'd build next:
 - An authenticated, remote operator console.
 - Also cut: a second model provider and the model comparison, dual control above a threshold, test-payment cleanup.
 
-**Disclosed:** API credits ran out during the payment discovery, so I finished it by replaying the model's recorded
-choices (evidence/discovery_record_payment/result.json: model: scripted). The model tests weren't re-run at the
+**Disclosed:** API credits ran out during the payment discovery, so I finished it by replaying the model's recorded  
+choices (evidence/discovery_record_payment/result.json: model: scripted). The model tests weren't re-run at the  
 end, and the clean-clone run was verified on Windows, not Linux.
-
-**Known issue:** The approved record_invoice_payment@1.0.0 still has "50 Euros" in one of the commit button's
-fallback finders and in its fingerprint. If the primary finder ever missed, the commit would fail closed for any other
-amount. The compiler is fixed, and 1.0.0 is waiting for re-approval
-(test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits).

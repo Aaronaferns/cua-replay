@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evidence traces</title><style>
+:root{--bg:#f7f7f5;--panel:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e4e3de;--track:#efeee9;
+--agent:#7c5cd6;--replay:#2f6fd0;--human:#d98a00;--system:#9a9a93;--good:#1f8a4c;--warn:#b86e00;--bad:#c63b32;
+--good-bg:#e5f4ea;--warn-bg:#fbf0dc;--bad-bg:#fbe6e4;--neutral-bg:#efeee9;--code:#f1f0ec}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--ink:#ecebe6;--muted:#9c9b94;--line:#33332f;--track:#2a2a27;
+--agent:#a48af0;--replay:#6aa0f0;--human:#f0a830;--system:#77776f;--good:#5cc489;--warn:#f0a830;--bad:#f07a70;
+--good-bg:#1d3326;--warn-bg:#3a2c12;--bad-bg:#3d1f1c;--neutral-bg:#2a2a27;--code:#2a2a27}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header,main,footer{max-width:1200px;margin:0 auto;padding:16px}header{padding-top:28px}
+h1{font-size:22px;margin:6px 0 10px;font-weight:600}h2{font-size:15px;margin:22px 0 10px;display:inline-flex;gap:10px;align-items:center}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}code{background:var(--code);padding:1px 5px;border-radius:4px;word-break:break-all}
+pre{background:var(--code);padding:10px;border-radius:6px;overflow:auto;max-height:420px;white-space:pre-wrap;word-break:break-word}
+.sub{color:var(--muted);font-size:12.5px}.eyebrow{color:var(--muted);font-size:12.5px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--neutral-bg)}
+.pill.big{font-size:13px;padding:3px 10px}.good{background:var(--good-bg);color:var(--good)}.warn{background:var(--warn-bg);color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad)}.neutral{background:var(--neutral-bg)}.pill.agent{background:var(--agent);color:#fff}.pill.replay{background:var(--replay);color:#fff}
+.outcome{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.outputs{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:14px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.stat .k{color:var(--muted);font-size:12px}.stat .v{font-weight:600}
+.callout{border-radius:8px;padding:10px 12px;margin:8px 0;border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-bottom:8px}.legend span{display:inline-flex;gap:5px;align-items:center}
+.sw{display:inline-block;width:14px;height:10px;border-radius:3px}
+.wf{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 0}
+.wf-row{display:grid;grid-template-columns:minmax(150px,32%) 1fr;align-items:center;padding:3px 12px;color:inherit;text-decoration:none;min-height:30px}
+a.wf-row:hover{background:var(--track)}.wf-label{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-right:10px}
+.wf-label .sub{margin-left:8px}.wf-track{position:relative;height:18px;background:var(--track);border-radius:4px}
+.wf-axis .wf-track{background:none;height:16px}.tick{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
+.tick:first-child{transform:none}.tick:last-child{transform:translateX(-100%)}
+.bar{position:absolute;top:2px;bottom:2px;border-radius:3px;min-width:3px}.dur{position:absolute;top:0;font-size:11px;color:var(--muted);white-space:nowrap}
+.actor-agent{background:var(--agent)}.actor-replay{background:var(--replay)}.actor-human{background:var(--human)}.actor-system{background:var(--system)}
+.handoff{background:var(--human)}.handoff-wait{background:repeating-linear-gradient(45deg,var(--human) 0 3px,transparent 3px 7px);box-shadow:inset 0 0 0 1px var(--human)}
+.bar.st-error,.bar.st-denied,.sw.st-error{outline:2px solid var(--bad);outline-offset:1px}.bar.st-escalated,.sw.st-escalated{outline:2px solid var(--warn);outline-offset:1px}
+.sw.st-error,.sw.st-escalated{background:transparent}
+.mark{font-size:11px;padding:0 6px;border-radius:4px;margin-left:6px}.mark.commit{background:var(--warn-bg);color:var(--warn)}.mark.human{background:var(--warn-bg);color:var(--warn)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:8px 0}.card>summary{cursor:pointer;padding:10px 12px;display:flex;gap:8px;align-items:center;list-style:none}
+.card>summary::-webkit-details-marker{display:none}.card.st-error,.card.st-denied{border-left:3px solid var(--bad)}.card.st-escalated,.handoff-card{border-left:3px solid var(--warn)}
+.card>summary .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.right{margin-left:auto;display:flex;gap:8px;align-items:center;white-space:nowrap;color:var(--muted);font-size:12.5px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.card-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,46%);gap:16px;padding:0 12px 12px}
+.facts{border-collapse:collapse;width:100%}.facts th{text-align:left;color:var(--muted);font-weight:500;padding:3px 10px 3px 0;vertical-align:top;white-space:nowrap;width:1%}
+.facts td{padding:3px 0;word-break:break-word}.facts ul{margin:0;padding-left:18px}
+.shots figure{margin:0 0 10px}.shot{width:100%;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;display:block}figcaption{font-size:11.5px;color:var(--muted)}
+details>summary{cursor:pointer}details details{margin-top:8px}details details>summary{color:var(--muted);font-size:12.5px}
+.section>summary{list-style:none}.section>summary::-webkit-details-marker{display:none}.section>summary h2::before{content:"▸ ";color:var(--muted)}.section[open]>summary h2::before{content:"▾ "}
+.list{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--panel)}.list th,.list td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.list td code{word-break:break-all}.list tr.bad td{background:none;color:inherit}.list tr.bad td:nth-child(5){color:var(--bad)}
+.scroll{overflow-x:auto}button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+.compiled{border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-top:10px;background:var(--bg)}
+.compiled>summary{color:var(--ink);font-weight:600;font-size:13px}.compiled .facts{margin:4px 0 2px}
+.cstep{padding:6px 0;border-top:1px dashed var(--line)}.compiled .cstep:first-of-type{border-top:0}
+.cstep .sid{background:var(--replay);color:#fff;white-space:nowrap}.cstep.check_before .sid,.cstep.check_after .sid{background:var(--system);color:#fff}
+.lineage .cstep{padding:1px 0;border:0}.lineage td.arrow{color:var(--muted)}.lineage tr.dropped td{color:var(--muted)}
+.target{margin-top:4px}.strategies{margin:2px 0 0;padding-left:22px;font-size:12.5px}.strategies li.primary code{outline:1px solid var(--replay)}
+.compiled-note{margin-top:10px;font-size:13px;padding:6px 10px;border-radius:6px;background:var(--neutral-bg)}.compiled-note.dropped{color:var(--muted)}
+footer{color:var(--muted);font-size:12px;padding-bottom:40px}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9;cursor:zoom-out;padding:16px}
+#zoom[hidden]{display:none}#zoom img{max-width:100%;max-height:100%;border-radius:6px}
+@media (max-width:760px){.lineage tr:first-child,.lineage td.arrow{display:none}.lineage tr{display:block;padding:6px 0;border-bottom:1px solid var(--line)}
+.lineage td{display:block;border:0;padding:2px 8px}.card-body{grid-template-columns:1fr}.wf-row{grid-template-columns:1fr}.wf-label{padding-bottom:2px}.dur{display:none}}
+</style></head><body>
+<header><h1>Evidence traces</h1><p class="sub">6 run bundles. Each page is self-contained.</p></header>
+<main><div class="scroll"><table class="list index"><tr><th>bundle</th><th>kind</th><th>result</th><th>duration</th><th>handoffs</th><th>goal / capability</th></tr><tr><td><a href="discovery_lookup_customer_outstanding.html">discovery_lookup_customer_outstanding</a></td><td><span class="pill agent">discovery</span></td><td><span class="pill good">done</span> </td><td>40.4 s</td><td>0</td><td class="sub">Find the current outstanding bill amount of the customer with customer code {{customer_code}}.</td></tr><tr><td><a href="discovery_record_payment.html">discovery_record_payment</a></td><td><span class="pill agent">discovery</span></td><td><span class="pill good">done</span> </td><td>2 min 13 s</td><td>2</td><td class="sub">Record a payment of {{amount}} on customer invoice {{invoice_ref}} using payment method {{method}} into bank account {{bank_account}}, confirm it, and read the reference of the payment that was created.</td></tr><tr><td><a href="replay_captcha_handoff.html">replay_captcha_handoff</a></td><td><span class="pill replay">replay</span></td><td><span class="pill good">success</span> </td><td>1 min 8 s</td><td>1</td><td class="sub">dolibarr.lookup_customer_outstanding</td></tr><tr><td><a href="replay_commit_unknown.html">replay_commit_unknown</a></td><td><span class="pill replay">replay</span></td><td><span class="pill warn">indeterminate</span> COMMIT_UNKNOWN</td><td>1 min 15 s</td><td>1</td><td class="sub">dolibarr.record_invoice_payment</td></tr><tr><td><a href="replay_policy_denied.html">replay_policy_denied</a></td><td><span class="pill replay">replay</span></td><td><span class="pill bad">failure</span> POLICY_DENIED</td><td>116 ms</td><td>0</td><td class="sub">dolibarr.record_invoice_payment</td></tr><tr><td><a href="replay_success_other_customer.html">replay_success_other_customer</a></td><td><span class="pill replay">replay</span></td><td><span class="pill good">success</span> </td><td>10.9 s</td><td>0</td><td class="sub">dolibarr.lookup_customer_outstanding</td></tr></table></div></main>
+</body></html>

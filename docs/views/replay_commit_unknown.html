@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay · evid-20261015-211120-lost_response_after_commit</title><style>
+:root{--bg:#f7f7f5;--panel:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e4e3de;--track:#efeee9;
+--agent:#7c5cd6;--replay:#2f6fd0;--human:#d98a00;--system:#9a9a93;--good:#1f8a4c;--warn:#b86e00;--bad:#c63b32;
+--good-bg:#e5f4ea;--warn-bg:#fbf0dc;--bad-bg:#fbe6e4;--neutral-bg:#efeee9;--code:#f1f0ec}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--ink:#ecebe6;--muted:#9c9b94;--line:#33332f;--track:#2a2a27;
+--agent:#a48af0;--replay:#6aa0f0;--human:#f0a830;--system:#77776f;--good:#5cc489;--warn:#f0a830;--bad:#f07a70;
+--good-bg:#1d3326;--warn-bg:#3a2c12;--bad-bg:#3d1f1c;--neutral-bg:#2a2a27;--code:#2a2a27}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header,main,footer{max-width:1200px;margin:0 auto;padding:16px}header{padding-top:28px}
+h1{font-size:22px;margin:6px 0 10px;font-weight:600}h2{font-size:15px;margin:22px 0 10px;display:inline-flex;gap:10px;align-items:center}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}code{background:var(--code);padding:1px 5px;border-radius:4px;word-break:break-all}
+pre{background:var(--code);padding:10px;border-radius:6px;overflow:auto;max-height:420px;white-space:pre-wrap;word-break:break-word}
+.sub{color:var(--muted);font-size:12.5px}.eyebrow{color:var(--muted);font-size:12.5px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--neutral-bg)}
+.pill.big{font-size:13px;padding:3px 10px}.good{background:var(--good-bg);color:var(--good)}.warn{background:var(--warn-bg);color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad)}.neutral{background:var(--neutral-bg)}.pill.agent{background:var(--agent);color:#fff}.pill.replay{background:var(--replay);color:#fff}
+.outcome{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.outputs{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:14px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.stat .k{color:var(--muted);font-size:12px}.stat .v{font-weight:600}
+.callout{border-radius:8px;padding:10px 12px;margin:8px 0;border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-bottom:8px}.legend span{display:inline-flex;gap:5px;align-items:center}
+.sw{display:inline-block;width:14px;height:10px;border-radius:3px}
+.wf{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 0}
+.wf-row{display:grid;grid-template-columns:minmax(150px,32%) 1fr;align-items:center;padding:3px 12px;color:inherit;text-decoration:none;min-height:30px}
+a.wf-row:hover{background:var(--track)}.wf-label{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-right:10px}
+.wf-label .sub{margin-left:8px}.wf-track{position:relative;height:18px;background:var(--track);border-radius:4px}
+.wf-axis .wf-track{background:none;height:16px}.tick{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
+.tick:first-child{transform:none}.tick:last-child{transform:translateX(-100%)}
+.bar{position:absolute;top:2px;bottom:2px;border-radius:3px;min-width:3px}.dur{position:absolute;top:0;font-size:11px;color:var(--muted);white-space:nowrap}
+.actor-agent{background:var(--agent)}.actor-replay{background:var(--replay)}.actor-human{background:var(--human)}.actor-system{background:var(--system)}
+.handoff{background:var(--human)}.handoff-wait{background:repeating-linear-gradient(45deg,var(--human) 0 3px,transparent 3px 7px);box-shadow:inset 0 0 0 1px var(--human)}
+.bar.st-error,.bar.st-denied,.sw.st-error{outline:2px solid var(--bad);outline-offset:1px}.bar.st-escalated,.sw.st-escalated{outline:2px solid var(--warn);outline-offset:1px}
+.sw.st-error,.sw.st-escalated{background:transparent}
+.mark{font-size:11px;padding:0 6px;border-radius:4px;margin-left:6px}.mark.commit{background:var(--warn-bg);color:var(--warn)}.mark.human{background:var(--warn-bg);color:var(--warn)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:8px 0}.card>summary{cursor:pointer;padding:10px 12px;display:flex;gap:8px;align-items:center;list-style:none}
+.card>summary::-webkit-details-marker{display:none}.card.st-error,.card.st-denied{border-left:3px solid var(--bad)}.card.st-escalated,.handoff-card{border-left:3px solid var(--warn)}
+.card>summary .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.right{margin-left:auto;display:flex;gap:8px;align-items:center;white-space:nowrap;color:var(--muted);font-size:12.5px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.card-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,46%);gap:16px;padding:0 12px 12px}
+.facts{border-collapse:collapse;width:100%}.facts th{text-align:left;color:var(--muted);font-weight:500;padding:3px 10px 3px 0;vertical-align:top;white-space:nowrap;width:1%}
+.facts td{padding:3px 0;word-break:break-word}.facts ul{margin:0;padding-left:18px}
+.shots figure{margin:0 0 10px}.shot{width:100%;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;display:block}figcaption{font-size:11.5px;color:var(--muted)}
+details>summary{cursor:pointer}details details{margin-top:8px}details details>summary{color:var(--muted);font-size:12.5px}
+.section>summary{list-style:none}.section>summary::-webkit-details-marker{display:none}.section>summary h2::before{content:"▸ ";color:var(--muted)}.section[open]>summary h2::before{content:"▾ "}
+.list{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--panel)}.list th,.list td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.list td code{word-break:break-all}.list tr.bad td{background:none;color:inherit}.list tr.bad td:nth-child(5){color:var(--bad)}
+.scroll{overflow-x:auto}button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+.compiled{border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-top:10px;background:var(--bg)}
+.compiled>summary{color:var(--ink);font-weight:600;font-size:13px}.compiled .facts{margin:4px 0 2px}
+.cstep{padding:6px 0;border-top:1px dashed var(--line)}.compiled .cstep:first-of-type{border-top:0}
+.cstep .sid{background:var(--replay);color:#fff;white-space:nowrap}.cstep.check_before .sid,.cstep.check_after .sid{background:var(--system);color:#fff}
+.lineage .cstep{padding:1px 0;border:0}.lineage td.arrow{color:var(--muted)}.lineage tr.dropped td{color:var(--muted)}
+.target{margin-top:4px}.strategies{margin:2px 0 0;padding-left:22px;font-size:12.5px}.strategies li.primary code{outline:1px solid var(--replay)}
+.compiled-note{margin-top:10px;font-size:13px;padding:6px 10px;border-radius:6px;background:var(--neutral-bg)}.compiled-note.dropped{color:var(--muted)}
+footer{color:var(--muted);font-size:12px;padding-bottom:40px}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9;cursor:zoom-out;padding:16px}
+#zoom[hidden]{display:none}#zoom img{max-width:100%;max-height:100%;border-radius:6px}
+@media (max-width:760px){.lineage tr:first-child,.lineage td.arrow{display:none}.lineage tr{display:block;padding:6px 0;border-bottom:1px solid var(--line)}
+.lineage td{display:block;border:0;padding:2px 8px}.card-body{grid-template-columns:1fr}.wf-row{grid-template-columns:1fr}.wf-label{padding-bottom:2px}.dur{display:none}}
+</style></head><body>
+<header>
+  <div class="eyebrow"><span class="pill replay">replay</span>
+    <code>evid-20261015-211120-lost_response_after_commit</code> · dolibarr.record_invoice_payment
+    · 2026-10-16 01:11:38 UTC</div>
+  <h1>dolibarr.record_invoice_payment</h1>
+  <div class="outcome"><span class="pill big warn">indeterminate</span>
+    <span class="pill big warn">COMMIT_UNKNOWN</span>
+    </div>
+  <div class="stats"><div class="stat"><div class="k">duration</div><div class="v">1 min 15 s</div></div><div class="stat"><div class="k">steps</div><div class="v">13</div></div><div class="stat"><div class="k">handoffs</div><div class="v">1</div></div><div class="stat"><div class="k">human wait</div><div class="v">48.0 s</div></div><div class="stat"><div class="k">model tokens</div><div class="v">none (replay)</div></div><div class="stat"><div class="k">commit</div><div class="v">unknown</div></div><div class="stat"><div class="k">blocked requests</div><div class="v">21</div></div></div>
+  <div class="callout bad"><b>COMMIT_UNKNOWN</b> at <code>s13_click</code>: the commit was attempted and the application did not confirm it<div class="sub">Confirm the requested payment (Yes is selected); this commits the payment. · not safe to retry</div></div><div class="callout neutral"><b>Ground truth</b> (REST side channel the replay never uses): expected <code>indeterminate/COMMIT_UNKNOWN</code>, REST state changed, new payments: 1, no mismatches.</div>
+</header>
+<main>
+<section><h2>Timeline</h2><div class="legend"><span><i class="sw actor-agent"></i>model (discovery)</span><span><i class="sw actor-replay"></i>replay (no model)</span><span><i class="sw actor-human"></i>human</span><span><i class="sw actor-system"></i>system</span><span><i class="sw handoff-wait"></i>waiting for a human</span><span><i class="sw handoff"></i>human holds the lease</span><span><i class="sw st-error"></i>error / denied</span><span><i class="sw st-escalated"></i>escalated</span></div><div class="wf"><div class="wf-row wf-axis"><div class="wf-label"></div><div class="wf-track"><span class="tick" style="left:0%">0 ms</span><span class="tick" style="left:25%">18.8 s</span><span class="tick" style="left:50%">37.6 s</span><span class="tick" style="left:75%">56.3 s</span><span class="tick" style="left:100%">1 min 15 s</span></div></div><a class="wf-row" href="#s-run-1"><div class="wf-label"><b>session open, session logged_in, entry</b><span class="sub">navigate (entry)</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:0.000%;width:7.005%" title="session open, session logged_in, entry: 5.3 s"></span><span class="dur" style="left:calc(7.005% + 4px)">5.3 s</span></div></a><a class="wf-row" href="#s-s01_navigate"><div class="wf-label"><b>s01_navigate</b><span class="sub">navigate /compta/facture/list.php?mainmenu=billing&amp;leftmenu=customers_bills&amp;search_ref=${invoice_ref}</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:7.010%;width:1.393%" title="s01_navigate: 1.0 s"></span><span class="dur" style="left:calc(8.403% + 4px)">1.0 s</span></div></a><a class="wf-row" href="#s-s02_click"><div class="wf-label"><b>s02_click</b><span class="sub">click link_invoice_ref</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:8.409%;width:1.578%" title="s02_click: 1.2 s"></span><span class="dur" style="left:calc(9.987% + 4px)">1.2 s</span></div></a><a class="wf-row" href="#s-s03_click"><div class="wf-label"><b>s03_click</b><span class="sub">click link_enter_payment</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:9.990%;width:1.398%" title="s03_click: 1.0 s"></span><span class="dur" style="left:calc(11.388% + 4px)">1.0 s</span></div></a><a class="wf-row" href="#s-s04_select"><div class="wf-label"><b>s04_select</b><span class="sub">select combobox_select_selectpaiementcode &lt;- ${method}</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:11.393%;width:0.350%" title="s04_select: 139 ms"></span><span class="dur" style="left:calc(11.743% + 4px)">139 ms</span></div></a><a class="wf-row" href="#s-s05_select"><div class="wf-label"><b>s05_select</b><span class="sub">select combobox_select_selectaccountid &lt;- ${bank_account}</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:11.584%;width:0.350%" title="s05_select: 127 ms"></span><span class="dur" style="left:calc(11.934% + 4px)">127 ms</span></div></a><a class="wf-row" href="#s-s06_assert"><div class="wf-label"><b>s06_assert</b><span class="sub">assert target_equals_input(combobox_select_selectaccountid, bank_account) else IDENTITY_MISMATCH</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:11.761%;width:0.350%" title="s06_assert: 105 ms"></span><span class="dur" style="left:calc(12.111% + 4px)">105 ms</span></div></a><a class="wf-row" href="#s-s07_click"><div class="wf-label"><b>s07_click</b><span class="sub">click button_now</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:11.905%;width:0.350%" title="s07_click: 136 ms"></span><span class="dur" style="left:calc(12.255% + 4px)">136 ms</span></div></a><a class="wf-row" href="#s-s08_type"><div class="wf-label"><b>s08_type</b><span class="sub">type textbox_payment_amount &lt;- ${amount}</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:12.089%;width:0.905%" title="s08_type: 680 ms"></span><span class="dur" style="left:calc(12.994% + 4px)">680 ms</span></div></a><a class="wf-row" href="#s-s09_click"><div class="wf-label"><b>s09_click</b><span class="sub">click button_pay</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:13.780%;width:1.361%" title="s09_click: 1.0 s"></span><span class="dur" style="left:calc(15.141% + 4px)">1.0 s</span></div></a><a class="wf-row" href="#s-s10_assert"><div class="wf-label"><b>s10_assert</b><span class="sub">assert target_equals_input(link_invoice_ref, invoice_ref) else IDENTITY_MISMATCH</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:15.144%;width:0.350%" title="s10_assert: 108 ms"></span><span class="dur" style="left:calc(15.494% + 4px)">108 ms</span></div></a><a class="wf-row" href="#s-s11_assert"><div class="wf-label"><b>s11_assert</b><span class="sub">assert target_equals_input(textbox_payment_amount, amount) else IDENTITY_MISMATCH</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:15.290%;width:0.926%" title="s11_assert: 695 ms"></span><span class="dur" style="left:calc(16.216% + 4px)">695 ms</span></div></a><a class="wf-row" href="#s-s12_assert"><div class="wf-label"><b>s12_assert</b><span class="sub">assert target_equals_input(combobox_select_selectaccountid, bank_account) else IDENTITY_MISMATCH</span></div><div class="wf-track"><span class="bar actor-replay st-ok" style="left:16.219%;width:0.350%" title="s12_assert: 89 ms"></span><span class="dur" style="left:calc(16.569% + 4px)">89 ms</span></div></a><a class="wf-row" href="#s-s13_click"><div class="wf-label"><b>s13_click</b> <span class="mark commit" title="commit effect">commit</span><span class="sub">click button_validate</span></div><div class="wf-track"><span class="bar actor-replay st-escalated" style="left:17.015%;width:0.350%" title="s13_click: 172 ms"></span><span class="dur" style="left:calc(17.365% + 4px)">172 ms</span></div></a><a class="wf-row handoff-row" href="#s-handoff-00141e8e8bdf"><div class="wf-label"><b>handoff</b> <span class="mark human">COMMIT_UNKNOWN</span><span class="sub">aaronferns · verdict · committed</span></div><div class="wf-track"><span class="bar handoff-wait" style="left:30.808%;width:63.871%" title="waiting for a human: 48.0 s"></span><span class="bar handoff" style="left:94.680%;width:5.113%" title="human holds the lease"></span><span class="dur" style="right:calc(69.192% + 4px)">51.8 s</span></div></a></div></section>
+
+<section><h2>Steps and handoffs <button type="button" id="toggle">expand all</button></h2><details class="card st-ok" id="s-run-1"><summary><span class="dot actor-replay"></span><b>session open, session logged_in, entry</b> <span class="sub">navigate (entry)</span><span class="right"><span class="pill good">ok</span> 5.3 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>navigate (entry)</code></td></tr><tr><th>states</th><td>home</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>5.3 s</td></tr></table><details><summary>Raw events (4)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:38.242326Z&quot;,
+    &quot;seq&quot;: 0,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: null,
+    &quot;detail&quot;: {
+      &quot;session&quot;: &quot;open&quot;,
+      &quot;policy&quot;: &quot;dolibarr-sandbox-commit&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:40.967408Z&quot;,
+    &quot;seq&quot;: 6,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: null,
+    &quot;detail&quot;: {
+      &quot;session&quot;: &quot;logged_in&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:42.753732Z&quot;,
+    &quot;seq&quot;: 10,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;entry&quot;: true
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:43.505382Z&quot;,
+    &quot;seq&quot;: 11,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;home&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s01_navigate"><summary><span class="dot actor-replay"></span><b>s01_navigate</b> <span class="sub">navigate /compta/facture/list.php?mainmenu=billing&amp;leftmenu=customers_bills&amp;search_ref=${invoice_ref}</span><span class="right"><span class="pill good">ok</span> 1.0 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>navigate /compta/facture/list.php?mainmenu=billing&amp;leftmenu=customers_bills&amp;search_ref=${invoice_ref}</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>invoice_list</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>1.0 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:43.509199Z&quot;,
+    &quot;seq&quot;: 12,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;navigate&quot;,
+      &quot;route&quot;: &quot;/compta/facture/list.php?mainmenu=billing&amp;leftmenu=customers_bills&amp;search_ref=${invoice_ref}&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:43.923029Z&quot;,
+    &quot;seq&quot;: 16,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;home&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:44.555418Z&quot;,
+    &quot;seq&quot;: 17,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s01_navigate&quot;,
+    &quot;state&quot;: &quot;invoice_list&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;invoice_list&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s02_click"><summary><span class="dot actor-replay"></span><b>s02_click</b> <span class="sub">click link_invoice_ref</span><span class="right"><span class="pill good">ok</span> 1.2 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click link_invoice_ref</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>invoice_card</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>1.2 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:44.560263Z&quot;,
+    &quot;seq&quot;: 18,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;invoice_list&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;link_invoice_ref&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:44.866936Z&quot;,
+    &quot;seq&quot;: 19,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;invoice_list&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:45.745856Z&quot;,
+    &quot;seq&quot;: 24,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s02_click&quot;,
+    &quot;state&quot;: &quot;invoice_card&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;invoice_card&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s03_click"><summary><span class="dot actor-replay"></span><b>s03_click</b> <span class="sub">click link_enter_payment</span><span class="right"><span class="pill good">ok</span> 1.0 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click link_enter_payment</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>payment_form</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>1.0 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:45.748097Z&quot;,
+    &quot;seq&quot;: 25,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s03_click&quot;,
+    &quot;state&quot;: &quot;invoice_card&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;link_enter_payment&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:45.941533Z&quot;,
+    &quot;seq&quot;: 26,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s03_click&quot;,
+    &quot;state&quot;: &quot;invoice_card&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:46.798094Z&quot;,
+    &quot;seq&quot;: 30,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s03_click&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_form&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s04_select"><summary><span class="dot actor-replay"></span><b>s04_select</b> <span class="sub">select combobox_select_selectpaiementcode &lt;- ${method}</span><span class="right"><span class="pill good">ok</span> 139 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>select combobox_select_selectpaiementcode &lt;- ${method}</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_form</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>139 ms</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:46.802081Z&quot;,
+    &quot;seq&quot;: 31,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s04_select&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;select&quot;,
+      &quot;target&quot;: &quot;combobox_select_selectpaiementcode&quot;,
+      &quot;option&quot;: &quot;${method}&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:46.859494Z&quot;,
+    &quot;seq&quot;: 32,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s04_select&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:46.941777Z&quot;,
+    &quot;seq&quot;: 33,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s04_select&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_form&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s05_select"><summary><span class="dot actor-replay"></span><b>s05_select</b> <span class="sub">select combobox_select_selectaccountid &lt;- ${bank_account}</span><span class="right"><span class="pill good">ok</span> 127 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>select combobox_select_selectaccountid &lt;- ${bank_account}</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_form</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>127 ms</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:46.945280Z&quot;,
+    &quot;seq&quot;: 34,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s05_select&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;select&quot;,
+      &quot;target&quot;: &quot;combobox_select_selectaccountid&quot;,
+      &quot;option&quot;: &quot;${bank_account}&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:46.986786Z&quot;,
+    &quot;seq&quot;: 35,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s05_select&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.073270Z&quot;,
+    &quot;seq&quot;: 36,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s05_select&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_form&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s06_assert"><summary><span class="dot actor-replay"></span><b>s06_assert</b> <span class="sub">assert target_equals_input(combobox_select_selectaccountid, bank_account) else IDENTITY_MISMATCH</span><span class="right"><span class="pill good">ok</span> 105 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>assert target_equals_input(combobox_select_selectaccountid, bank_account) else IDENTITY_MISMATCH</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_form</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>105 ms</td></tr></table><details><summary>Raw events (2)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.078268Z&quot;,
+    &quot;seq&quot;: 37,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s06_assert&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;assert&quot;,
+      &quot;that&quot;: {
+        &quot;kind&quot;: &quot;target_equals_input&quot;,
+        &quot;target&quot;: &quot;combobox_select_selectaccountid&quot;,
+        &quot;input&quot;: &quot;bank_account&quot;,
+        &quot;normalizer&quot;: &quot;text&quot;
+      },
+      &quot;on_fail&quot;: &quot;IDENTITY_MISMATCH&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.183573Z&quot;,
+    &quot;seq&quot;: 38,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s06_assert&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_form&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s07_click"><summary><span class="dot actor-replay"></span><b>s07_click</b> <span class="sub">click button_now</span><span class="right"><span class="pill good">ok</span> 136 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click button_now</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>payment_form</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>136 ms</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.186576Z&quot;,
+    &quot;seq&quot;: 39,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s07_click&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;button_now&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.256237Z&quot;,
+    &quot;seq&quot;: 40,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s07_click&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.322941Z&quot;,
+    &quot;seq&quot;: 41,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s07_click&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_form&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s08_type"><summary><span class="dot actor-replay"></span><b>s08_type</b> <span class="sub">type textbox_payment_amount &lt;- ${amount}</span><span class="right"><span class="pill good">ok</span> 680 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>type textbox_payment_amount &lt;- ${amount}</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_form</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>680 ms</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.324936Z&quot;,
+    &quot;seq&quot;: 42,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s08_type&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;type&quot;,
+      &quot;target&quot;: &quot;textbox_payment_amount&quot;,
+      &quot;text&quot;: &quot;${amount}&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:47.918234Z&quot;,
+    &quot;seq&quot;: 43,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s08_type&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:48.005178Z&quot;,
+    &quot;seq&quot;: 44,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s08_type&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_form&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s09_click"><summary><span class="dot actor-replay"></span><b>s09_click</b> <span class="sub">click button_pay</span><span class="right"><span class="pill good">ok</span> 1.0 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click button_pay</code></td></tr><tr><th>effect</th><td><span class="pill neutral">read</span></td></tr><tr><th>states</th><td>payment_confirm</td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>1.0 s</td></tr></table><details><summary>Raw events (3)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:48.595588Z&quot;,
+    &quot;seq&quot;: 45,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s09_click&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;button_pay&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;read&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:48.818668Z&quot;,
+    &quot;seq&quot;: 46,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s09_click&quot;,
+    &quot;state&quot;: &quot;payment_form&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:49.617984Z&quot;,
+    &quot;seq&quot;: 50,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s09_click&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_confirm&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s10_assert"><summary><span class="dot actor-replay"></span><b>s10_assert</b> <span class="sub">assert target_equals_input(link_invoice_ref, invoice_ref) else IDENTITY_MISMATCH</span><span class="right"><span class="pill good">ok</span> 108 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>assert target_equals_input(link_invoice_ref, invoice_ref) else IDENTITY_MISMATCH</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_confirm</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>108 ms</td></tr></table><details><summary>Raw events (2)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:49.619985Z&quot;,
+    &quot;seq&quot;: 51,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s10_assert&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;assert&quot;,
+      &quot;that&quot;: {
+        &quot;kind&quot;: &quot;target_equals_input&quot;,
+        &quot;target&quot;: &quot;link_invoice_ref&quot;,
+        &quot;input&quot;: &quot;invoice_ref&quot;,
+        &quot;normalizer&quot;: &quot;text&quot;
+      },
+      &quot;on_fail&quot;: &quot;IDENTITY_MISMATCH&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:49.728040Z&quot;,
+    &quot;seq&quot;: 52,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s10_assert&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_confirm&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s11_assert"><summary><span class="dot actor-replay"></span><b>s11_assert</b> <span class="sub">assert target_equals_input(textbox_payment_amount, amount) else IDENTITY_MISMATCH</span><span class="right"><span class="pill good">ok</span> 695 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>assert target_equals_input(textbox_payment_amount, amount) else IDENTITY_MISMATCH</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_confirm</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>695 ms</td></tr></table><details><summary>Raw events (2)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:49.730191Z&quot;,
+    &quot;seq&quot;: 53,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s11_assert&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;assert&quot;,
+      &quot;that&quot;: {
+        &quot;kind&quot;: &quot;target_equals_input&quot;,
+        &quot;target&quot;: &quot;textbox_payment_amount&quot;,
+        &quot;input&quot;: &quot;amount&quot;,
+        &quot;normalizer&quot;: &quot;text&quot;
+      },
+      &quot;on_fail&quot;: &quot;IDENTITY_MISMATCH&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:50.426103Z&quot;,
+    &quot;seq&quot;: 54,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s11_assert&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_confirm&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-ok" id="s-s12_assert"><summary><span class="dot actor-replay"></span><b>s12_assert</b> <span class="sub">assert target_equals_input(combobox_select_selectaccountid, bank_account) else IDENTITY_MISMATCH</span><span class="right"><span class="pill good">ok</span> 89 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>assert target_equals_input(combobox_select_selectaccountid, bank_account) else IDENTITY_MISMATCH</code></td></tr><tr><th>effect</th><td><span class="pill neutral">none</span></td></tr><tr><th>states</th><td>payment_confirm</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>89 ms</td></tr></table><details><summary>Raw events (2)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:50.428174Z&quot;,
+    &quot;seq&quot;: 55,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s12_assert&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;assert&quot;,
+      &quot;that&quot;: {
+        &quot;kind&quot;: &quot;target_equals_input&quot;,
+        &quot;target&quot;: &quot;combobox_select_selectaccountid&quot;,
+        &quot;input&quot;: &quot;bank_account&quot;,
+        &quot;normalizer&quot;: &quot;text&quot;
+      },
+      &quot;on_fail&quot;: &quot;IDENTITY_MISMATCH&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;none&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:50.517493Z&quot;,
+    &quot;seq&quot;: 56,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;state&quot;,
+    &quot;step_id&quot;: &quot;s12_assert&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;state&quot;: &quot;payment_confirm&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"></div></div></details><details class="card st-escalated" id="s-s13_click" open><summary><span class="dot actor-replay"></span><b>s13_click</b> <span class="sub">click button_validate</span><span class="right"><span class="pill warn">escalated</span> 172 ms</span></summary><div class="card-body"><div><table class="facts"><tr><th>actor</th><td>replay</td></tr><tr><th>action</th><td><code>click button_validate</code></td></tr><tr><th>effect</th><td><span class="pill warn">commit</span></td></tr><tr><th>policy</th><td><span class="pill good">allowed</span> all_rules_passed: allowed</td></tr><tr><th>lease</th><td>automation (generation 0)</td></tr><tr><th>duration</th><td>172 ms</td></tr><tr><th>also</th><td>commit_attempted, escalated, fault, handoff_ended, intervention, result</td></tr></table><details><summary>Raw events (10)</summary><pre>[
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:51.025744Z&quot;,
+    &quot;seq&quot;: 57,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;commit_attempted&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;request_id&quot;: &quot;w7d-evid-20261015-211120-lost_response_after_commit&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:51.027921Z&quot;,
+    &quot;seq&quot;: 58,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;action&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: {
+      &quot;kind&quot;: &quot;click&quot;,
+      &quot;target&quot;: &quot;button_validate&quot;
+    },
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;effect&quot;: &quot;commit&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:51.092220Z&quot;,
+    &quot;seq&quot;: 59,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;policy&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;payment_confirm&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: {
+      &quot;allowed&quot;: true,
+      &quot;rule&quot;: &quot;all_rules_passed&quot;,
+      &quot;reason&quot;: &quot;allowed&quot;,
+      &quot;approvable&quot;: false
+    },
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {},
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:11:51.198515Z&quot;,
+    &quot;seq&quot;: 60,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;fault&quot;,
+    &quot;step_id&quot;: null,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: null,
+    &quot;detail&quot;: {
+      &quot;kind&quot;: &quot;lost_response_after_commit&quot;,
+      &quot;index&quot;: 0,
+      &quot;fired&quot;: 1,
+      &quot;url&quot;: &quot;http://localhost:8085/compta/paiement.php&quot;,
+      &quot;method&quot;: &quot;POST&quot;,
+      &quot;detail&quot;: {
+        &quot;status&quot;: 504,
+        &quot;server_status&quot;: 302
+      },
+      &quot;declared&quot;: true
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:12:01.390338Z&quot;,
+    &quot;seq&quot;: 61,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;escalated&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;unknown&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;automation&quot;,
+      &quot;generation&quot;: 0
+    },
+    &quot;detail&quot;: {
+      &quot;reason&quot;: &quot;COMMIT_UNKNOWN&quot;,
+      &quot;intervention&quot;: &quot;00141e8e8bdf&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:12:01.389327Z&quot;,
+    &quot;seq&quot;: 63,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;system&quot;,
+    &quot;kind&quot;: &quot;intervention&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;unknown&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;none&quot;,
+      &quot;generation&quot;: 1
+    },
+    &quot;detail&quot;: {
+      &quot;id&quot;: &quot;00141e8e8bdf&quot;,
+      &quot;reason&quot;: &quot;COMMIT_UNKNOWN&quot;,
+      &quot;request&quot;: &quot;interventions/00141e8e8bdf.json&quot;,
+      &quot;sla_deadline&quot;: &quot;2026-10-16T01:27:01.389327+00:00&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:12:49.381214Z&quot;,
+    &quot;seq&quot;: 65,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;human&quot;,
+    &quot;kind&quot;: &quot;intervention&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;human:aaronferns&quot;,
+      &quot;generation&quot;: 2
+    },
+    &quot;detail&quot;: {
+      &quot;action&quot;: &quot;claim&quot;,
+      &quot;operator&quot;: &quot;aaronferns&quot;,
+      &quot;intervention&quot;: &quot;00141e8e8bdf&quot;,
+      &quot;ok&quot;: true,
+      &quot;reason&quot;: null,
+      &quot;generation&quot;: 2
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:12:53.212521Z&quot;,
+    &quot;seq&quot;: 66,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;human&quot;,
+    &quot;kind&quot;: &quot;intervention&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: null,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;human:aaronferns&quot;,
+      &quot;generation&quot;: 2
+    },
+    &quot;detail&quot;: {
+      &quot;action&quot;: &quot;resolve_commit&quot;,
+      &quot;operator&quot;: &quot;aaronferns&quot;,
+      &quot;intervention&quot;: &quot;00141e8e8bdf&quot;,
+      &quot;ok&quot;: true,
+      &quot;reason&quot;: null,
+      &quot;verdict&quot;: &quot;committed&quot;,
+      &quot;record&quot;: &quot;verdicts/00141e8e8bdf.json&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:12:53.218538Z&quot;,
+    &quot;seq&quot;: 67,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;handoff_ended&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;unknown&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;human:aaronferns&quot;,
+      &quot;generation&quot;: 2
+    },
+    &quot;detail&quot;: {
+      &quot;outcome&quot;: &quot;verdict&quot;,
+      &quot;reason&quot;: &quot;operator_verdict&quot;,
+      &quot;verdict&quot;: &quot;committed&quot;
+    },
+    &quot;duration_ms&quot;: null
+  },
+  {
+    &quot;ts&quot;: &quot;2026-10-16T01:12:53.374868Z&quot;,
+    &quot;seq&quot;: 68,
+    &quot;run_id&quot;: &quot;evid-20261015-211120-lost_response_after_commit&quot;,
+    &quot;actor&quot;: &quot;replay&quot;,
+    &quot;kind&quot;: &quot;result&quot;,
+    &quot;step_id&quot;: &quot;s13_click&quot;,
+    &quot;state&quot;: &quot;unknown&quot;,
+    &quot;action&quot;: null,
+    &quot;rationale&quot;: null,
+    &quot;policy&quot;: null,
+    &quot;lease&quot;: {
+      &quot;holder&quot;: &quot;human:aaronferns&quot;,
+      &quot;generation&quot;: 2
+    },
+    &quot;detail&quot;: {
+      &quot;status&quot;: &quot;indeterminate&quot;,
+      &quot;outcome&quot;: &quot;COMMIT_UNKNOWN&quot;
+    },
+    &quot;duration_ms&quot;: null
+  }
+]</pre></details></div><div class="shots"><figure><img class="shot" loading="lazy" src="data:image/png;base64,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AAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECIzGOVQAACapJREFUAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASPg3AAAA//92BBFNAAAABklEQVQDAPdO67pB6ZUPAAAAAElFTkSuQmCC" alt="failure/s13_click.png"><figcaption>failure/s13_click.png</figcaption></figure></div></div></details><details class="card handoff-card" open id="s-handoff-00141e8e8bdf"><summary><span class="dot actor-human"></span><b>handoff</b> <span class="sub">COMMIT_UNKNOWN · aaronferns</span><span class="right">51.8 s</span></summary><div class="card-body"><div><table class="facts"><tr><th>reason</th><td><span class="pill warn">COMMIT_UNKNOWN</span></td></tr><tr><th>step</th><td>s13_click</td></tr><tr><th>intervention</th><td><code>00141e8e8bdf</code></td></tr><tr><th>detail</th><td>a commit was attempted and its result is unknown</td></tr><tr><th>page state</th><td>unknown (expected invoice_card)</td></tr><tr><th>commit attempted</th><td>True</td></tr><tr><th>SLA deadline</th><td>2026-10-16T01:27:01.389327+00:00</td></tr><tr><th>operator</th><td>aaronferns</td></tr><tr><th>waited for a human</th><td>48.0 s</td></tr><tr><th>total</th><td>51.8 s</td></tr><tr><th>lease generations</th><td>1 → 2</td></tr><tr><th>ended</th><td><span class="pill warn">verdict</span> verdict <b>committed</b></td></tr><tr><th>decisions</th><td><ul><li><code>resolve_commit</code> by aaronferns → committed <span class="sub">+51.8 s</span></li></ul></td></tr></table></div><div class="shots"><figure><img class="shot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABVYAAAOECAIAAADFff1bAAAQAElEQVR4nOzdzU5V1wLA8c1NXwSjSY/RAT4GRJMOOoHgxEcQHTTmDhpzBxYewUkJTJrYRAKPAQONp4mmPAqXc/j0A6731lZu/7/fCA777Kzs2fqvtTbfHBwcDAAAAMDf3T8GAAAAIEACAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABL+9glgf+32zMzttf0BAAAA0v5DAti5P3NqaeuyK/d/ujlzf2f4Kt6t3Zx535WZ83/NxwIAAADnXJIAJuvnC8P2wYmNu8MVdf3hm+kIt5eH0bPfJz+9ejh7/LfZh6/O/woAAABRFyeArScrrxe3f57/8PPzS+5Hi+3TT649Hg/rC0cf3/zpeA1+sgZ+sodg5+jK99fnd+4fby74eLvB5LtnF096xOltP9fW0vEdz9bhd5Zmltamo1ra2lk6HdjHQ73EuSdwMqTDW91ceze89/PFjwUAAAD+ehcmgP3f9oblpUkAOJlIH89gT5bcJ6vucytPto4/+f3ZaFg+3jLw5tF00X1r6dqr1eNLXw4Lh/Pw66O517vj6Xx7erf98d7ozmhy7fzPJzd9u7r3w2TmP/todfH18xdH8+p3L56/Xlx99F+u5d/dODga2Hs2V16tHn64eW/lztvtxWFv/O5TQ73I4cT+xvMHb08ewONrF56PuOixAAAAwNfwGa8DnE6kt5dPf985WVufWVgf9n67cGV755fN0wXwmXubh3Pt/WF059Zkyj0e5uZevdgfxruv50bXJxefLcLfWBlPM8FhFnj6bHj+6+T++78+H549nR++iNHqP6d3Wl59eP2Sob4/qtNXIYx3x2dfnF9avuwJAAAAwNVxYQKY/XbudCZ83s79hc2TZe1zXeDTFl8enJkcyJ8dzU3usfFq6ent3Rdb471b000A79YWHg+rb493AZyu2s9+92B4/GRn2H/x8/Dguz93Cf2joU4H8OjN/8GrEAAAAOAzXLwL4O7S4uuVhQ+Pr++P94bR7ekk/d3ayvrZHz5OBoeXbd778Fz96Paw++PG8P387LfD8192h7nRZLJ9uLQ+HG8H2PlxZXx69fWHq8ubG/efrMydrdj/GT451AsuvTNaXzk+9j95AqOTNjE+2rowSSTnLr+opAAAAMBf7JKDAPMb07Pup3v+576dnbxg/1+L46MPb+w+OH/M/u7T1WHl2rm3BhwuoW8vby58+Oa8YXN9b7L0f3dpbn1zOKoJh9+9dXzlyu3VxfOD+H5xc31z8fv/5RDA0Tb+sxfyXXzC/6KhfsL1h29ezq3cOD6zMPfyzbRNzD+dvFzgaPzbq7eGSx4LAAAAfBUzBwcHw1W2tTRzb9g+2PhCLwIAAACAqG+GK21/7YfN0bPfzf8BAADgD/qM/wjwlezcn+ziX5nb9r/0AAAA4I+78gcBAAAAgC/h6u4CAAAAAL4gCQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECIzGOVQAACapJREFUAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASJAAAAAAIEECAAAAgAQJAAAAABIkAAAAAEiQAAAAACBBAgAAAIAECQAAAAASJAAAAABIkAAAAAAgQQIAAACABAkAAAAAEiQAAAAASPg3AAAA//92BBFNAAAABklEQVQDAPdO67pB6ZUPAAAAAElFTkSuQmCC" alt="handoff screenshot"><figcaption>failure/s13_click.png: what the operator was shown</figcaption></figure></div></div></details></section>
+<details class="section"><summary><h2>Request policy (21 checks, 21 blocked)</h2></summary><p class="sub">Every request the page made goes through the policy guard. Blocked sub-resources (stylesheets, trackers) are the allowlist working, not failures of the run.</p><table class="list"><tr><th>at</th><th>method</th><th>type</th><th>url</th><th></th><th>reason</th></tr><tr class="bad"><td>+353 ms</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+2.3 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+2.3 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+2.5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+2.5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+4.3 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+4.3 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+4.5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.4 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.4 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+5.5 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+6.6 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+6.7 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+6.7 s</td><td>GET</td><td>image</td><td><code>https://www.gravatar.com/avatar/48dd26da484f27f62cd06e13ea360f848647eebe605ccaa704989966cd5b7d0a</code></td><td>blocked</td><td>origin is not on the allowlist</td></tr><tr class="bad"><td>+6.8 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+7.7 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+7.7 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+7.9 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+10.6 s</td><td>GET</td><td>stylesheet</td><td><code>http://localhost:8085/helloasso/css/helloasso.css.php</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+10.6 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr><tr class="bad"><td>+10.7 s</td><td>GET</td><td>image</td><td><code>http://localhost:8085/public/theme/common/user_anonymous.png</code></td><td>blocked</td><td>path matches no allow rule</td></tr></table></details>
+<details class="section"><summary><h2>Bundle</h2></summary><table class="facts"><tr><th>status</th><td>closed</td></tr><tr><th>events</th><td>69</td></tr><tr><th>created</th><td>2026-10-16T01:11:31.490725+00:00</td></tr><tr><th>closed</th><td>2026-10-16T01:12:54.598759+00:00</td></tr><tr><th>redaction</th><td>14 known values; patterns: header, bearer, session_id, token_param, token_field, token_json, ssn, email</td></tr></table><table class="list"><tr><th>file</th><th>bytes</th><th>sha256</th></tr><tr><td><code>events.jsonl</code></td><td>31913</td><td><code>e80df9682b2ae9f2</code></td></tr><tr><td><code>failure/s13_click.png</code></td><td>6657</td><td><code>d8616f4410d5efe4</code></td></tr><tr><td><code>failure/s13_click.snapshot.json</code></td><td>328</td><td><code>c7ed1ca41024225f</code></td></tr><tr><td><code>ground_truth.json</code></td><td>1359</td><td><code>004f44dfd5fa2ec5</code></td></tr><tr><td><code>interventions/00141e8e8bdf.json</code></td><td>689</td><td><code>dd399582c5de6f8b</code></td></tr><tr><td><code>result.json</code></td><td>1408</td><td><code>2af1afeda14fc163</code></td></tr><tr><td><code>verdicts/00141e8e8bdf.json</code></td><td>440</td><td><code>acb0c39537f26038</code></td></tr></table></details>
+</main>
+<footer>Rendered by <code>cua view</code> from the redacted evidence bundle <code>replay_commit_unknown</code>; nothing on this page came from the live run.</footer>
+<div id="zoom" hidden><img alt=""></div>
+<script>
+const zoom=document.getElementById('zoom'),zimg=zoom.querySelector('img');
+document.addEventListener('click',ev=>{const t=ev.target;if(t.classList&&t.classList.contains('shot')){zimg.src=t.src;zoom.hidden=false}});
+zoom.addEventListener('click',()=>{zoom.hidden=true;zimg.removeAttribute('src')});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')zoom.hidden=true});
+const tg=document.getElementById('toggle');
+if(tg)tg.addEventListener('click',()=>{const cards=[...document.querySelectorAll('.card')];const open=cards.some(c=>!c.open);cards.forEach(c=>c.open=open);tg.textContent=open?'collapse all':'expand all'});
+document.querySelectorAll('a.wf-row').forEach(a=>a.addEventListener('click',()=>{const d=document.querySelector(a.getAttribute('href'));if(d&&d.tagName==='DETAILS')d.open=true}));
+</script>
+</body></html>

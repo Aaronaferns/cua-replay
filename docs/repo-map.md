@@ -245,6 +245,7 @@ Files inside a bundle:
 | `contracts.md` | The build's working agreement: ownership, shared types and where they live, import rules |
 | `implementation-status.md` | Per-milestone status, tests, evidence and commits |
 | `architecture.svg` | The architecture diagram |
+| `views/` | `cua view` output for every bundle in `evidence/` (start at `index.html`) and the PNG excerpts README and REPORT embed; `tests/evidence/test_view_otel.py` fails if the HTML is stale |
 | `archive/architecture-design-v2.svg` | An earlier version of the diagram |
 
 ## `spikes/`: early experiments (M0)

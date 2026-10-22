@@ -20,7 +20,7 @@ clicks again.
 | Replay, no model, a different input   | `evidence/replay_success_other_customer/`                                                        |
 | Replay hitting an exceptional state   | `evidence/replay_commit_unknown/` (lost response, `indeterminate`), `evidence/replay_policy_denied/` |
 | A human takes over the live session   | `evidence/replay_captcha_handoff/`                                                               |
-| Logs and traces of a run              | `events.jsonl` in each bundle; `uv run cua view evidence/ --open` renders them (see "Evidence and observability") |
+| Logs and traces of a run              | `events.jsonl` in each bundle; rendered as HTML in `docs/views/` (start at `index.html`, see "Evidence and observability") |
 | Every bundle, explained               | `evidence/README.md`                                                                             |
 
 More: `docs/review-guide.md` (reading order for reviewers), `docs/repo-map.md` (every folder and file),
@@ -188,6 +188,14 @@ for a person shown apart from the time they held control. Each step gets a card 
 reason, the element it acted on, the policy decision and the screenshot. On a discovery run the page also shows what
 each model turn compiled into: the replay steps, the identity checks the compiler added, the locators replay will try
 in order, and which turns were dropped and why.
+
+The rendered pages for every committed bundle are in `docs/views/` (`uv run cua view evidence --out docs/views`
+rebuilds them; a test fails if they fall out of date). Download the folder and open `index.html`, since GitHub shows
+HTML as source. Two excerpts:
+
+![Replay timeline: the login CAPTCHA hands the live session to a person, who solves it and hands it back](docs/views/view-captcha-handoff.png)
+
+![Discovery to capability: each model turn and the replay steps it compiled into](docs/views/view-discovery-lineage.png)
 
 ```bash
 uv run cua view evidence/ --open                              # one HTML trace per bundle + an index, in runs/views/

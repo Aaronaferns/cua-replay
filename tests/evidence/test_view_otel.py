@@ -250,3 +250,15 @@ def test_view_and_export_show_the_compiled_steps():
     attrs = {a["key"]: a["value"] for a in spans['t08: click button "Pay"']["attributes"]}
     assert attrs["cua.compiled_to"] == {"arrayValue": {"values": [{"stringValue": "s09_click"}]}}
     assert "Discovery → capability" not in render(load(EVIDENCE / "replay_commit_unknown"))
+
+
+def test_committed_views_match_the_evidence(tmp_path):
+    """`docs/views/` is what `cua view evidence --out docs/views` writes today; rebuild it when view.py or a bundle
+    changes."""
+    assert main(["view", str(EVIDENCE), "--out", str(tmp_path)]) == 0
+    built = sorted(p.name for p in tmp_path.glob("*.html"))
+    committed = ROOT / "docs" / "views"
+    assert built == sorted(p.name for p in committed.glob("*.html"))
+    for name in built:
+        assert (tmp_path / name).read_bytes().replace(b"\r\n", b"\n") == \
+            (committed / name).read_bytes().replace(b"\r\n", b"\n"), f"docs/views/{name} is stale"

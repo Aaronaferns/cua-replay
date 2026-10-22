@@ -48,3 +48,6 @@ trace.zip
 .idea/
 .DS_Store
 Thumbs.db
+
+# Claude Code local state (agent worktrees, settings)
+.claude/
