@@ -28,8 +28,11 @@ Model: `claude-opus-5-5` via the Anthropic SDK; a spike completed the lookup in 
 
 **Evidence.** Each run writes a bundle: `events.jsonl` (model actions with stated rationale, replay steps, policy
 decisions, lease changes, human actions), redacted transcript and trace, `result.json`, and on failure a masked
-screenshot and snapshot (`evidence/*/failure/`). `cua view` renders it as HTML; `cua export-otel` sends OTLP spans,
-never screenshots or page text.
+screenshot and snapshot (`evidence/*/failure/`). `cua view` renders it as HTML (every committed bundle is rendered in
+`docs/views/`); `cua export-otel` sends OTLP spans, never screenshots or page text. The error replay below lost the
+response to the payment click, so the run stops `indeterminate` and hands the verdict to a person:
+
+![Replay timeline of the lost-response error replay ending in COMMIT_UNKNOWN](docs/views/view-commit-unknown.png)
 
 ## 2. Artifact schema
 
@@ -68,46 +71,54 @@ the contract.
 
 ## 3. Determinism & error handling
 
-Each step: after a navigation, settle (load event, then an identical screen on two polls;
-`tests/surface/test_settle_read.py`); classify against the profile; resolve exactly one element; check lease and
-effect; act; verify (typed values echoed, identity exact, review screen checked before a commit). An unexpected screen
-is matched in order: step branch, expected state, known handler, profile default meaning; anything else fails closed.
+Every step runs through the same loop. After a navigation, the agent waits for the page to settle. The load event has
+to fire, and then two polls in a row have to return the same screen (`tests/surface/test_settle_read.py`). It
+classifies that screen against the profile and resolves exactly one element to act on. Before acting, it checks the
+lease and the expected effect. After acting, it verifies the result: typed values have to echo back, the element's
+identity has to match exactly, and the review screen gets checked before anything is committed.
 
-The brief's classes: business outcome → `business_outcome` with a named outcome. Recoverable → handled in the run
-(known interstitial, bounded wait and retry, re-login before any commit), listed under `recoveries` on whatever status
-results. Hard failure → `failure` with code, step, expected and observed state
-and a masked screenshot; errors never echo inputs (`tests/safety/test_error_hygiene.py`). `indeterminate` means "we
-don't know whether the payment happened": don't retry, reconcile.
+If the screen isn't what the step expected, the agent tries four things in order: a branch defined on the step, the
+expected state, a known handler, and finally the profile's default meaning. If none of them match, it fails closed.
 
-| Situation | Status / outcome | Behaviour | Where |
+Results follow the brief's classes. A business outcome returns `business_outcome` with the outcome named. A
+recoverable problem is handled inside the run (a known interstitial, a bounded wait and retry, or a re-login, allowed
+only before a commit) and listed under `recoveries` on whatever status results. A hard failure returns `failure` with
+a code, the step, expected and observed state, and a masked screenshot; error messages never echo inputs
+(`tests/safety/test_error_hygiene.py`). `indeterminate` means nobody knows whether the payment happened, so replay
+doesn't retry and a person reconciles.
+
+| Situation | Status / outcome | What happens | Where |
 |---|---|---|---|
-| Normal read | success | outputs equal REST | `evidence/replay_success_other_customer/` |
-| Unknown customer | business_outcome `customer_not_found` | not a failure | `not_found` |
-| User without rights | business_outcome `access_denied` | login recovery recorded | `no_rights_user` |
-| Nearest match only | failure `IDENTITY_MISMATCH` | never accepts a near miss | `nearest_match` |
-| Known interstitial | success, recovery recorded | dismissed, step retried | `interstitial_recovered` |
-| Unknown dialog | failure `UNKNOWN_DIALOG` | fails closed | `unknown_dialog` |
-| Application error page | failure `APP_ERROR` | not retried | `app_error` |
-| Slow within / beyond timeout | success / failure `TRANSIENT_EXHAUSTED` | bounded retries | `slow_within_timeout`, `slow_beyond_timeout` |
-| Session expired | success, recovery `login` | re-login and restart only if no commit was attempted | `session_expired`; `test_session_expiry_after_a_commit_is_never_restarted` |
-| Login CAPTCHA | escalation, then success | human only | `evidence/replay_captcha_handoff/` |
-| Overpayment | business_outcome `validation_rejected` | automation never answers Yes | `overpayment` |
-| Response lost after commit | indeterminate `COMMIT_UNKNOWN` | clicked once, never retried | `evidence/replay_commit_unknown/` |
-| Policy denies the route | failure `POLICY_DENIED` | refused before any UI action | `evidence/replay_policy_denied/` |
+| Normal read | success | Outputs match REST | `evidence/replay_success_other_customer/` |
+| Unknown customer | business_outcome `customer_not_found` | Reported as an outcome, not a failure | `not_found` |
+| User without rights | business_outcome `access_denied` | The login recovery is recorded | `no_rights_user` |
+| Only a near match exists | failure `IDENTITY_MISMATCH` | A near miss is never accepted | `nearest_match` |
+| Known interstitial | success, recovery recorded | Dismissed, then the step is retried | `interstitial_recovered` |
+| Unknown dialog | failure `UNKNOWN_DIALOG` | Fails closed | `unknown_dialog` |
+| Application error page | failure `APP_ERROR` | Not retried | `app_error` |
+| Slow, within or past the timeout | success / failure `TRANSIENT_EXHAUSTED` | Retries are bounded | `slow_within_timeout`, `slow_beyond_timeout` |
+| Session expired | success, recovery `login` | Logs back in and restarts, but only if no commit was attempted | `session_expired`; `test_session_expiry_after_a_commit_is_never_restarted` |
+| CAPTCHA at login | escalation, then success | Only a human solves it | `evidence/replay_captcha_handoff/` |
+| Overpayment | business_outcome `validation_rejected` | Automation never answers Yes | `overpayment` |
+| Response lost after commit | indeterminate `COMMIT_UNKNOWN` | Clicked once and never retried | `evidence/replay_commit_unknown/` |
+| Policy denies the route | failure `POLICY_DENIED` | Refused before any UI action | `evidence/replay_policy_denied/` |
 
-Bare names are live suite cases (`capabilities/dolibarr/*.tests.json`), each also unit-tested in
-`tests/replay/`. Network faults are browser routes; session expiry, CAPTCHA and no-rights are real server states.
-Drift: a resolving fallback locator is used and reported (`tests/replay/test_replay_v0.py`); output extracts use only
-the primary locator, so drift can't change where a number comes from.
+Bare names are live suite cases in `capabilities/dolibarr/*.tests.json`, each also unit-tested in `tests/replay/`.
+Network faults are injected with browser routes; session expiry, the CAPTCHA and the no-rights user are real server
+states.
 
-Stretch goal built: confidence and approval. Replay refuses unapproved capabilities without `--allow-draft`;
-`cua validate --repeat` scores stability: lookup 33/33, no flakes (`evidence/validation_suite.json`); payment 5/5.
+**Drift.** A fallback locator that resolves is used and reported (`tests/replay/test_replay_v0.py`). Output extracts
+use only the primary locator, so drift can't change where a number comes from.
+
+**Stretch goal: confidence and approval.** Replay refuses an unapproved capability unless given `--allow-draft`.
+`cua validate --repeat` scores stability: the lookup passed 33 of 33 runs with no flakes
+(`evidence/validation_suite.json`), the payment 5 of 5.
 
 ## 4. Heterogeneity & multi-tenant
 
 **Surface seam.** Capabilities and profiles hold no browser concepts
-(`tests/artifact/test_artifact_schema.py::test_artifact_has_no_playwright_concepts`). Below them is a `Surface`
-protocol (`src/cua/surface/base.py`) whose observations are a "role, name, ref" outline.
+(`tests/artifact/test_artifact_schema.py::test_artifact_has_no_playwright_concepts`). Below them sits a `Surface`
+protocol (`src/cua/surface/base.py`) whose observations are an outline of role, name and ref.
 
 | Surface | Perception | Acting | Status |
 |---|---|---|---|
@@ -116,13 +127,13 @@ protocol (`src/cua/surface/base.py`) whose observations are a "role, name, ref" 
 | Windows desktop | UI Automation tree in the same outline | UIA patterns (invoke, set value) | designed: a second `Surface`; nothing above it changes |
 | No accessibility | screenshot, model-grounded at record time | coordinates | last resort; needs visual verification |
 
-**Reuse across tenants.** Tenants on one vendor product differ in labels, modules and policy, not flow, so the profile
-belongs to the product and capabilities are recorded once on a reference tenant. Designed: overlays (product → version
-→ tenant) override locators, state text, handlers and policy, never steps; the lock hash covers them, and approval is
-per tenant. Re-recording per tenant was rejected.
+**Reuse across tenants.** Tenants on one vendor product differ in labels, modules and policy, not in flow, so the
+profile belongs to the product and capabilities are recorded once on a reference tenant. The design, not yet built, is
+a stack of overlays (product, then version, then tenant) that can override locators, state text, handlers and policy
+but never steps. The lock hash covers the overlays, and approval is per tenant. I rejected re-recording per tenant.
 
-**Drift.** Designed: per-tenant canary replays, a login-page version fingerprint to pick the version layer, and
-quarantine after repeated drift on one target.
+**Drift.** Designed, not built: canary replays per tenant, a login-page version fingerprint that picks the version
+layer, and quarantine for a target that drifts repeatedly.
 
 ## 5. Escalation & handoff
 
@@ -130,27 +141,27 @@ quarantine after repeated drift on one target.
 discovery. Unknown screens fail closed. In discovery the stuck detector (`tests/agent/test_stuck.py`) and
 `request_help` stop the run; routing them to a person is designed, not built.
 
-**Route.** An intervention request (capability, step, reason, state, masked screenshot) is written to the bundle
-and the console queue (`tests/control/test_interventions.py`, `tests/control/test_console.py`).
+**Route.** An intervention request (capability, step, reason, state, masked screenshot) goes to the bundle and the
+console queue (`tests/control/test_interventions.py`, `tests/control/test_console.py`).
 
 **Take control.** The operator works in the headed browser the run already owns. Who may act is a lease with a holder
-and a generation; claiming increments the generation, and an automated action with an older one is refused
-(`tests/safety/test_policy.py`). A pause flag was rejected: a decision made before a handoff can land after control
-went away and back. The person's clicks, inputs and requests are captured, values redacted
+and a generation. Claiming increments the generation, and an automated action carrying an older one is refused
+(`tests/safety/test_policy.py`). I rejected a pause flag because a decision made before a handoff can land after
+control has gone away and come back. The person's clicks, inputs and requests are captured with values redacted
 (`tests/control/test_capture.py`).
 
-**Hand back.** Resume returns the lease with a new generation; replay restarts from the entry route on the same
+**Hand back.** Resume returns the lease under a new generation. Replay then restarts from the entry route on the same
 session, or the operator marks the run complete and replay verifies the checkpoint (`tests/replay/test_handoff.py`).
-Restarting beats searching forward: after a re-login the app lands before the paused step, and steps share screens.
-Resume is refused once a commit was attempted (`tests/control/test_resume.py`). `evidence/replay_captcha_handoff/`
-shows the full cycle.
+Restarting beats searching forward because after a re-login the app lands before the paused step, and steps share
+screens. Resume is refused once a commit has been attempted (`tests/control/test_resume.py`).
+`evidence/replay_captcha_handoff/` shows the full cycle.
 
 ## 6. Safety
 
 Everything is denied unless a layer allows it. The risky class is the **commit**: the procedure is approved once, then
 each request runs at most once. I rejected per-call confirmation, which defeats automation, and blocking writes, which
-leaves nothing to automate. Commits are defined by the profile's commit routes (method, path, query,
-form body); the capability's declared effect is a ceiling (`tests/replay/test_commit_path.py`).
+leaves nothing to automate. The profile's commit routes (method, path, query, form body) define what counts as a
+commit; the capability's declared effect is a ceiling on top of that (`tests/replay/test_commit_path.py`).
 
 | Control | Enforced by | Shown in | Limit |
 |---|---|---|---|
@@ -176,10 +187,11 @@ Cut, in the order I'd build next:
 - An authenticated, remote operator console.
 - Also cut: a second model provider and the model comparison, dual control above a threshold, test-payment cleanup.
 
-Disclosed: API credits ran out during the payment discovery, finished by replaying the model's recorded choices
-(`evidence/discovery_record_payment/result.json`: `model: scripted`); model tests were not re-run at the end. The
-clean-clone run was verified on Windows, not Linux.
+**Disclosures.** API credits ran out during the payment discovery, so I finished it by replaying the model's recorded
+choices (`evidence/discovery_record_payment/result.json`: `model: scripted`). The model tests were not re-run at the
+end. The clean-clone run was verified on Windows, not Linux.
 
-Known issue: approved `record_invoice_payment@1.0.0` keeps "50 Euros" in one of the commit button's fallback finders
-and in its fingerprint; if its primary finder ever missed, the commit would fail closed for other amounts. The
-compiler is fixed; 1.0.0 awaits re-approval (`test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits`).
+**Known issue.** The approved `record_invoice_payment@1.0.0` still has "50 Euros" in one of the commit button's
+fallback finders and in its fingerprint. If the primary finder ever missed, the commit would fail closed for any other
+amount. The compiler is fixed, and 1.0.0 is waiting for re-approval
+(`test_approved_payment_draft_is_the_compiled_trace_plus_exactly_the_reviewed_edits`).
